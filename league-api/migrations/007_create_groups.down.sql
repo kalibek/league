@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS groups;
+DROP TYPE IF EXISTS group_status;

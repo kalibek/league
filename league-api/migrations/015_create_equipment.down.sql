@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS rubbers;
+DROP TABLE IF EXISTS blades;

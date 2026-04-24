@@ -1,0 +1,20 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "true"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm *)",
+      "Bash(go *)",
+      "Bash(git *)",
+      "Read",
+      "Edit",
+      "Write",
+      "mcp__playwright__*"
+    ]
+  },
+  "enabledPlugins": {
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "caveman@caveman": true
+  }
+}
