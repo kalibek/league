@@ -1,0 +1,214 @@
+import type { GroupPlayer, Match } from '../../types'
+import { isDns } from '../../types'
+import { Badge } from '../Badge/Badge'
+import {Link} from "react-router-dom";
+
+interface GroupStandingsProps {
+  players: GroupPlayer[]
+  matches: Match[]
+  onNoShow?: (groupPlayerId: number) => void
+}
+
+export function GroupStandings({ players, matches, onNoShow }: GroupStandingsProps) {
+  const sorted = [...players].sort((a, b) => a.seed - b.seed)
+
+  const playerName = (p: GroupPlayer) =>
+      p.user ? `${p.user.firstName} ${p.user.lastName} (${Math.round(p.user.currentRating)})` : `#${p.userId}`
+
+  // Build a lookup: `${p1Id}-${p2Id}` (canonical: smaller id first) → Match
+  const matchLookup = new Map<string, Match>()
+  for (const m of matches) {
+    if (m.groupPlayer1Id !== null && m.groupPlayer2Id !== null) {
+      const key = `${m.groupPlayer1Id}-${m.groupPlayer2Id}`
+      matchLookup.set(key, m)
+    }
+  }
+
+  const getMatch = (rowPlayer: GroupPlayer, colPlayer: GroupPlayer): Match | undefined => {
+    const key1 = `${rowPlayer.groupPlayerId}-${colPlayer.groupPlayerId}`
+    const key2 = `${colPlayer.groupPlayerId}-${rowPlayer.groupPlayerId}`
+    return matchLookup.get(key1) ?? matchLookup.get(key2)
+  }
+
+  const cellContent = (rowPlayer: GroupPlayer, colPlayer: GroupPlayer) => {
+    const m = getMatch(rowPlayer, colPlayer)
+    if (!m) return '—'
+    if (m.score1 === null || m.score2 === null) return '—'
+
+    // Show score from row player's perspective.
+    const isP1 = m.groupPlayer1Id === rowPlayer.groupPlayerId
+    const s1 = isP1 ? m.score1 : m.score2
+    const s2 = isP1 ? m.score2 : m.score1
+    return `${s1}:${s2}`
+  }
+
+  const p1wins = (rowPlayer: GroupPlayer, colPlayer: GroupPlayer) => {
+    const m = getMatch(rowPlayer, colPlayer)
+    if (!m) return false
+    if (m.score1 === null || m.score2 === null) return false
+    return (m.groupPlayer1Id === rowPlayer.groupPlayerId &&
+    m.score1 > m.score2) ||
+        (m.groupPlayer2Id === rowPlayer.groupPlayerId &&
+    m.score1 < m.score2)
+  }
+
+  const wins = (p: GroupPlayer) =>
+    matches.filter(
+      (m) =>
+        m.status === 'DONE' &&
+        !m.withdraw1 &&
+        !m.withdraw2 &&
+        ((m.groupPlayer1Id === p.groupPlayerId && m.score1 !== null && m.score2 !== null && m.score1 > m.score2) ||
+          (m.groupPlayer2Id === p.groupPlayerId && m.score1 !== null && m.score2 !== null && m.score2 > m.score1))
+    ).length
+
+  const losses = (p: GroupPlayer) =>
+    matches.filter(
+      (m) =>
+        m.status === 'DONE' &&
+        !m.withdraw1 &&
+        !m.withdraw2 &&
+        ((m.groupPlayer1Id === p.groupPlayerId && m.score1 !== null && m.score2 !== null && m.score1 < m.score2) ||
+          (m.groupPlayer2Id === p.groupPlayerId && m.score1 !== null && m.score2 !== null && m.score2 < m.score1))
+    ).length
+  const tdStyle: React.CSSProperties = {
+    textAlign: 'center',
+    borderLeft: '1px solid var(--border)',
+  }
+  const thStyle: React.CSSProperties = {
+    padding: '10px 12px',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: '#64748b',
+    backgroundColor: '#f8fafc',
+    borderBottom: '1px solid var(--border)',
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm text-left">
+        <thead>
+          <tr>
+            <th style={{ ...thStyle, width: 40 }}>#</th>
+            <th style={thStyle}>Player</th>
+
+            <th style={{ ...thStyle, textAlign: 'center' }}>Place</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>Pts (W-L)</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>TB</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>Move</th>
+            {sorted.map((p, i) => (
+                <th
+                    key={p.groupPlayerId}
+                    style={ {...thStyle, borderLeft: '1px solid var(--border)',textAlign: 'center' }}
+                    title={playerName(p)}
+                >
+                  #{i+1}
+                </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((p, i) => {
+            const dns = isDns(p.groupPlayerId, matches)
+            const name = playerName(p)
+
+            return (
+              <tr
+                key={p.groupPlayerId}
+                style={{
+                  backgroundColor: i % 2 === 0 ? '#fff' : '#fafbfd',
+                  borderBottom: '1px solid var(--border)',
+                  opacity: dns ? 0.6 : 1,
+                }}
+              >
+                <td style={{ padding: '10px 12px', color: '#94a3b8', fontSize: 12 }}>
+                  {p.seed}
+                </td>
+
+                <td style={{ padding: '10px 12px' }}>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      style={{
+                        fontWeight: 500,
+                        color: p.isNonCalculated ? '#94a3b8' : 'var(--dark)',
+                        fontStyle: p.isNonCalculated ? 'italic' : 'normal',
+                        textDecoration: dns ? 'line-through' : 'none',
+                      }}
+                    >
+                      <Link to={`/players/${p.userId}`}>{name}</Link>
+                    </span>
+                    {p.isNonCalculated && (
+                      <span style={{ fontSize: 11, color: '#94a3b8' }}>(guest)</span>
+                    )}
+                    {dns && <Badge variant="DNS" />}
+                    {onNoShow && !dns && (
+                      <button
+                        onClick={() => onNoShow(p.groupPlayerId)}
+                        style={{ color: '#cbd5e1', marginLeft: 4, lineHeight: 1, fontSize: 12 }}
+                        className="hover:text-red-500 transition-colors"
+                        title={`Mark ${name} as no-show`}
+                        aria-label={`Mark ${name} as no-show`}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </td>
+
+                <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>
+                  {p.isNonCalculated ? '—' : p.place > 0 ? p.place : '—'}
+                </td>
+                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                  {p.isNonCalculated ? '—' : p.points}
+                  (
+                  <span style={{ color: '#16a34a'}} >{p.isNonCalculated ? '—' : wins(p)}</span>
+                  -
+                  <span style={{ color: '#dc2626'}} >{p.isNonCalculated ? '—' : losses(p)}</span>
+                  )
+                </td>
+                <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }}>
+                  {p.isNonCalculated ? '—' : p.tiebreakPoints}
+                </td>
+                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                  {p.advances && !p.isNonCalculated && (
+                    <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 16 }} title="Advances">↑</span>
+                  )}
+                  {p.recedes && !p.isNonCalculated && (
+                    <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 16 }} title="Recedes">↓</span>
+                  )}
+                </td>
+                {sorted.map((colPlayer) => {
+                  if (colPlayer.groupPlayerId === p.groupPlayerId) {
+                    return (
+                        <td
+                            key={colPlayer.groupPlayerId}
+                            style={{...tdStyle, backgroundColor: '#94a3b8' }}
+                        >
+                          ×
+                        </td>
+                    )
+                  }
+                  const content = cellContent(p, colPlayer)
+
+                  return (
+                      <td
+                          key={colPlayer.groupPlayerId}
+                          style={{...tdStyle,
+                            color: content === '—'? '#94a3b8' :
+                                p1wins(p, colPlayer) ? '#16a34a' : '#dc2626',
+                          }}
+                      >
+                        {content}
+                      </td>
+                  )
+                })}
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
