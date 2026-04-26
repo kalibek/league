@@ -28,28 +28,6 @@ function getRoundScoreLabel(m: Match): string {
   return m.score1 !== null && m.score2 !== null ? `${m.score1} : ${m.score2}` : '—'
 }
 
-function MatrixCellData(
-  m: Match | undefined,
-  rowPlayer: GroupPlayer,
-): { label: string; bg: string; color: string; fontWeight: number } {
-  if (!m || m.status !== 'DONE') return { label: '·', bg: 'transparent', color: '#cbd5e1', fontWeight: 400 }
-
-  const isP1 = m.groupPlayer1Id === rowPlayer.groupPlayerId
-  if ((isP1 && m.withdraw1) || (!isP1 && m.withdraw2))
-    return { label: 'W/O', bg: '#fef3c7', color: '#92400e', fontWeight: 600 }
-  if ((isP1 && m.withdraw2) || (!isP1 && m.withdraw1))
-    return { label: 'W/O', bg: '#f0fdf4', color: '#15803d', fontWeight: 600 }
-
-  if (m.score1 === null || m.score2 === null)
-    return { label: '—', bg: 'transparent', color: '#94a3b8', fontWeight: 400 }
-
-  const my = isP1 ? m.score1 : m.score2
-  const opp = isP1 ? m.score2 : m.score1
-  return my > opp
-    ? { label: `${my}:${opp}`, bg: '#dcfce7', color: '#15803d', fontWeight: 700 }
-    : { label: `${my}:${opp}`, bg: '#fee2e2', color: '#dc2626', fontWeight: 700 }
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function MatchGrid({ players, matches, onScoreClick }: MatchGridProps) {
@@ -61,10 +39,6 @@ export function MatchGrid({ players, matches, onScoreClick }: MatchGridProps) {
       matchLookup.set(`${m.groupPlayer1Id}-${m.groupPlayer2Id}`, m)
     }
   }
-
-  const getMatch = (a: GroupPlayer, b: GroupPlayer): Match | undefined =>
-    matchLookup.get(`${a.groupPlayerId}-${b.groupPlayerId}`) ??
-    matchLookup.get(`${b.groupPlayerId}-${a.groupPlayerId}`)
 
   const getMatchById = (id1: number, id2: number): Match | undefined =>
     matchLookup.get(`${id1}-${id2}`) ?? matchLookup.get(`${id2}-${id1}`)

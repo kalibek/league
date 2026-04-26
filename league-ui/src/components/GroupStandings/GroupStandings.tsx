@@ -7,10 +7,31 @@ interface GroupStandingsProps {
   players: GroupPlayer[]
   matches: Match[]
   onNoShow?: (groupPlayerId: number) => void
+  onScoreClick?: (match: Match) => void
 }
 
-export function GroupStandings({ players, matches, onNoShow }: GroupStandingsProps) {
+// Returns null for players with a unique points total (no tie → show '—').
+// Returns the backend tiebreakPoints for players in a tied group.
+function buildTiebreakDisplayMap(players: GroupPlayer[]): Map<number, number | null> {
+  const calcPlayers = players.filter((p) => !p.isNonCalculated)
+  const byPoints = new Map<number, GroupPlayer[]>()
+  for (const p of calcPlayers) {
+    const group = byPoints.get(p.points) ?? []
+    group.push(p)
+    byPoints.set(p.points, group)
+  }
+  const result = new Map<number, number | null>()
+  for (const group of byPoints.values()) {
+    for (const p of group) {
+      result.set(p.groupPlayerId, group.length >= 2 ? p.tiebreakPoints : null)
+    }
+  }
+  return result
+}
+
+export function GroupStandings({ players, matches, onNoShow, onScoreClick }: GroupStandingsProps) {
   const sorted = [...players].sort((a, b) => a.seed - b.seed)
+  const tiebreakMap = buildTiebreakDisplayMap(players)
 
   const playerName = (p: GroupPlayer) =>
       p.user ? `${p.user.firstName} ${p.user.lastName} (${Math.round(p.user.currentRating)})` : `#${p.userId}`
@@ -169,7 +190,7 @@ export function GroupStandings({ players, matches, onNoShow }: GroupStandingsPro
                   )
                 </td>
                 <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }}>
-                  {p.isNonCalculated ? '—' : p.tiebreakPoints}
+                  {p.isNonCalculated ? '—' : (tiebreakMap.get(p.groupPlayerId) ?? '—')}
                 </td>
                 <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                   {p.advances && !p.isNonCalculated && (
@@ -191,17 +212,37 @@ export function GroupStandings({ players, matches, onNoShow }: GroupStandingsPro
                     )
                   }
                   const content = cellContent(p, colPlayer)
+                  const clickable = !!onScoreClick
+
+
+
+                  const m = getMatch(p, colPlayer)
 
                   return (
-                      <td
-                          key={colPlayer.groupPlayerId}
-                          style={{...tdStyle,
-                            color: content === '—'? '#94a3b8' :
-                                p1wins(p, colPlayer) ? '#16a34a' : '#dc2626',
-                          }}
-                      >
-                        {content}
-                      </td>
+                    <td
+                      key={colPlayer.groupPlayerId}
+                      style={{
+                        ...tdStyle,
+                        color:
+                          content === '—'
+                            ? '#94a3b8'
+                            : p1wins(p, colPlayer)
+                              ? '#16a34a'
+                              : '#dc2626',
+                      }}
+                    >
+                      {clickable && onScoreClick ? (
+                        <button
+                          onClick={() => m && onScoreClick(m)}
+                          aria-label={`Enter score: ${playerName(p)} vs ${playerName(colPlayer)}`}
+                        >
+                          {content}
+                        </button>
+                      ) : (
+                        <span>{content}</span>
+                      )}
+
+                    </td>
                   )
                 })}
               </tr>

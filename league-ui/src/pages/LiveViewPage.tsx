@@ -158,8 +158,11 @@ export function LiveViewPage() {
 
   const handleConfirmPlacement = async (orderedPlayerIds: number[]) => {
     if (!placementModal) return
-    await setPlace(placementModal.eventId, placementModal.groupId, orderedPlayerIds)
-    setPlacementModal(null)
+    const ok = await setPlace(placementModal.eventId, placementModal.groupId, orderedPlayerIds)
+    if (ok) {
+      setPlacementModal(null)
+      refreshEvent()
+    }
   }
 
   const handleFinishEvent = async () => {
@@ -183,7 +186,10 @@ export function LiveViewPage() {
       {/* Event header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <Link to={`/leagues/${leagueId}`} className="text-sm text-blue-600 hover:underline block mb-1">
+          <Link
+            to={`/leagues/${leagueId}`}
+            className="text-sm text-blue-600 hover:underline block mb-1"
+          >
             &larr; Back to League
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
@@ -199,11 +205,7 @@ export function LiveViewPage() {
             </Button>
           )}
           {canManage && event.status === 'IN_PROGRESS' && allGroupsDone && (
-            <Button
-              variant="primary"
-              onClick={handleFinishEvent}
-              loading={finishingEvent}
-            >
+            <Button variant="primary" onClick={handleFinishEvent} loading={finishingEvent}>
               Finish Event
             </Button>
           )}
@@ -233,67 +235,103 @@ export function LiveViewPage() {
                     ? (gpId) => handleMarkNoShow(group.groupId, gpId)
                     : undefined
                 }
-              />
-            </div>
-
-            {/* Match grid */}
-            {canManage || canUmpire ? (<>
-            <div className="mb-4">
-              <p className="text-xs uppercase text-gray-400 font-medium mb-2">Match Results</p>
-              <MatchGrid
-                players={group.players}
-                matches={group.matches}
                 onScoreClick={
                   canUmpire && group.status !== 'DONE'
                     ? (m) => {
                         const p1 = group.players.find((p) => p.groupPlayerId === m.groupPlayer1Id)
                         const p2 = group.players.find((p) => p.groupPlayerId === m.groupPlayer2Id)
-                        const p1Name = p1?.user ? `${p1.user.firstName} ${p1.user.lastName}` : `#${p1?.userId}`
-                        const p2Name = p2?.user ? `${p2.user.firstName} ${p2.user.lastName}` : `#${p2?.userId}`
-                        setScoreModal({ match: m, groupId: group.groupId, player1Name: p1Name, player2Name: p2Name })
+                        const p1Name = p1?.user
+                          ? `${p1.user.firstName} ${p1.user.lastName}`
+                          : `#${p1?.userId}`
+                        const p2Name = p2?.user
+                          ? `${p2.user.firstName} ${p2.user.lastName}`
+                          : `#${p2?.userId}`
+                        setScoreModal({
+                          match: m,
+                          groupId: group.groupId,
+                          player1Name: p1Name,
+                          player2Name: p2Name,
+                        })
                       }
                     : undefined
                 }
               />
             </div>
 
-            {/* Actions: show only if canManage or canUmpire */}
-            <div className="flex flex-wrap gap-2 mt-3">
-              {canManage && group.status === 'DONE' && event.status !== 'DONE' && (
-                <Button
-                  variant="secondary"
-                  onClick={() => handleReopenGroup(group.groupId)}
-                  loading={reopening}
-                >
-                  Reopen Group
-                </Button>
-              )}
-              {canUmpire && group.status !== 'DONE' && (() => {
-                const allScored = group.matches.length > 0 && group.matches.every((m) => m.status === 'DONE')
-                return (
-                  <Button
-                    variant="primary"
-                    onClick={() => handleFinishGroup(group.groupId)}
-                    loading={finishing}
-                    disabled={!allScored}
-                    title={!allScored ? 'Enter all match scores first' : undefined}
-                  >
-                    Finish Group
-                  </Button>
-                )
-              })()}
-            </div>
-            </>): ''}
+            {/* Match grid */}
+            {canManage || canUmpire ? (
+              <>
+                <div className="mb-4">
+                  <p className="text-xs uppercase text-gray-400 font-medium mb-2">Match Results</p>
+                  <MatchGrid
+                    players={group.players}
+                    matches={group.matches}
+                    onScoreClick={
+                      canUmpire && group.status !== 'DONE'
+                        ? (m) => {
+                            const p1 = group.players.find(
+                              (p) => p.groupPlayerId === m.groupPlayer1Id
+                            )
+                            const p2 = group.players.find(
+                              (p) => p.groupPlayerId === m.groupPlayer2Id
+                            )
+                            const p1Name = p1?.user
+                              ? `${p1.user.firstName} ${p1.user.lastName}`
+                              : `#${p1?.userId}`
+                            const p2Name = p2?.user
+                              ? `${p2.user.firstName} ${p2.user.lastName}`
+                              : `#${p2?.userId}`
+                            setScoreModal({
+                              match: m,
+                              groupId: group.groupId,
+                              player1Name: p1Name,
+                              player2Name: p2Name,
+                            })
+                          }
+                        : undefined
+                    }
+                  />
+                </div>
+
+                {/* Actions: show only if canManage or canUmpire */}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {canManage && group.status === 'DONE' && event.status !== 'DONE' && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleReopenGroup(group.groupId)}
+                      loading={reopening}
+                    >
+                      Reopen Group
+                    </Button>
+                  )}
+                  {canUmpire &&
+                    group.status !== 'DONE' &&
+                    (() => {
+                      const allScored =
+                        group.matches.length > 0 && group.matches.every((m) => m.status === 'DONE')
+                      return (
+                        <Button
+                          variant="primary"
+                          onClick={() => handleFinishGroup(group.groupId)}
+                          loading={finishing}
+                          disabled={!allScored}
+                          title={!allScored ? 'Enter all match scores first' : undefined}
+                        >
+                          Finish Group
+                        </Button>
+                      )
+                    })()}
+                </div>
+              </>
+            ) : (
+              ''
+            )}
           </GroupCard>
         ))}
       </div>
 
       {/* Score entry modal */}
-      <Modal
-        open={!!scoreModal}
-        onClose={() => setScoreModal(null)}
-        title="Enter Score"
-      >
+      <Modal open={!!scoreModal} onClose={() => setScoreModal(null)} title="Enter Score">
         {scoreModal && (
           <ScoreEntryForm
             match={scoreModal.match}
@@ -316,7 +354,8 @@ export function LiveViewPage() {
         {placementModal && (
           <div>
             <p className="text-sm text-gray-600 mb-4">
-              These players are tied and cannot be automatically ranked. Drag to set the correct order.
+              These players are tied and cannot be automatically ranked. Drag to set the correct
+              order.
             </p>
             <PlacementOverride
               players={placementModal.players}

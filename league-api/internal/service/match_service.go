@@ -132,8 +132,11 @@ func (s *matchService) RecalcGroupPoints(ctx context.Context, groupID int64) err
 	return s.recalcGroupPoints(ctx, groupID)
 }
 
-// recalcGroupPoints recomputes points and tiebreak points (game differential) for all players.
-// Win = 2 pts, Loss = 1 pt; tiebreak = sum of (games won - games lost).
+// recalcGroupPoints recomputes points and tiebreak points for all players.
+// Win = 2 pts, Loss = 1 pt.
+// Tiebreak = score differential, but only from matches between players
+// who share the same points total (tied group). Players with a unique
+// points total get tiebreakPoints = 0.
 func (s *matchService) recalcGroupPoints(ctx context.Context, groupID int64) error {
 	players, err := s.groupRepo.GetPlayers(ctx, groupID)
 	if err != nil {
@@ -144,13 +147,11 @@ func (s *matchService) recalcGroupPoints(ctx context.Context, groupID int64) err
 		return err
 	}
 
-	points := make(map[int64]int16)
-	tiebreak := make(map[int64]int16)
+	// Pass 1: compute points for every player.
+	points := make(map[int64]int16, len(players))
 	for _, p := range players {
 		points[p.GroupPlayerID] = 0
-		tiebreak[p.GroupPlayerID] = 0
 	}
-
 	for _, m := range matches {
 		if m.Status != model.MatchDone {
 			continue
@@ -161,31 +162,61 @@ func (s *matchService) recalcGroupPoints(ctx context.Context, groupID int64) err
 		if m.Score1 == nil || m.Score2 == nil {
 			continue
 		}
-
-		p1 := *m.GroupPlayer1ID
-		p2 := *m.GroupPlayer2ID
-		s1 := *m.Score1
-		s2 := *m.Score2
-
+		p1, p2 := *m.GroupPlayer1ID, *m.GroupPlayer2ID
+		s1, s2 := *m.Score1, *m.Score2
 		if m.Withdraw1 {
 			points[p2] += 2
-			tiebreak[p2] += s2
-			tiebreak[p1] -= s2
 		} else if m.Withdraw2 {
 			points[p1] += 2
-			tiebreak[p1] += s1
-			tiebreak[p2] -= s1
 		} else if s1 > s2 {
 			points[p1] += 2
 			points[p2] += 1
-			tiebreak[p1] += s1 - s2
-			tiebreak[p2] += s2 - s1
 		} else {
 			points[p2] += 2
 			points[p1] += 1
-			tiebreak[p2] += s2 - s1
-			tiebreak[p1] += s1 - s2
 		}
+	}
+
+	// Pass 2: compute tiebreak only within same-points groups.
+	// Build sets of player IDs per points value (non-calculated players only).
+	byPoints := make(map[int16]map[int64]bool)
+	for _, p := range players {
+		if p.IsNonCalculated {
+			continue
+		}
+		pts := points[p.GroupPlayerID]
+		if byPoints[pts] == nil {
+			byPoints[pts] = make(map[int64]bool)
+		}
+		byPoints[pts][p.GroupPlayerID] = true
+	}
+
+	tiebreak := make(map[int64]int16, len(players))
+	for _, p := range players {
+		tiebreak[p.GroupPlayerID] = 0
+	}
+	for _, m := range matches {
+		if m.Status != model.MatchDone {
+			continue
+		}
+		if m.GroupPlayer1ID == nil || m.GroupPlayer2ID == nil {
+			continue
+		}
+		if m.Score1 == nil || m.Score2 == nil {
+			continue
+		}
+		if m.Withdraw1 || m.Withdraw2 {
+			continue
+		}
+		p1, p2 := *m.GroupPlayer1ID, *m.GroupPlayer2ID
+		s1, s2 := *m.Score1, *m.Score2
+		// Only count if both players share the same points total.
+		pts1 := points[p1]
+		if byPoints[pts1] == nil || !byPoints[pts1][p2] {
+			continue
+		}
+		tiebreak[p1] += s1 - s2
+		tiebreak[p2] += s2 - s1
 	}
 
 	for i := range players {

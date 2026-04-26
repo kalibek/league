@@ -118,10 +118,27 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 		}
 	}
 
-	// Calculate tiebreak_points (games won - games lost) for each player.
-	tbPoints := make(map[int64]int16)
+	// Group ranked players by points to find tied groups.
+	pointsGroups := make(map[int16][]model.GroupPlayer)
 	for _, p := range ranked {
-		tbPoints[p.GroupPlayerID] = computeTiebreakPoints(p.GroupPlayerID, matches)
+		pointsGroups[p.Points] = append(pointsGroups[p.Points], p)
+	}
+
+	// Calculate tiebreak_points only within tied groups (same points).
+	// Players with unique points get tiebreakPoints = 0.
+	tbPoints := make(map[int64]int16)
+	for _, group := range pointsGroups {
+		if len(group) < 2 {
+			tbPoints[group[0].GroupPlayerID] = 0
+			continue
+		}
+		tiedIDs := make(map[int64]bool, len(group))
+		for _, p := range group {
+			tiedIDs[p.GroupPlayerID] = true
+		}
+		for _, p := range group {
+			tbPoints[p.GroupPlayerID] = computeTiebreakPoints(p.GroupPlayerID, tiedIDs, matches)
+		}
 	}
 
 	// Update tiebreak_points in DB.
@@ -347,7 +364,7 @@ func (s *groupService) RemovePlayer(ctx context.Context, groupPlayerID int64) er
 }
 
 // computeTiebreakPoints calculates games won minus games lost for a player across all group matches.
-func computeTiebreakPoints(groupPlayerID int64, matches []model.Match) int16 {
+func computeTiebreakPoints(groupPlayerID int64, tiedIDs map[int64]bool, matches []model.Match) int16 {
 	var tb int16
 	for _, m := range matches {
 		if m.Status != model.MatchDone {
@@ -357,8 +374,14 @@ func computeTiebreakPoints(groupPlayerID int64, matches []model.Match) int16 {
 			continue
 		}
 		if m.GroupPlayer1ID != nil && *m.GroupPlayer1ID == groupPlayerID {
+			if m.GroupPlayer2ID == nil || !tiedIDs[*m.GroupPlayer2ID] {
+				continue
+			}
 			tb += *m.Score1 - *m.Score2
 		} else if m.GroupPlayer2ID != nil && *m.GroupPlayer2ID == groupPlayerID {
+			if m.GroupPlayer1ID == nil || !tiedIDs[*m.GroupPlayer1ID] {
+				continue
+			}
 			tb += *m.Score2 - *m.Score1
 		}
 	}

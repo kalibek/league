@@ -18,6 +18,9 @@ type DraftService interface {
 	FinishGroup(ctx context.Context, groupID int64) error
 	ReopenGroup(ctx context.Context, groupID int64) error
 	FinishEvent(ctx context.Context, eventID int64) error
+	// SetManualPlacements applies umpire-ordered placement for a manually-resolved tie group,
+	// then finalises advances/recedes, marks the group DONE, and broadcasts group_finished.
+	SetManualPlacements(ctx context.Context, groupID int64, orderedGroupPlayerIDs []int64) error
 }
 
 type draftService struct {
@@ -27,6 +30,7 @@ type draftService struct {
 	matchRepo  repository.MatchRepository
 	matchSvc   MatchService
 	ratingSvc  RatingService
+	groupSvc   GroupService
 	hub        *ws.Hub
 }
 
@@ -37,6 +41,7 @@ func NewDraftService(
 	matchRepo repository.MatchRepository,
 	matchSvc MatchService,
 	ratingSvc RatingService,
+	groupSvc GroupService,
 	hub *ws.Hub,
 ) DraftService {
 	return &draftService{
@@ -46,11 +51,15 @@ func NewDraftService(
 		matchRepo:  matchRepo,
 		matchSvc:   matchSvc,
 		ratingSvc:  ratingSvc,
+		groupSvc:   groupSvc,
 		hub:        hub,
 	}
 }
 
 // FinishGroup marks a group DONE, calculates ratings, and applies advance/recede flags.
+// If placement cannot be automatically resolved (three-way+ tiebreak), it broadcasts
+// manual_placement_required via WebSocket and returns without marking the group DONE.
+// The caller must then invoke SetManualPlacements once the umpire provides the order.
 func (s *draftService) FinishGroup(ctx context.Context, groupID int64) error {
 	grp, err := s.groupRepo.GetByID(ctx, groupID)
 	if err != nil {
@@ -71,60 +80,141 @@ func (s *draftService) FinishGroup(ctx context.Context, groupID int64) error {
 		}
 	}
 
-	// Recompute points/tiebreak from current match results before sorting.
+	// Recompute points from current match results.
 	if err := s.matchSvc.RecalcGroupPoints(ctx, groupID); err != nil {
 		return fmt.Errorf("draftService.FinishGroup recalc points: %w", err)
 	}
 
-	// Calculate ratings first.
-	if err := s.ratingSvc.CalculateGroupRatings(ctx, groupID); err != nil {
-		return fmt.Errorf("draftService.FinishGroup ratings: %w", err)
+	// Calculate placements with proper tiebreak logic (within tied groups only).
+	// Returns player IDs that require manual ordering.
+	needsManual, err := s.groupSvc.CalculatePlacements(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("draftService.FinishGroup placements: %w", err)
 	}
 
-	// Get league config for advance/recede counts.
+	if len(needsManual) > 0 {
+		if s.hub != nil {
+			s.hub.BroadcastToEvent(grp.EventID, ws.Message{
+				Type:    "manual_placement_required",
+				GroupID: groupID,
+				Payload: map[string]any{"playerIds": needsManual},
+			})
+		}
+		// Do NOT mark DONE — umpire must call SetManualPlacements first.
+		return nil
+	}
+
+	return s.finaliseGroup(ctx, grp)
+}
+
+// finaliseGroup applies advances/recedes, calculates ratings, marks the group DONE,
+// and broadcasts group_finished. Called after placements are fully resolved.
+func (s *draftService) finaliseGroup(ctx context.Context, grp *model.Group) error {
+	groupID := grp.GroupID
+
+	if err := s.ratingSvc.CalculateGroupRatings(ctx, groupID); err != nil {
+		return fmt.Errorf("draftService.finaliseGroup ratings: %w", err)
+	}
+
 	ev, err := s.eventRepo.GetByID(ctx, grp.EventID)
 	if err != nil {
-		return fmt.Errorf("draftService.FinishGroup event: %w", err)
+		return fmt.Errorf("draftService.finaliseGroup event: %w", err)
 	}
 	league, err := s.leagueRepo.GetByID(ctx, ev.LeagueID)
 	if err != nil {
-		return fmt.Errorf("draftService.FinishGroup league: %w", err)
+		return fmt.Errorf("draftService.finaliseGroup league: %w", err)
 	}
 
 	players, err := s.groupRepo.GetPlayers(ctx, groupID)
 	if err != nil {
-		return fmt.Errorf("draftService.FinishGroup players: %w", err)
+		return fmt.Errorf("draftService.finaliseGroup players: %w", err)
 	}
 
-	// Sort calculated players by points DESC, then tiebreak points DESC.
 	var ranked []model.GroupPlayer
 	for _, p := range players {
 		if !p.IsNonCalculated {
 			ranked = append(ranked, p)
 		}
 	}
-	sort.Slice(ranked, func(i, j int) bool {
-		if ranked[i].Points != ranked[j].Points {
-			return ranked[i].Points > ranked[j].Points
-		}
-		return ranked[i].TiebreakPoints > ranked[j].TiebreakPoints
-	})
+	sort.Slice(ranked, func(i, j int) bool { return ranked[i].Place < ranked[j].Place })
 
 	n := len(ranked)
 	advances := league.Config.NumberOfAdvances
 	recedes := league.Config.NumberOfRecedes
-
 	for i := range ranked {
 		p := &ranked[i]
-		p.Place = int16(i + 1)
 		p.Advances = i < advances
 		p.Recedes = i >= n-recedes
 		if err := s.groupRepo.UpdatePlayer(ctx, p); err != nil {
-			return fmt.Errorf("draftService.FinishGroup update player: %w", err)
+			return fmt.Errorf("draftService.finaliseGroup update player: %w", err)
 		}
 	}
 
-	return s.groupRepo.UpdateStatus(ctx, groupID, model.GroupDone)
+	if err := s.groupRepo.UpdateStatus(ctx, groupID, model.GroupDone); err != nil {
+		return err
+	}
+
+	if s.hub != nil {
+		s.hub.BroadcastToEvent(grp.EventID, ws.Message{Type: "group_finished", GroupID: groupID})
+	}
+	return nil
+}
+
+// SetManualPlacements applies the umpire-ordered placement for a manually-resolved tie group.
+// orderedGroupPlayerIDs contains only the tied players in desired rank order (1st → last).
+// After setting their places, the group is finalised (advances/recedes, DONE status, WS).
+func (s *draftService) SetManualPlacements(ctx context.Context, groupID int64, orderedGroupPlayerIDs []int64) error {
+	grp, err := s.groupRepo.GetByID(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("draftService.SetManualPlacements get group: %w", err)
+	}
+
+	players, err := s.groupRepo.GetPlayers(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("draftService.SetManualPlacements get players: %w", err)
+	}
+
+	// Build lookup for ranked players.
+	playerMap := make(map[int64]model.GroupPlayer, len(players))
+	for _, p := range players {
+		if !p.IsNonCalculated {
+			playerMap[p.GroupPlayerID] = p
+		}
+	}
+
+	// Determine starting place for this manual group.
+	// All manual players share the same points value; count ranked players with higher points.
+	manualSet := make(map[int64]bool, len(orderedGroupPlayerIDs))
+	for _, id := range orderedGroupPlayerIDs {
+		manualSet[id] = true
+	}
+	var manualPoints int16
+	for _, id := range orderedGroupPlayerIDs {
+		if p, ok := playerMap[id]; ok {
+			manualPoints = p.Points
+			break
+		}
+	}
+	var startingPlace int16 = 1
+	for _, p := range playerMap {
+		if !manualSet[p.GroupPlayerID] && p.Points > manualPoints {
+			startingPlace++
+		}
+	}
+
+	// Assign places to the manual group in the umpire-specified order.
+	for i, gpID := range orderedGroupPlayerIDs {
+		p, ok := playerMap[gpID]
+		if !ok {
+			return fmt.Errorf("groupPlayerID %d not found in group %d", gpID, groupID)
+		}
+		p.Place = startingPlace + int16(i)
+		if err := s.groupRepo.UpdatePlayer(ctx, &p); err != nil {
+			return fmt.Errorf("draftService.SetManualPlacements update player %d: %w", gpID, err)
+		}
+	}
+
+	return s.finaliseGroup(ctx, grp)
 }
 
 // ReopenGroup reverts a DONE group back to IN_PROGRESS so scores can be corrected.

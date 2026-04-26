@@ -83,6 +83,10 @@ func (m *draftMockEventRepo) ListEventsForPlayer(ctx context.Context, userID int
 	return nil, 0, nil
 }
 
+func (m *draftMockEventRepo) ListDone(ctx context.Context) ([]model.LeagueEvent, error) {
+	return nil, nil
+}
+
 // --- helpers ---
 
 func doneGroup(groupID, eventID int64) model.Group {

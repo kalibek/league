@@ -49,8 +49,8 @@ func main() {
 	eventSvc := service.NewEventService(eventRepo, groupRepo, matchRepo, userRepo)
 	ratingSvc := service.NewRatingService(userRepo, groupRepo, matchRepo, ratingRepo, eventRepo)
 	matchSvc := service.NewMatchService(matchRepo, groupRepo, hub)
-	draftSvc := service.NewDraftService(leagueRepo, eventRepo, groupRepo, matchRepo, matchSvc, ratingSvc, hub)
 	groupSvc := service.NewGroupService(groupRepo, matchRepo, eventRepo)
+	draftSvc := service.NewDraftService(leagueRepo, eventRepo, groupRepo, matchRepo, matchSvc, ratingSvc, groupSvc, hub)
 
 	// Handlers
 	adminH := handler.NewAdminHandler(ratingSvc)
@@ -132,6 +132,7 @@ func main() {
 		secured.DELETE("/events/:eid/groups/:gid/players/:gpid", groupsH.RemovePlayer)
 		secured.PUT("/events/:eid/groups/:gid/players/:pid/no-show", groupsH.MarkNoShow)
 		secured.PUT("/events/:eid/groups/:gid/players/:pid/place", groupsH.SetManualPlace)
+		secured.PUT("/events/:eid/groups/:gid/placement", groupsH.SetManualPlacements)
 
 		secured.PUT("/groups/:gid/matches/:mid", matchesH.UpdateScore)
 	}

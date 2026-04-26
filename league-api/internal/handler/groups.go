@@ -239,6 +239,27 @@ func (h *GroupsHandler) SetManualPlace(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+// PUT /api/v1/events/:eid/groups/:gid/placement
+func (h *GroupsHandler) SetManualPlacements(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("gid"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid group id"})
+		return
+	}
+	var req struct {
+		OrderedPlayerIDs []int64 `json:"orderedPlayerIds" binding:"required,min=2"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.draftSvc.SetManualPlacements(c.Request.Context(), groupID, req.OrderedPlayerIDs); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 // getGamesToWin fetches gamesToWin from league config via group → event → league chain.
 func (h *GroupsHandler) getGamesToWin(ctx context.Context, groupID int64) int {
 	// This requires getting group → eventID → leagueID → config.

@@ -112,6 +112,7 @@ func (m *mockUserRepoForProfile) UpdateName(_ context.Context, _ int64, _, _ str
 func (m *mockUserRepoForProfile) Search(_ context.Context, _ string, _, _ int, _ string) ([]model.User, error) {
 	return nil, nil
 }
+func (m *mockUserRepoForProfile) ResetAllRatings(_ context.Context) error { return nil }
 
 // --- helpers ---
 

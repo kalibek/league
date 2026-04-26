@@ -45,16 +45,27 @@ func TestComputeTiebreakPoints(t *testing.T) {
 		doneMatch(1, 3, 3, 0), // p1 wins 3:0
 	}
 
-	tb := computeTiebreakPoints(1, matches)
+	// All three players are tied — all matches count.
+	tiedIDs := map[int64]bool{1: true, 2: true, 3: true}
+
+	tb := computeTiebreakPoints(1, tiedIDs, matches)
 	// (3-1) + (3-0) = 5
 	if tb != 5 {
 		t.Errorf("expected 5, got %d", tb)
 	}
 
-	tb2 := computeTiebreakPoints(2, matches)
+	tb2 := computeTiebreakPoints(2, tiedIDs, matches)
 	// (1-3) = -2
 	if tb2 != -2 {
 		t.Errorf("expected -2, got %d", tb2)
+	}
+
+	// Match against non-tied player must not count.
+	tiedIDs12 := map[int64]bool{1: true, 2: true}
+	tb3 := computeTiebreakPoints(1, tiedIDs12, matches)
+	// only doneMatch(1,2,3,1) counts → (3-1) = 2
+	if tb3 != 2 {
+		t.Errorf("expected 2 (cross-group excluded), got %d", tb3)
 	}
 }
 
@@ -220,6 +231,10 @@ func (m *mockEventRepo) ListEventsForPlayer(ctx context.Context, userID int64, l
 	return nil, 0, nil
 }
 
+func (m *mockEventRepo) ListDone(ctx context.Context) ([]model.LeagueEvent, error) {
+	return nil, nil
+}
+
 func TestCalculatePlacements_ClearWinner(t *testing.T) {
 	// 3 players: p1 beats p2 and p3, p2 beats p3.
 	players := makePlayers([]int64{1, 2, 3})
@@ -266,6 +281,47 @@ func TestCalculatePlacements_ClearWinner(t *testing.T) {
 	}
 	if placeOf(3) != 3 {
 		t.Errorf("p3 should be place 3, got %d", placeOf(3))
+	}
+}
+
+func TestCalculatePlacements_ThreeWayCircular_NeedsManual(t *testing.T) {
+	// A beats B 3:2, B beats C 3:2, C beats A 3:2.
+	// All players: 1 win + 1 loss = 3 pts each.
+	// Tiebreak (within tied group): each player +1 from win, -1 from loss = 0.
+	// Head-to-head is circular → manual placement required.
+	players := makePlayers([]int64{1, 2, 3})
+	players[0].Points = 3 // A
+	players[1].Points = 3 // B
+	players[2].Points = 3 // C
+
+	matches := []model.Match{
+		doneMatch(1, 2, 3, 2), // A beats B
+		doneMatch(2, 3, 3, 2), // B beats C
+		doneMatch(3, 1, 3, 2), // C beats A
+	}
+
+	gr := &mockGroupRepo{players: map[int64][]model.GroupPlayer{1: players}}
+	mr := &mockMatchRepo{matches: map[int64][]model.Match{1: matches}}
+	er := &mockEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: er}
+	needsManual, err := svc.CalculatePlacements(context.Background(), 1)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(needsManual) != 3 {
+		t.Errorf("expected 3 players needing manual placement, got %d: %v", len(needsManual), needsManual)
+	}
+	// All three must be in the manual list.
+	inManual := make(map[int64]bool)
+	for _, id := range needsManual {
+		inManual[id] = true
+	}
+	for _, id := range []int64{1, 2, 3} {
+		if !inManual[id] {
+			t.Errorf("player %d should be in manual list", id)
+		}
 	}
 }
 
