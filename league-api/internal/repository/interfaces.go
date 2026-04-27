@@ -34,6 +34,7 @@ type LeagueRepository interface {
 	AssignRole(ctx context.Context, ur model.UserRole) error
 	RemoveRole(ctx context.Context, userID, leagueID int64, roleID int) error
 	GetUserRoles(ctx context.Context, userID, leagueID int64) ([]model.UserRole, error)
+	GetAllUserRoles(ctx context.Context, userID int64) ([]model.UserRole, error)
 	ListLeagueRoles(ctx context.Context, leagueID int64) ([]model.UserRole, error)
 }
 

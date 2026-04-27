@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useCreateLeague } from '../hooks/useLeagues'
 import { Button } from '../components/Button/Button'
 import { Input } from '../components/Input/Input'
@@ -14,6 +15,7 @@ const defaultConfig: LeagueConfig = {
 }
 
 export function CreateLeaguePage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { create, loading, error } = useCreateLeague()
   const [title, setTitle] = useState('')
@@ -33,26 +35,26 @@ export function CreateLeaguePage() {
         style={{ fontSize: 13, color: '#64748b', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 24 }}
         className="hover:text-[#0B3C5D] transition-colors"
       >
-        ← Leagues
+        {t('createLeague.backToLeagues')}
       </Link>
       <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.5px', marginBottom: 24 }}>
-        Create League
+        {t('createLeague.title')}
       </h1>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <Input
-          label="League Name"
+          label={t('createLeague.leagueName')}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
         />
         <Input
-          label="Description (optional)"
+          label={t('createLeague.description')}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
         <div>
           <h2 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 12 }}>
-            Configuration
+            {t('createLeague.configuration')}
           </h2>
           <LeagueConfigForm
             initial={config}
@@ -68,10 +70,10 @@ export function CreateLeaguePage() {
         )}
         <div style={{ display: 'flex', gap: 10 }}>
           <Button type="button" variant="secondary" onClick={() => navigate('/leagues')}>
-            Cancel
+            {t('createLeague.cancel')}
           </Button>
           <Button type="submit" loading={loading}>
-            Create League
+            {t('createLeague.createLeague')}
           </Button>
         </div>
       </form>

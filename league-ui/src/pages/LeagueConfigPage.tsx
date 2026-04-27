@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useLeague, useUpdateConfig, useLeagueRoles, useAssignRole } from '../hooks/useLeagues'
 import { usePlayers } from '../hooks/usePlayers'
 import { LeagueConfigForm } from '../components/LeagueConfigForm/LeagueConfigForm'
@@ -8,6 +9,7 @@ import { useAuth } from '../hooks/useAuth'
 import type { LeagueConfig } from '../types'
 
 export function LeagueConfigPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const leagueId = Number(id)
   const { league, loading } = useLeague(leagueId)
@@ -41,17 +43,17 @@ export function LeagueConfigPage() {
     if (ok) refreshRoles()
   }
 
-  if (loading) return <div className="p-8 text-gray-400">Loading...</div>
-  if (!league) return <div className="p-8 text-red-600">League not found</div>
+  if (loading) return <div className="p-8 text-gray-400">{t('leagueConfig.loading')}</div>
+  if (!league) return <div className="p-8 text-red-600">{t('leagueConfig.notFound')}</div>
 
   const maintainers = roles.filter((r) => r.roleName === 'maintainer')
 
   return (
     <div className="max-w-xl mx-auto py-8 px-4">
       <Link to={`/leagues/${leagueId}`} className="text-sm text-blue-600 hover:underline mb-4 block">
-        &larr; Back to League
+        {t('leagueConfig.backToLeague')}
       </Link>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Configure League</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('leagueConfig.title')}</h1>
       <h2 className="text-base text-gray-600 mb-4">{league.title}</h2>
 
       {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
@@ -65,13 +67,13 @@ export function LeagueConfigPage() {
 
       {canManageRoles && (
         <div className="mt-10 border-t border-gray-200 pt-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Maintainers</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('leagueConfig.maintainers')}</h3>
 
           {roleError && <p className="text-red-600 text-sm mb-3">{roleError}</p>}
 
           <ul className="divide-y divide-gray-100 mb-4">
             {maintainers.length === 0 && (
-              <li className="py-2 text-sm text-gray-400">No maintainers assigned.</li>
+              <li className="py-2 text-sm text-gray-400">{t('leagueConfig.noMaintainers')}</li>
             )}
             {maintainers.map((m) => (
               <li key={m.userId} className="py-2 flex items-center justify-between">
@@ -84,7 +86,7 @@ export function LeagueConfigPage() {
                   disabled={roleSaving}
                   className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
                 >
-                  Remove
+                  {t('leagueConfig.remove')}
                 </button>
               </li>
             ))}
@@ -96,7 +98,7 @@ export function LeagueConfigPage() {
               onChange={(e) => setSelectedUserId(e.target.value === '' ? '' : Number(e.target.value))}
               className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Select a player...</option>
+              <option value="">{t('leagueConfig.selectPlayer')}</option>
               {players.map((p) => (
                 <option key={p.userId} value={p.userId}>
                   {p.firstName} {p.lastName} ({p.email})
@@ -109,7 +111,7 @@ export function LeagueConfigPage() {
               disabled={!selectedUserId || roleSaving}
               loading={roleSaving}
             >
-              Add Maintainer
+              {t('leagueConfig.addMaintainer')}
             </Button>
           </div>
         </div>

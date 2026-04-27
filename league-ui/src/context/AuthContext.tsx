@@ -28,9 +28,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<Record<number, string[]>>({})
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [tick, setTick] = useState(0)
 
-  const refresh = useCallback(() => {
-    setLoading(true)
+  const refresh = useCallback(() => setTick((t) => t + 1), [])
+
+  useEffect(() => {
     getMe()
       .then((res) => {
         const { roles: rawRoles, ...userFields } = res.data
@@ -42,18 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           grouped[r.leagueId].push(r.roleName)
         })
         setRoles(grouped)
+        setLoading(false)
       })
       .catch(() => {
         setUser(null)
         setRoles({})
         setIsAdmin(false)
+        setLoading(false)
       })
-      .finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    refresh()
-  }, [refresh])
+  }, [tick])
 
   const isMaintainer = useCallback(
     (leagueId: number) => roles[leagueId]?.includes('maintainer') ?? false,
@@ -82,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuthContext(): AuthContextValue {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuthContext must be used inside AuthProvider')

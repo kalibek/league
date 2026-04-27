@@ -59,8 +59,12 @@ func (s *matchService) UpdateScore(ctx context.Context, matchID int64, score1, s
 		return fmt.Errorf("matchService.UpdateScore recalc: %w", err)
 	}
 
-	// Broadcast via WebSocket.
-	s.hub.BroadcastToEvent(m.GroupID, ws.Message{
+	// Broadcast via WebSocket — hub rooms are keyed by eventID, not groupID.
+	grp, err := s.groupRepo.GetByID(ctx, m.GroupID)
+	if err != nil {
+		return fmt.Errorf("matchService.UpdateScore get group: %w", err)
+	}
+	s.hub.BroadcastToEvent(grp.EventID, ws.Message{
 		Type:    "match_updated",
 		GroupID: m.GroupID,
 		MatchID: matchID,
@@ -119,7 +123,12 @@ func (s *matchService) MarkNoShow(ctx context.Context, groupID, groupPlayerID in
 		return fmt.Errorf("matchService.MarkNoShow recalc: %w", err)
 	}
 
-	s.hub.BroadcastToEvent(groupID, ws.Message{
+	// Broadcast via WebSocket — hub rooms are keyed by eventID, not groupID.
+	grp, err := s.groupRepo.GetByID(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("matchService.MarkNoShow get group: %w", err)
+	}
+	s.hub.BroadcastToEvent(grp.EventID, ws.Message{
 		Type:    "match_updated",
 		GroupID: groupID,
 		Payload: map[string]any{"noShow": groupPlayerID},

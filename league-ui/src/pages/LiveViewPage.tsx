@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { formatDate } from '../hooks/utils'
 import { useEvent, useFinishEvent } from '../hooks/useEvents'
 import { useUpdateMatchScore } from '../hooks/useMatches'
@@ -17,6 +18,7 @@ import { Badge } from '../components/Badge/Badge'
 import type { EventDetail, GroupDetail, Match, GroupPlayer, WSMessage } from '../types'
 
 export function LiveViewPage() {
+  const { t } = useTranslation()
   const { id, eid } = useParams<{ id: string; eid: string }>()
   const leagueId = Number(id)
   const eventId = Number(eid)
@@ -27,7 +29,7 @@ export function LiveViewPage() {
   const { update: updateScore, loading: scoreSaving } = useUpdateMatchScore()
   const { finish: finishGroup, loading: finishing } = useFinishGroup()
   const { reopen: reopenGroup, loading: reopening } = useReopenGroup()
-  const { noShow, loading: noShowing } = useMarkNoShow()
+  const { noShow } = useMarkNoShow()
   const { setPlace, loading: placing } = useSetManualPlace()
   const { finish: finishEventAction, loading: finishingEvent, error: finishEventError } = useFinishEvent()
 
@@ -94,7 +96,7 @@ export function LiveViewPage() {
 
       return prev
     })
-  }, [event, eventId])
+  }, [event, eventId, setEvent])
 
   useEventWebSocket(eventId, handleWSMessage)
 
@@ -172,7 +174,7 @@ export function LiveViewPage() {
     }
   }
 
-  if (loading) return <div className="p-8 text-gray-400">Loading event...</div>
+  if (loading) return <div className="p-8 text-gray-400">{t('liveView.loading')}</div>
   if (error) return <div className="p-8 text-red-600">{error}</div>
   if (!event) return null
 
@@ -190,7 +192,7 @@ export function LiveViewPage() {
             to={`/leagues/${leagueId}`}
             className="text-sm text-blue-600 hover:underline block mb-1"
           >
-            &larr; Back to League
+            {t('liveView.backToLeague')}
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -201,12 +203,12 @@ export function LiveViewPage() {
         <div className="flex items-center gap-3">
           {(canManage || canUmpire) && (
             <Button variant="secondary" onClick={() => setCollapseSignal((s) => s + 1)}>
-              Collapse All
+              {t('liveView.collapseAll')}
             </Button>
           )}
           {canManage && event.status === 'IN_PROGRESS' && allGroupsDone && (
             <Button variant="primary" onClick={handleFinishEvent} loading={finishingEvent}>
-              Finish Event
+              {t('liveView.finishEvent')}
             </Button>
           )}
           <Badge variant={event.status} />
@@ -262,7 +264,7 @@ export function LiveViewPage() {
             {canManage || canUmpire ? (
               <>
                 <div className="mb-4">
-                  <p className="text-xs uppercase text-gray-400 font-medium mb-2">Match Results</p>
+                  <p className="text-xs uppercase text-gray-400 font-medium mb-2">{t('liveView.matchResults')}</p>
                   <MatchGrid
                     players={group.players}
                     matches={group.matches}
@@ -301,7 +303,7 @@ export function LiveViewPage() {
                       onClick={() => handleReopenGroup(group.groupId)}
                       loading={reopening}
                     >
-                      Reopen Group
+                      {t('liveView.reopenGroup')}
                     </Button>
                   )}
                   {canUmpire &&
@@ -315,9 +317,9 @@ export function LiveViewPage() {
                           onClick={() => handleFinishGroup(group.groupId)}
                           loading={finishing}
                           disabled={!allScored}
-                          title={!allScored ? 'Enter all match scores first' : undefined}
+                          title={!allScored ? t('liveView.enterAllScoresFirst') : undefined}
                         >
-                          Finish Group
+                          {t('liveView.finishGroup')}
                         </Button>
                       )
                     })()}
@@ -331,7 +333,7 @@ export function LiveViewPage() {
       </div>
 
       {/* Score entry modal */}
-      <Modal open={!!scoreModal} onClose={() => setScoreModal(null)} title="Enter Score">
+      <Modal open={!!scoreModal} onClose={() => setScoreModal(null)} title={t('liveView.enterScoreTitle')}>
         {scoreModal && (
           <ScoreEntryForm
             match={scoreModal.match}
@@ -349,13 +351,12 @@ export function LiveViewPage() {
       <Modal
         open={!!placementModal}
         onClose={() => setPlacementModal(null)}
-        title="Manual Placement Required"
+        title={t('liveView.manualPlacementTitle')}
       >
         {placementModal && (
           <div>
             <p className="text-sm text-gray-600 mb-4">
-              These players are tied and cannot be automatically ranked. Drag to set the correct
-              order.
+              {t('liveView.manualPlacementDescription')}
             </p>
             <PlacementOverride
               players={placementModal.players}

@@ -143,8 +143,11 @@ func (s *draftService) finaliseGroup(ctx context.Context, grp *model.Group) erro
 	recedes := league.Config.NumberOfRecedes
 	for i := range ranked {
 		p := &ranked[i]
-		p.Advances = i < advances
-		p.Recedes = i >= n-recedes
+		// A player cannot both advance and recede; advances takes precedence for top positions.
+		adv := advances > 0 && i < advances
+		rec := recedes > 0 && i >= n-recedes
+		p.Advances = adv && !rec
+		p.Recedes = rec && !adv
 		if err := s.groupRepo.UpdatePlayer(ctx, p); err != nil {
 			return fmt.Errorf("draftService.finaliseGroup update player: %w", err)
 		}
@@ -179,6 +182,13 @@ func (s *draftService) SetManualPlacements(ctx context.Context, groupID int64, o
 	for _, p := range players {
 		if !p.IsNonCalculated {
 			playerMap[p.GroupPlayerID] = p
+		}
+	}
+
+	// Validate that every provided groupPlayerID belongs to this group.
+	for _, id := range orderedGroupPlayerIDs {
+		if _, ok := playerMap[id]; !ok {
+			return fmt.Errorf("draftService.SetManualPlacements: groupPlayerID %d not found in group %d", id, groupID)
 		}
 	}
 
@@ -274,7 +284,7 @@ func (s *draftService) FinishEvent(ctx context.Context, eventID int64) error {
 	}
 
 	if s.hub != nil {
-		s.hub.BroadcastToEvent(eventID, ws.Message{Type: "event_finished", GroupID: eventID})
+		s.hub.BroadcastToEvent(eventID, ws.Message{Type: "event_finished"})
 	}
 	return nil
 }
@@ -447,8 +457,6 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 					return nil, err
 				}
 				gp.GroupPlayerID = gpID
-
-				_ = gpID
 			}
 		}
 	}

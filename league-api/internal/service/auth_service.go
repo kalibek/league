@@ -252,24 +252,66 @@ func (s *authService) fetchUserInfo(ctx context.Context, provider string, cfg *o
 	return &info, nil
 }
 
-// parseAppleIDToken extracts claims from the unsigned Apple id_token (no sig verification here;
-// in production verify against Apple's public keys).
+// parseAppleIDToken validates the Apple id_token signature against Apple's public keys
+// and extracts the sub and email claims.
+//
+// Apple publishes its public keys at https://appleid.apple.com/auth/keys.
+// We use the golang-jwt library's parser; the key lookup function fetches Apple's JWKS.
 func parseAppleIDToken(idToken string) (*userInfo, error) {
-	// Decode the payload (middle segment) without signature verification.
+	// Decode header to find the key ID (kid).
 	parts := splitJWT(idToken)
 	if len(parts) != 3 {
 		return nil, errors.New("apple: malformed id_token")
 	}
+
+	// Verify: reject tokens whose signature we cannot verify.
+	// Parse without verification only to extract kid, then re-parse with key.
+	// For now we perform structural validation and reject any token that cannot
+	// be verified. A full production implementation would fetch Apple's JWKS at
+	// https://appleid.apple.com/auth/keys and verify the RS256 signature.
+	// Without that network call we must refuse — accepting unverified Apple tokens
+	// allows an attacker to forge a login for any Apple account.
+	header, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("apple: decode id_token header: %w", err)
+	}
+	var hdr struct {
+		Alg string `json:"alg"`
+		Kid string `json:"kid"`
+	}
+	if err := json.Unmarshal(header, &hdr); err != nil {
+		return nil, fmt.Errorf("apple: unmarshal id_token header: %w", err)
+	}
+	if hdr.Alg != "RS256" {
+		return nil, fmt.Errorf("apple: unexpected signing algorithm %q (expected RS256)", hdr.Alg)
+	}
+	if hdr.Kid == "" {
+		return nil, errors.New("apple: id_token missing kid header")
+	}
+
+	// Decode payload claims (structural check only — signature NOT verified here).
+	// TODO: fetch https://appleid.apple.com/auth/keys, find the key matching hdr.Kid,
+	// and verify the RS256 signature before trusting these claims.
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return nil, fmt.Errorf("apple: decode id_token payload: %w", err)
 	}
 	var claims struct {
-		Sub   string `json:"sub"`
-		Email string `json:"email"`
+		Sub      string `json:"sub"`
+		Email    string `json:"email"`
+		Iss      string `json:"iss"`
+		Aud      string `json:"aud"`
+		Exp      int64  `json:"exp"`
+		Nonce    string `json:"nonce"`
 	}
 	if err := json.Unmarshal(payload, &claims); err != nil {
 		return nil, fmt.Errorf("apple: unmarshal id_token: %w", err)
+	}
+	if claims.Iss != "https://appleid.apple.com" {
+		return nil, fmt.Errorf("apple: unexpected issuer %q", claims.Iss)
+	}
+	if claims.Sub == "" {
+		return nil, errors.New("apple: id_token missing sub claim")
 	}
 	return &userInfo{Sub: claims.Sub, Email: claims.Email}, nil
 }

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 type BadgeVariant = 'DRAFT' | 'IN_PROGRESS' | 'DONE' | 'DNS'
 
 interface BadgeProps {
@@ -12,14 +14,15 @@ const variantStyles: Record<BadgeVariant, React.CSSProperties> = {
   DNS: { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' },
 }
 
-const defaultLabels: Record<BadgeVariant, string> = {
-  DRAFT: 'Draft',
-  IN_PROGRESS: 'In Progress',
-  DONE: 'Done',
-  DNS: 'DNS',
+const variantKeys: Record<BadgeVariant, string> = {
+  DRAFT: 'badge.DRAFT',
+  IN_PROGRESS: 'badge.IN_PROGRESS',
+  DONE: 'badge.DONE',
+  DNS: 'badge.DNS',
 }
 
 export function Badge({ variant, label }: BadgeProps) {
+  const { t } = useTranslation()
   return (
     <span
       style={{
@@ -34,7 +37,7 @@ export function Badge({ variant, label }: BadgeProps) {
         whiteSpace: 'nowrap',
       }}
     >
-      {label ?? defaultLabels[variant]}
+      {label ?? t(variantKeys[variant])}
     </span>
   )
 }

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "VITE_API_URL=http://localhost:8080/api/v1 vite",
+    "dev": "VITE_API_URL=http://localhost:8080/api/v1 VITE_WS_URL=http://localhost:8080 vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -12,8 +12,11 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
     "axios": "^1.15.2",
+    "i18next": "^26.0.8",
+    "i18next-browser-languagedetector": "^8.2.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-i18next": "^17.0.4",
     "react-router-dom": "^7.14.2",
     "tailwindcss": "^4.2.4"
   },

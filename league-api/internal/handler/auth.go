@@ -6,18 +6,16 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"league-api/internal/middleware"
-	"league-api/internal/repository"
 	"league-api/internal/service"
 )
 
 type AuthHandler struct {
 	authSvc     service.AuthService
-	leagueRepo  repository.LeagueRepository
 	frontendURL string
 }
 
-func NewAuthHandler(authSvc service.AuthService, leagueRepo repository.LeagueRepository, frontendURL string) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc, leagueRepo: leagueRepo, frontendURL: frontendURL}
+func NewAuthHandler(authSvc service.AuthService, frontendURL string) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, frontendURL: frontendURL}
 }
 
 // GET /auth/login?provider=google|facebook|apple
@@ -34,7 +32,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Store state in cookie for validation on callback.
-	c.SetCookie("oauth_state", state, 600, "/", "", false, true)
+	// Secure=true ensures the cookie is only sent over HTTPS.
+	c.SetCookie("oauth_state", state, 600, "/", "", true, true)
 
 	url, err := h.authSvc.GetAuthURL(provider, state)
 	if err != nil {
@@ -57,22 +56,22 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid state"})
 		return
 	}
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
+	c.SetCookie("oauth_state", "", -1, "/", "", true, true)
 
 	_, jwtToken, err := h.authSvc.HandleCallback(c.Request.Context(), provider, code, state)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "authentication failed"})
 		return
 	}
 
-	// Set JWT in session cookie.
-	c.SetCookie("session", jwtToken, 30*24*3600, "/", "", false, true)
+	// Set JWT in session cookie. Secure=true + HttpOnly=true protects against XSS and MITM.
+	c.SetCookie("session", jwtToken, 30*24*3600, "/", "", true, true)
 	c.Redirect(http.StatusFound, h.frontendURL)
 }
 
 // POST /auth/logout
 func (h *AuthHandler) Logout(c *gin.Context) {
-	c.SetCookie("session", "", -1, "/", "", false, true)
+	c.SetCookie("session", "", -1, "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
@@ -95,7 +94,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("session", jwtToken, 30*24*3600, "/", "", false, true)
+	c.SetCookie("session", jwtToken, 30*24*3600, "/", "", true, true)
 	c.JSON(http.StatusCreated, user)
 }
 
@@ -116,7 +115,7 @@ func (h *AuthHandler) EmailLogin(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("session", jwtToken, 30*24*3600, "/", "", false, true)
+	c.SetCookie("session", jwtToken, 30*24*3600, "/", "", true, true)
 	c.JSON(http.StatusOK, user)
 }
 

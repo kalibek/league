@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { LeagueConfig } from '../../types'
 import { Button } from '../Button/Button'
 import { Input } from '../Input/Input'
@@ -12,6 +13,7 @@ interface LeagueConfigFormProps {
 }
 
 export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraftWarning = false, embedded = false }: LeagueConfigFormProps) {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<LeagueConfig>(initial)
 
   const set = (key: keyof LeagueConfig) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,12 +34,12 @@ export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraft
     <Wrapper {...(wrapperProps as React.ComponentProps<typeof Wrapper>)} className="flex flex-col gap-4">
       {showDraftWarning && (
         <div className="rounded-md bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-800">
-          Warning: Changing config will recreate the draft if an event is in DRAFT status.
+          {t('leagueConfig.draftWarning')}
         </div>
       )}
       <div className="grid grid-cols-2 gap-4">
         <Input
-          label="Advances per group"
+          label={t('leagueConfig.advancesPerGroup')}
           type="number"
           min={0}
           value={config.numberOfAdvances}
@@ -45,7 +47,7 @@ export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraft
           required
         />
         <Input
-          label="Recedes per group"
+          label={t('leagueConfig.recedesPerGroup')}
           type="number"
           min={0}
           value={config.numberOfRecedes}
@@ -53,7 +55,7 @@ export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraft
           required
         />
         <Input
-          label="Games to win"
+          label={t('leagueConfig.gamesToWin')}
           type="number"
           min={1}
           value={config.gamesToWin}
@@ -61,7 +63,7 @@ export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraft
           required
         />
         <Input
-          label="Group size"
+          label={t('leagueConfig.groupSize')}
           type="number"
           min={2}
           value={config.groupSize}
@@ -71,7 +73,7 @@ export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraft
       </div>
       {!embedded && (
         <Button type="submit" loading={loading}>
-          Save Configuration
+          {t('leagueConfig.saveConfiguration')}
         </Button>
       )}
     </Wrapper>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { GroupPlayer } from '../../types'
 import { Button } from '../Button/Button'
+import { useTranslation } from 'react-i18next'
 
 interface PlacementOverrideProps {
   players: GroupPlayer[]
@@ -10,6 +11,7 @@ interface PlacementOverrideProps {
 }
 
 export function PlacementOverride({ players, onConfirm, onClose, loading = false }: PlacementOverrideProps) {
+  const { t } = useTranslation()
   const [ordered, setOrdered] = useState<GroupPlayer[]>([...players])
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
 
@@ -58,7 +60,7 @@ export function PlacementOverride({ players, onConfirm, onClose, loading = false
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-gray-600">
-        Drag players into the correct placement order (top = best).
+        {t('placementOverride.dragInstruction')}
       </p>
       <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
         {ordered.map((p, index) => (
@@ -84,7 +86,7 @@ export function PlacementOverride({ players, onConfirm, onClose, loading = false
                 onClick={() => moveUp(index)}
                 disabled={index === 0}
                 className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20"
-                aria-label="Move up"
+                aria-label={t('placementOverride.moveUp')}
               >
                 ↑
               </button>
@@ -92,7 +94,7 @@ export function PlacementOverride({ players, onConfirm, onClose, loading = false
                 onClick={() => moveDown(index)}
                 disabled={index === ordered.length - 1}
                 className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20"
-                aria-label="Move down"
+                aria-label={t('placementOverride.moveDown')}
               >
                 ↓
               </button>
@@ -102,10 +104,10 @@ export function PlacementOverride({ players, onConfirm, onClose, loading = false
       </ul>
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose} disabled={loading}>
-          Cancel
+          {t('placementOverride.cancel')}
         </Button>
         <Button variant="primary" onClick={handleConfirm} loading={loading}>
-          Confirm Placement
+          {t('placementOverride.confirmPlacement')}
         </Button>
       </div>
     </div>

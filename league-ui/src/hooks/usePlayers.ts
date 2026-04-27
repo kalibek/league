@@ -7,40 +7,37 @@ import { useDebounce } from './useDebounce'
 
 export function usePlayers(params?: { q?: string; sort?: string; limit?: number; offset?: number }) {
   const [players, setPlayers] = useState<User[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tick, setTick] = useState(0)
 
   const debouncedQ = useDebounce(params?.q ?? '', 300)
 
-  const load = useCallback(() => {
-    setLoading(true)
-    setError(null)
-    listPlayers({ ...params, q: debouncedQ || undefined })
-      .then((res) => setPlayers(res.data ?? []))
-      .catch((e) => setError(extractErrorMessage(e)))
-      .finally(() => setLoading(false))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQ, params?.sort, params?.limit, params?.offset])
-
   useEffect(() => {
-    load()
-  }, [load])
+    let cancelled = false
+    listPlayers({ ...params, q: debouncedQ || undefined })
+      .then((res) => { if (!cancelled) { setPlayers(res.data ?? []); setError(null); setLoading(false) } })
+      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQ, params?.sort, params?.limit, params?.offset, tick])
 
-  return { players, loading, error, refresh: load }
+  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+
+  return { players, loading, error, refresh }
 }
 
 export function usePlayer(id: number) {
   const [player, setPlayer] = useState<PlayerDetail | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setLoading(true)
-    setError(null)
+    let cancelled = false
     getPlayer(id)
-      .then((res) => setPlayer(res.data))
-      .catch((e) => setError(extractErrorMessage(e)))
-      .finally(() => setLoading(false))
+      .then((res) => { if (!cancelled) { setPlayer(res.data); setError(null); setLoading(false) } })
+      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
+    return () => { cancelled = true }
   }, [id])
 
   return { player, loading, error }
@@ -72,35 +69,47 @@ const EVENTS_PAGE_SIZE = 5
 export function usePlayerEvents(userId: number) {
   const [events, setEvents] = useState<PlayerEventSummary[]>([])
   const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const loaded = useRef(0)
-
-  const fetch = useCallback(async (offset: number, append: boolean) => {
-    setLoading(true)
-    try {
-      const res = await listPlayerEvents(userId, EVENTS_PAGE_SIZE, offset)
-      const page = res.data
-      setEvents((prev) => (append ? [...prev, ...page.events] : page.events))
-      setTotal(page.total)
-      loaded.current = offset + page.events.length
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false)
-    }
-  }, [userId])
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
     loaded.current = 0
-    fetch(0, false)
-  }, [fetch])
+    listPlayerEvents(userId, EVENTS_PAGE_SIZE, 0)
+      .then((res) => {
+        if (!cancelled) {
+          const page = res.data
+          setEvents(page.events)
+          setTotal(page.total)
+          loaded.current = page.events.length
+          setLoading(false)
+        }
+      })
+      .catch(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [userId, tick])
 
-  const loadMore = useCallback(() => fetch(loaded.current, true), [fetch])
+  const loadMore = useCallback(() => {
+    setLoading(true)
+    listPlayerEvents(userId, EVENTS_PAGE_SIZE, loaded.current)
+      .then((res) => {
+        const page = res.data
+        setEvents((prev) => [...prev, ...page.events])
+        setTotal(page.total)
+        loaded.current += page.events.length
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [userId])
+
+  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
 
   return {
     events,
     total,
     loadMore,
+    refresh,
     loading,
     hasMore: events.length < total,
   }

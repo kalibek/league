@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { WSMessage } from '../types'
 
 const WS_BASE_URL =
@@ -7,7 +7,9 @@ const WS_BASE_URL =
 
 export function useEventWebSocket(eventId: number, onMessage: (msg: WSMessage) => void) {
   const onMessageRef = useRef(onMessage)
-  onMessageRef.current = onMessage
+  useLayoutEffect(() => {
+    onMessageRef.current = onMessage
+  })
 
   useEffect(() => {
     const ws = new WebSocket(`${WS_BASE_URL}/ws/events/${eventId}`)

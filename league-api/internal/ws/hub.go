@@ -3,9 +3,12 @@ package ws
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+const writeTimeout = 10 * time.Second
 
 // Message is the standard WebSocket broadcast message.
 type Message struct {
@@ -115,9 +118,14 @@ func NewClient(eventID int64, conn *websocket.Conn) *Client {
 }
 
 // WritePump pumps messages from the send channel to the WebSocket connection.
+// A write deadline is set on every write to prevent slow/hung clients from
+// blocking the goroutine indefinitely.
 func (c *Client) WritePump() {
 	defer c.conn.Close()
 	for msg := range c.send {
+		if err := c.conn.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
+			return
+		}
 		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 			return
 		}

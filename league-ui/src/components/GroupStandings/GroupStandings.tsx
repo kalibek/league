@@ -1,7 +1,8 @@
 import type { GroupPlayer, Match } from '../../types'
 import { isDns } from '../../types'
 import { Badge } from '../Badge/Badge'
-import {Link} from "react-router-dom";
+import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 interface GroupStandingsProps {
   players: GroupPlayer[]
@@ -30,6 +31,7 @@ function buildTiebreakDisplayMap(players: GroupPlayer[]): Map<number, number | n
 }
 
 export function GroupStandings({ players, matches, onNoShow, onScoreClick }: GroupStandingsProps) {
+  const { t } = useTranslation()
   const sorted = [...players].sort((a, b) => a.seed - b.seed)
   const tiebreakMap = buildTiebreakDisplayMap(players)
 
@@ -113,12 +115,12 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick }: Gro
         <thead>
           <tr>
             <th style={{ ...thStyle, width: 40 }}>#</th>
-            <th style={thStyle}>Player</th>
+            <th style={thStyle}>{t('groupStandings.player')}</th>
 
-            <th style={{ ...thStyle, textAlign: 'center' }}>Place</th>
-            <th style={{ ...thStyle, textAlign: 'center' }}>Pts (W-L)</th>
-            <th style={{ ...thStyle, textAlign: 'center' }}>TB</th>
-            <th style={{ ...thStyle, textAlign: 'center' }}>Move</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.place')}</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.ptsWL')}</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.tb')}</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.move')}</th>
             {sorted.map((p, i) => (
                 <th
                     key={p.groupPlayerId}
@@ -161,7 +163,7 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick }: Gro
                       <Link to={`/players/${p.userId}`}>{name}</Link>
                     </span>
                     {p.isNonCalculated && (
-                      <span style={{ fontSize: 11, color: '#94a3b8' }}>(guest)</span>
+                      <span style={{ fontSize: 11, color: '#94a3b8' }}>{t('groupStandings.guest')}</span>
                     )}
                     {dns && <Badge variant="DNS" />}
                     {onNoShow && !dns && (
@@ -169,8 +171,8 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick }: Gro
                         onClick={() => onNoShow(p.groupPlayerId)}
                         style={{ color: '#cbd5e1', marginLeft: 4, lineHeight: 1, fontSize: 12 }}
                         className="hover:text-red-500 transition-colors"
-                        title={`Mark ${name} as no-show`}
-                        aria-label={`Mark ${name} as no-show`}
+                        title={t('groupStandings.noShow', { name })}
+                        aria-label={t('groupStandings.noShow', { name })}
                       >
                         ✕
                       </button>
@@ -234,7 +236,7 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick }: Gro
                       {clickable && onScoreClick ? (
                         <button
                           onClick={() => m && onScoreClick(m)}
-                          aria-label={`Enter score: ${playerName(p)} vs ${playerName(colPlayer)}`}
+                          aria-label={t('groupStandings.enterScore', { p1: playerName(p), p2: playerName(colPlayer) })}
                         >
                           {content}
                         </button>

@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useLeague } from '../hooks/useLeagues'
 import { useEvents, useCreateDraftEvent, useStartEvent, useCreateNextEvent } from '../hooks/useEvents'
 import { formatDate } from '../hooks/utils'
@@ -19,6 +20,7 @@ const inputStyle: React.CSSProperties = {
 }
 
 export function LeaguePage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const leagueId = Number(id)
   const { league, loading: leagueLoading } = useLeague(leagueId)
@@ -54,12 +56,12 @@ export function LeaguePage() {
 
   if (leagueLoading) return (
     <div style={{ padding: '48px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
-      Loading…
+      {t('league.loading')}
     </div>
   )
   if (!league) return (
     <div style={{ padding: '48px 16px', textAlign: 'center', color: '#dc2626', fontSize: 14 }}>
-      League not found
+      {t('league.notFound')}
     </div>
   )
 
@@ -70,7 +72,7 @@ export function LeaguePage() {
         style={{ fontSize: 13, color: '#64748b', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 24 }}
         className="hover:text-[#0B3C5D] transition-colors"
       >
-        ← All Leagues
+        {t('league.backToLeagues')}
       </Link>
 
       <div className="flex items-start justify-between mb-6">
@@ -88,7 +90,7 @@ export function LeaguePage() {
             style={{ fontSize: 13, color: 'var(--orange)', fontWeight: 600, textDecoration: 'none' }}
             className="hover:opacity-80 transition-opacity"
           >
-            Configure
+            {t('league.configure')}
           </Link>
         )}
       </div>
@@ -103,10 +105,10 @@ export function LeaguePage() {
         }}
       >
         {[
-          { label: 'Advances', value: league.configuration.numberOfAdvances },
-          { label: 'Recedes', value: league.configuration.numberOfRecedes },
-          { label: 'Games to win', value: league.configuration.gamesToWin },
-          { label: 'Group size', value: league.configuration.groupSize },
+          { label: t('league.advances'), value: league.configuration.numberOfAdvances },
+          { label: t('league.recedes'), value: league.configuration.numberOfRecedes },
+          { label: t('league.gamesToWin'), value: league.configuration.gamesToWin },
+          { label: t('league.groupSize'), value: league.configuration.groupSize },
         ].map(({ label, value }) => (
           <div
             key={label}
@@ -130,10 +132,10 @@ export function LeaguePage() {
       </div>
 
       <div className="flex items-center justify-between mb-4">
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--navy)' }}>Events</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--navy)' }}>{t('league.events')}</h2>
         {canManage && (
           <Button variant="primary" onClick={() => setShowCreateForm(true)}>
-            + Create Event
+            {t('league.createEvent')}
           </Button>
         )}
       </div>
@@ -154,7 +156,7 @@ export function LeaguePage() {
           }}
         >
           <input
-            placeholder="Event title"
+            placeholder={t('league.eventTitlePlaceholder')}
             style={inputStyle}
             className="focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/20"
             value={form.title}
@@ -180,13 +182,13 @@ export function LeaguePage() {
             />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button type="button" variant="secondary" onClick={() => setShowCreateForm(false)}>Cancel</Button>
-            <Button type="submit" loading={creating}>Create</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowCreateForm(false)}>{t('league.cancel')}</Button>
+            <Button type="submit" loading={creating}>{t('league.create')}</Button>
           </div>
         </form>
       )}
 
-      {eventsLoading && <p style={{ color: '#94a3b8', fontSize: 13 }}>Loading events…</p>}
+      {eventsLoading && <p style={{ color: '#94a3b8', fontSize: 13 }}>{t('league.loadingEvents')}</p>}
       {nextError && (
         <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>
           {nextError}
@@ -229,7 +231,7 @@ export function LeaguePage() {
                 style={{ fontSize: 13, color: 'var(--orange)', fontWeight: 600, textDecoration: 'none' }}
                 className="hover:opacity-80"
               >
-                View
+                {t('league.view')}
               </Link>
               {canManage && ev.status === 'DRAFT' && (
                 <Link
@@ -237,17 +239,17 @@ export function LeaguePage() {
                   style={{ fontSize: 13, color: 'var(--navy)', fontWeight: 600, textDecoration: 'none' }}
                   className="hover:opacity-80"
                 >
-                  Setup
+                  {t('league.setup')}
                 </Link>
               )}
               {canManage && ev.status === 'DRAFT' && (
                 <Button variant="primary" onClick={() => handleStartEvent(ev.eventId)} loading={starting}>
-                  Start
+                  {t('league.start')}
                 </Button>
               )}
               {canManage && ev.status === 'DONE' && (
                 <Button variant="primary" onClick={() => handleCreateNext(ev.eventId)} loading={creatingNext}>
-                  Create Next
+                  {t('league.createNext')}
                 </Button>
               )}
             </div>
@@ -255,7 +257,7 @@ export function LeaguePage() {
         ))}
         {!eventsLoading && events.length === 0 && (
           <p style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: '32px 0' }}>
-            No events yet. Create the first event to get started.
+            {t('league.noEventsYet')}
           </p>
         )}
       </div>

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"league-api/internal/model"
@@ -130,7 +129,6 @@ func (s *leagueService) RemoveRole(ctx context.Context, leagueID, targetUserID i
 	if err != nil {
 		return err
 	}
-	_ = errors.New // suppress import
 	return s.leagueRepo.RemoveRole(ctx, targetUserID, leagueID, roleID)
 }
 

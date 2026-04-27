@@ -75,9 +75,16 @@ func (s *eventService) StartEvent(ctx context.Context, eventID int64) error {
 	}
 
 	for _, g := range groups {
-		players, err := s.groupRepo.GetPlayers(ctx, g.GroupID)
+		allPlayers, err := s.groupRepo.GetPlayers(ctx, g.GroupID)
 		if err != nil {
 			return fmt.Errorf("eventService.StartEvent get players for group %d: %w", g.GroupID, err)
+		}
+		// Only calculated players participate in round-robin matches.
+		var players []model.GroupPlayer
+		for _, p := range allPlayers {
+			if !p.IsNonCalculated {
+				players = append(players, p)
+			}
 		}
 		var stubs []model.Match
 		for a := 0; a < len(players); a++ {

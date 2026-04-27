@@ -168,6 +168,7 @@ func (m *mockGroupRepo) ListPlayerGroupsInEvent(ctx context.Context, userID, eve
 	return nil, nil
 }
 
+// mockMatchRepo also satisfies repository.MatchRepository.
 type mockMatchRepo struct {
 	matches map[int64][]model.Match
 }

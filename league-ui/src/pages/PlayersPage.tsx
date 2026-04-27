@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { usePlayers } from '../hooks/usePlayers'
 import { Table, type Column } from '../components/Table/Table'
 import type { User } from '../types'
 import { useAuth } from '../hooks/useAuth'
 
 export function PlayersPage() {
+  const { t } = useTranslation()
   const [sort, setSort] = useState<'rating' | 'name'>('rating')
   const [query, setQuery] = useState('')
   const { players, loading, error } = usePlayers({ q: query, sort, limit: 100, offset: 0 })
@@ -15,14 +17,14 @@ export function PlayersPage() {
   const columns: Column<User>[] = [
     {
       key: 'rank',
-      header: '#',
+      header: t('players.rank'),
       render: (p) => (
         <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>{players.indexOf(p) + 1}</span>
       ),
     },
     {
       key: 'name',
-      header: 'Player',
+      header: t('players.player'),
       render: (p) => (
         <Link
           to={`/players/${p.userId}`}
@@ -37,7 +39,7 @@ export function PlayersPage() {
     },
     {
       key: 'rating',
-      header: 'Rating',
+      header: t('players.rating'),
       render: (p) => (
         <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>{Math.round(p.currentRating)}</span>
       ),
@@ -46,7 +48,7 @@ export function PlayersPage() {
     },
     {
       key: 'deviation',
-      header: 'RD',
+      header: t('players.rd'),
       render: (p) => (
         <span style={{ fontSize: 12, color: '#94a3b8' }}>±{Math.round(p.deviation)}</span>
       ),
@@ -70,10 +72,12 @@ export function PlayersPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.5px' }}>
-            Players
+            {t('players.title')}
           </h1>
           <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-            {players.length > 0 ? `${players.length} registered players` : 'Registered player rankings'}
+            {players.length > 0
+              ? t('players.registeredPlayers', { count: players.length })
+              : t('players.registeredPlayerRankings')}
           </p>
         </div>
         {canManage && (
@@ -92,7 +96,7 @@ export function PlayersPage() {
               }}
               className="hover:bg-[#0B3C5D] hover:text-white transition-colors"
             >
-              Import CSV
+              {t('players.importCSV')}
             </Link>
             <Link
               to="/players/new"
@@ -107,7 +111,7 @@ export function PlayersPage() {
               }}
               className="hover:opacity-90 transition-opacity"
             >
-              + Add Player
+              {t('players.addPlayer')}
             </Link>
           </div>
         )}
@@ -134,7 +138,7 @@ export function PlayersPage() {
           </svg>
           <input
             type="text"
-            placeholder="Search by name, city, blade…"
+            placeholder={t('players.searchPlaceholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{
@@ -165,14 +169,14 @@ export function PlayersPage() {
 
         {!query && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Sort:</span>
-            <button style={sortBtnStyle(sort === 'rating')} onClick={() => setSort('rating')}>Rating</button>
-            <button style={sortBtnStyle(sort === 'name')} onClick={() => setSort('name')}>Name</button>
+            <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('players.sort')}</span>
+            <button style={sortBtnStyle(sort === 'rating')} onClick={() => setSort('rating')}>{t('players.sortRating')}</button>
+            <button style={sortBtnStyle(sort === 'name')} onClick={() => setSort('name')}>{t('players.sortName')}</button>
           </div>
         )}
       </div>
 
-      {loading && <p style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>Searching…</p>}
+      {loading && <p style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>{t('players.searching')}</p>}
       {error && (
         <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16 }}>
           {error}
@@ -183,7 +187,7 @@ export function PlayersPage() {
         columns={columns}
         rows={players}
         rowKey={(p) => p.userId}
-        emptyMessage={query ? `No players match "${query}"` : 'No players found'}
+        emptyMessage={query ? t('players.noPlayersMatch', { query }) : t('players.noPlayersFound')}
       />
     </div>
   )

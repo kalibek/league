@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useEvent } from '../hooks/useEvents'
 import { useGroups, useCreateGroup, useSeedPlayer, useRemoveGroupPlayer } from '../hooks/useGroups'
 import { usePlayers } from '../hooks/usePlayers'
@@ -14,6 +15,7 @@ interface GroupWithPlayers extends Group {
 }
 
 export function EventSetupPage() {
+  const { t } = useTranslation()
   const { id, eid } = useParams<{ id: string; eid: string }>()
   const leagueId = Number(id)
   const eventId = Number(eid)
@@ -113,8 +115,8 @@ export function EventSetupPage() {
     players: groupPlayers[g.groupId] ?? [],
   }))
 
-  if (eventLoading) return <div className="p-8 text-gray-400">Loading...</div>
-  if (!event) return <div className="p-8 text-red-600">Event not found</div>
+  if (eventLoading) return <div className="p-8 text-gray-400">{t('eventSetup.loading')}</div>
+  if (!event) return <div className="p-8 text-red-600">{t('eventSetup.notFound')}</div>
 
   const isDraft = event.status === 'DRAFT'
 
@@ -124,7 +126,7 @@ export function EventSetupPage() {
         to={`/leagues/${leagueId}`}
         className="text-sm text-blue-600 hover:underline mb-4 block"
       >
-        &larr; Back to League
+        {t('eventSetup.backToLeague')}
       </Link>
 
       {/* Event header */}
@@ -143,25 +145,25 @@ export function EventSetupPage() {
             to={`/leagues/${leagueId}`}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
-            Start event from league page
+            {t('eventSetup.startFromLeague')}
           </Link>
         )}
       </div>
 
       {!isDraft && (
         <div className="mb-4 rounded-md bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-800">
-          Event is not in DRAFT status — group and player setup is locked.
+          {t('eventSetup.notDraftWarning')}
         </div>
       )}
 
       {/* Groups */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">
-          Groups {!groupsLoading && `(${groups.length})`}
+          {t('eventSetup.groups')} {!groupsLoading && `(${groups.length})`}
         </h2>
         {isDraft && (
           <Button variant="primary" onClick={() => setShowAddGroup(true)}>
-            + Add Group
+            {t('eventSetup.addGroup')}
           </Button>
         )}
       </div>
@@ -174,7 +176,7 @@ export function EventSetupPage() {
         >
           <div className="flex gap-3 flex-wrap">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Division</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('eventSetup.division')}</label>
               <select
                 className="rounded border border-gray-300 px-3 py-2 text-sm"
                 value={groupForm.division}
@@ -186,7 +188,7 @@ export function EventSetupPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Group #</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('eventSetup.groupNumber')}</label>
               <input
                 type="number"
                 min={1}
@@ -198,7 +200,7 @@ export function EventSetupPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Scheduled date/time
+                {t('eventSetup.scheduledDateTime')}
               </label>
               <input
                 type="datetime-local"
@@ -211,16 +213,16 @@ export function EventSetupPage() {
           {createError && <p className="text-xs text-red-600">{createError}</p>}
           <div className="flex gap-2">
             <Button type="button" variant="secondary" onClick={() => setShowAddGroup(false)}>
-              Cancel
+              {t('eventSetup.cancel')}
             </Button>
             <Button type="submit" loading={creating}>
-              Create Group
+              {t('eventSetup.createGroup')}
             </Button>
           </div>
         </form>
       )}
 
-      {groupsLoading && <p className="text-gray-400 text-sm">Loading groups...</p>}
+      {groupsLoading && <p className="text-gray-400 text-sm">{t('eventSetup.loadingGroups')}</p>}
 
       {/* Group cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -235,7 +237,7 @@ export function EventSetupPage() {
                   {grp.division === 'Superleague' ? 'Superleague' : `${grp.division}${grp.groupNo}`}
                 </h3>
                 <span className="text-xs text-gray-400">
-                  {grp.players.length} player{grp.players.length !== 1 ? 's' : ''}
+                  {t('eventSetup.players', { count: grp.players.length })}
                 </span>
               </div>
 
@@ -249,7 +251,7 @@ export function EventSetupPage() {
                       className="flex items-center justify-between text-sm"
                     >
                       <span className="text-gray-700">
-                        {user ? `${user.firstName} ${user.lastName}` : `Player #${gp.userId}`}
+                        {user ? `${user.firstName} ${user.lastName}` : t('eventSetup.player', { id: gp.userId })}
                         {user && (
                           <span className="ml-1 text-xs text-gray-400">
                             {Math.round(user.currentRating)}
@@ -261,7 +263,7 @@ export function EventSetupPage() {
                           onClick={() => handleRemovePlayer(grp.groupId, gp.groupPlayerId)}
                           disabled={removing}
                           className="text-gray-300 hover:text-red-500 text-xs px-1"
-                          title="Remove player"
+                          title={t('groupStandings.noShow', { name: user ? `${user.firstName} ${user.lastName}` : String(gp.userId) })}
                         >
                           ×
                         </button>
@@ -270,7 +272,7 @@ export function EventSetupPage() {
                   )
                 })}
                 {grp.players.length === 0 && (
-                  <li className="text-xs text-gray-400 italic">No players yet</li>
+                  <li className="text-xs text-gray-400 italic">{t('eventSetup.noPlayersYet')}</li>
                 )}
               </ul>
 
@@ -289,7 +291,7 @@ export function EventSetupPage() {
                     disabled={playersLoading || groupAvailable.length === 0}
                   >
                     <option value="">
-                      {groupAvailable.length === 0 ? 'No players available' : '— Add player —'}
+                      {groupAvailable.length === 0 ? t('eventSetup.noPlayersAvailable') : t('eventSetup.addPlayerPlaceholder')}
                     </option>
                     {groupAvailable.map((p) => (
                       <option key={p.userId} value={p.userId}>
@@ -303,7 +305,7 @@ export function EventSetupPage() {
                     disabled={!selectedPlayer[grp.groupId] || seeding}
                     loading={seeding}
                   >
-                    Add
+                    {t('eventSetup.add')}
                   </Button>
                 </div>
               )}
@@ -315,19 +317,19 @@ export function EventSetupPage() {
 
       {!groupsLoading && groups.length === 0 && (
         <p className="text-gray-400 text-sm mt-2">
-          No groups yet.{isDraft ? ' Add groups above.' : ''}
+          {isDraft ? t('eventSetup.noGroupsAddAbove') : t('eventSetup.noGroupsYet')}
         </p>
       )}
 
       <div className="mt-4 text-xs text-gray-400">
-        {assignedUserIds.size} of {players.length} players assigned
+        {t('eventSetup.playersAssigned', { assigned: assignedUserIds.size, total: players.length })}
       </div>
 
       <button
         onClick={refreshAll}
         className="mt-2 text-xs text-blue-500 hover:underline"
       >
-        Refresh
+        {t('eventSetup.refresh')}
       </button>
     </div>
   )

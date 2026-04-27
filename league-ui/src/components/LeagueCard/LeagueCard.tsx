@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import type { League } from '../../types'
 
 export function LeagueCard({ league }: { league: League }) {
+  const { t } = useTranslation()
   const maintainers = league.maintainers ?? []
   const eventCount = league.eventCount ?? 0
 
@@ -42,13 +44,13 @@ export function LeagueCard({ league }: { league: League }) {
             whiteSpace: 'nowrap',
           }}
         >
-          {eventCount} {eventCount === 1 ? 'event' : 'events'}
+          {t('leagues.event', { count: eventCount })}
         </span>
       </div>
 
       {maintainers.length > 0 && (
         <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>Maintained by</span>
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>{t('leagues.maintainedBy')}</span>
           {maintainers.map((m) => (
             <span
               key={m.userId}

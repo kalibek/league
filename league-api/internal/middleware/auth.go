@@ -153,27 +153,17 @@ func hasRole(c *gin.Context, leagueID int64, role string) bool {
 	return false
 }
 
-// loadUserRoles fetches all UserRole records for a user and groups them by leagueID → role names.
-// On any error it returns an empty map (non-fatal).
+// loadUserRoles fetches all UserRole records for a user in a single query
+// and groups them by leagueID → role names. On any error it returns an empty map (non-fatal).
 func loadUserRoles(ctx context.Context, userID int64, leagueRepo repository.LeagueRepository) map[int64][]string {
-	// We need to iterate all leagues. A simpler approach: use a flat query via a dedicated method.
-	// Since LeagueRepository.GetUserRoles requires a leagueID, and we don't have "list all leagues"
-	// scoped to a user, we fall back to listing all leagues then querying per league.
-	leagues, err := leagueRepo.List(ctx)
+	urs, err := leagueRepo.GetAllUserRoles(ctx, userID)
 	if err != nil {
 		return map[int64][]string{}
 	}
-
-	result := make(map[int64][]string)
-	for _, l := range leagues {
-		urs, err := leagueRepo.GetUserRoles(ctx, userID, l.LeagueID)
-		if err != nil {
-			continue
-		}
-		for _, ur := range urs {
-			name := roleIDToName(ur.RoleID)
-			result[l.LeagueID] = append(result[l.LeagueID], name)
-		}
+	result := make(map[int64][]string, len(urs))
+	for _, ur := range urs {
+		name := roleIDToName(ur.RoleID)
+		result[ur.LeagueID] = append(result[ur.LeagueID], name)
 	}
 	return result
 }

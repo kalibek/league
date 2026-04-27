@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Button } from '../Button/Button'
+import { useTranslation } from 'react-i18next'
 
 interface ImportResult {
   imported: number
@@ -13,6 +14,7 @@ interface CSVImportProps {
 }
 
 export function CSVImport({ onImport, loading = false }: CSVImportProps) {
+  const { t } = useTranslation()
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string[][]>([])
   const [result, setResult] = useState<ImportResult | null>(null)
@@ -78,9 +80,9 @@ export function CSVImport({ onImport, loading = false }: CSVImportProps) {
           <p className="text-sm text-gray-700 font-medium">{file.name}</p>
         ) : (
           <>
-            <p className="text-gray-500">Drag and drop a CSV file here, or click to select</p>
+            <p className="text-gray-500">{t('csvImport.dragDrop')}</p>
             <p className="text-xs text-gray-400 mt-1">
-              Columns: first_name, last_name, email, initial_rating (optional)
+              {t('csvImport.columns')}
             </p>
           </>
         )}
@@ -117,7 +119,7 @@ export function CSVImport({ onImport, loading = false }: CSVImportProps) {
       {/* Submit */}
       {file && (
         <Button onClick={handleSubmit} loading={loading} disabled={!file}>
-          Import Players
+          {t('csvImport.importPlayers')}
         </Button>
       )}
 
@@ -125,9 +127,9 @@ export function CSVImport({ onImport, loading = false }: CSVImportProps) {
       {result && (
         <div className="rounded-md border border-gray-200 p-4 bg-gray-50 text-sm">
           <p className="font-medium text-gray-800">
-            Imported: {result.imported} &nbsp;|&nbsp; Skipped: {result.skipped} (duplicates)
+            {t('csvImport.importedSkipped', { imported: result.imported, skipped: result.skipped })}
             {(result.errors ?? []).length > 0 && (
-              <span className="text-red-600"> &nbsp;|&nbsp; Errors: {result.errors.length}</span>
+              <span className="text-red-600"> &nbsp;|&nbsp; {t('csvImport.errors', { count: result.errors.length })}</span>
             )}
           </p>
           {(result.errors ?? []).length > 0 && (

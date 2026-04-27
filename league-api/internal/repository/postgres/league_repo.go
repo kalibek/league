@@ -122,6 +122,18 @@ func (r *leagueRepo) GetUserRoles(ctx context.Context, userID, leagueID int64) (
 	return roles, nil
 }
 
+func (r *leagueRepo) GetAllUserRoles(ctx context.Context, userID int64) ([]model.UserRole, error) {
+	roles := make([]model.UserRole, 0)
+	err := r.db.SelectContext(ctx, &roles,
+		`SELECT user_id, role_id, league_id FROM user_roles WHERE user_id = $1`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("leagueRepo.GetAllUserRoles: %w", err)
+	}
+	return roles, nil
+}
+
 func (r *leagueRepo) ListLeagueRoles(ctx context.Context, leagueID int64) ([]model.UserRole, error) {
 	roles := make([]model.UserRole, 0)
 	err := r.db.SelectContext(ctx, &roles,

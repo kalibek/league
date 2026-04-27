@@ -1,6 +1,7 @@
 import { type CSSProperties } from 'react'
 import type { GroupPlayer, Match } from '../../types'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 interface MatchGridProps {
   players: GroupPlayer[]
@@ -31,6 +32,7 @@ function getRoundScoreLabel(m: Match): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function MatchGrid({ players, matches, onScoreClick }: MatchGridProps) {
+  const { t } = useTranslation()
   const calcPlayers = [...players.filter((p) => !p.isNonCalculated)].sort((a, b) => a.seed - b.seed)
 
   const matchLookup = new Map<string, Match>()
@@ -71,7 +73,7 @@ export function MatchGrid({ players, matches, onScoreClick }: MatchGridProps) {
   }
 
   if (calcPlayers.length === 0) {
-    return <p style={{ fontSize: 13, color: '#94a3b8', padding: '4px 0' }}>No players</p>
+    return <p style={{ fontSize: 13, color: '#94a3b8', padding: '4px 0' }}>{t('matchGrid.noPlayers')}</p>
   }
 
   const rounds = getRounds(calcPlayers)
@@ -106,7 +108,7 @@ export function MatchGrid({ players, matches, onScoreClick }: MatchGridProps) {
                 textTransform: 'uppercase',
                 color: '#94a3b8',
               }}>
-                Round
+                {t('matchGrid.round')}
               </span>
               <span style={{
                 fontSize: 11,
@@ -229,7 +231,7 @@ export function MatchGrid({ players, matches, onScoreClick }: MatchGridProps) {
                           <button
                             onClick={() => onScoreClick(m)}
                             style={pillStyle}
-                            aria-label={`Enter score: ${playerName(p1)} vs ${playerName(p2)}`}
+                            aria-label={t('matchGrid.enterScore', { p1: playerName(p1), p2: playerName(p2) })}
                           >
                             {label}
                           </button>

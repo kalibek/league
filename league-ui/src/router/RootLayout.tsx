@@ -1,10 +1,42 @@
 import { Outlet, Link, useLocation, NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { AuthProvider, useAuthContext } from '../context/AuthContext'
 import { useMyProfile } from '../hooks/useProfile'
+
+function LanguageSwitcher() {
+  const { i18n, t } = useTranslation()
+  const langs = ['en', 'ru', 'kk'] as const
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      {langs.map((lang) => (
+        <button
+          key={lang}
+          onClick={() => i18n.changeLanguage(lang)}
+          style={{
+            fontSize: 11,
+            fontWeight: i18n.language === lang ? 700 : 400,
+            color: i18n.language === lang ? '#fff' : 'rgba(255,255,255,0.55)',
+            background: i18n.language === lang ? 'rgba(255,255,255,0.15)' : 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '3px 7px',
+            borderRadius: 4,
+            letterSpacing: '0.02em',
+          }}
+          aria-label={t(`language.${lang}`)}
+        >
+          {lang.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function ProfileBannerInner() {
   const location = useLocation()
   const { profile } = useMyProfile()
+  const { t } = useTranslation()
 
   if (!profile || profile.isComplete) return null
   if (location.pathname === '/profile/edit') return null
@@ -13,14 +45,14 @@ function ProfileBannerInner() {
     <div style={{ backgroundColor: '#fff8ed', borderBottom: '1px solid #fed7aa' }}>
       <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between text-sm">
         <span style={{ color: '#92400e' }}>
-          Your profile is incomplete. Fill in your details to get the most out of the platform.
+          {t('profileBanner.message')}
         </span>
         <Link
           to="/profile/edit"
           style={{ color: '#7c2d12', fontWeight: 600, textDecoration: 'underline' }}
           className="ml-4 whitespace-nowrap hover:opacity-80"
         >
-          Complete Profile →
+          {t('profileBanner.completeProfile')} →
         </Link>
       </div>
     </div>
@@ -35,6 +67,7 @@ function ProfileBanner() {
 
 function NavBar() {
   const { user, logout, loading } = useAuthContext()
+  const { t } = useTranslation()
 
   if (loading) return null
 
@@ -67,18 +100,19 @@ function NavBar() {
               style={{ color: '#fff', fontWeight: 700, fontSize: 15, letterSpacing: '-0.3px' }}
               className="group-hover:opacity-90"
             >
-              Table Tennis
+              {t('nav.tableTennis')}
             </span>
           </Link>
           <NavLink to="/leagues" className={navLinkClass}>
-            Leagues
+            {t('nav.leagues')}
           </NavLink>
           <NavLink to="/players" className={navLinkClass}>
-            Players
+            {t('nav.players')}
           </NavLink>
         </div>
 
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
           {user ? (
             <>
               <Link
@@ -91,7 +125,7 @@ function NavBar() {
                 onClick={logout}
                 className="text-sm text-white opacity-60 hover:opacity-90"
               >
-                Logout
+                {t('nav.logout')}
               </button>
             </>
           ) : (
@@ -107,7 +141,7 @@ function NavBar() {
               }}
               className="hover:opacity-90"
             >
-              Sign In
+              {t('nav.signIn')}
             </Link>
           )}
         </div>

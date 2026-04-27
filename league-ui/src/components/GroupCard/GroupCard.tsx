@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { GroupStatus } from '../../types'
 import { Badge } from '../Badge/Badge'
+import { useTranslation } from 'react-i18next'
 
 interface GroupCardProps {
   division: string
@@ -21,6 +22,7 @@ export function GroupCard({
   defaultCollapsed = false,
   collapseSignal = 0,
 }: GroupCardProps) {
+  const { t } = useTranslation()
   const [seenSignal, setSeenSignal] = useState(collapseSignal)
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
 
@@ -29,7 +31,7 @@ export function GroupCard({
     if (collapseSignal > 0) setCollapsed(true)
   }
 
-  const title = division === 'Superleague' ? 'Superleague' : `Division ${division} — Group ${groupNo}`
+  const title = division === 'Superleague' ? 'Superleague' : t('groupCard.divisionGroup', { division, no: groupNo })
 
   return (
     <div className="rounded-xl overflow-hidden shadow-sm" style={{ border: '1px solid var(--border)' }}>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { registerEmail, loginEmail } from '../api/auth'
 
 type Mode = 'login' | 'register'
@@ -30,6 +31,7 @@ function SocialButton({ href, icon, label }: { href: string; icon: React.ReactNo
 }
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const [mode, setMode] = useState<Mode>('login')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -52,7 +54,7 @@ export function LoginPage() {
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        'Something went wrong'
+        t('login.somethingWentWrong')
       setError(msg)
     } finally {
       setLoading(false)
@@ -115,22 +117,22 @@ export function LoginPage() {
             TT
           </div>
           <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--navy)', letterSpacing: '-0.3px' }}>
-            Table Tennis League
+            {t('login.tableTennisLeague')}
           </span>
         </div>
 
         <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--navy)', textAlign: 'center', marginBottom: 4, letterSpacing: '-0.5px' }}>
-          {mode === 'login' ? 'Welcome back' : 'Create account'}
+          {mode === 'login' ? t('login.welcomeBack') : t('login.createAccount')}
         </h1>
         <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', marginBottom: 24 }}>
-          {mode === 'login' ? 'Sign in to your account to continue' : 'Join the table tennis community'}
+          {mode === 'login' ? t('login.signInToContinue') : t('login.joinCommunity')}
         </p>
 
         {/* Social logins */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
           <SocialButton
             href="/api/v1/auth/login?provider=google"
-            label="Continue with Google"
+            label={t('login.continueWithGoogle')}
             icon={
               <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -142,7 +144,7 @@ export function LoginPage() {
           />
           <SocialButton
             href="/api/v1/auth/login?provider=facebook"
-            label="Continue with Facebook"
+            label={t('login.continueWithFacebook')}
             icon={
               <svg className="h-5 w-5" style={{ color: '#1877f2' }} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
@@ -151,7 +153,7 @@ export function LoginPage() {
           />
           <SocialButton
             href="/api/v1/auth/login?provider=apple"
-            label="Continue with Apple"
+            label={t('login.continueWithApple')}
             icon={
               <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
@@ -167,7 +169,7 @@ export function LoginPage() {
           </div>
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
             <span style={{ backgroundColor: '#fff', padding: '0 12px', fontSize: 12, color: '#94a3b8' }}>
-              or continue with email
+              {t('login.orContinueWithEmail')}
             </span>
           </div>
         </div>
@@ -177,7 +179,7 @@ export function LoginPage() {
           {mode === 'register' && (
             <div style={{ display: 'flex', gap: 10 }}>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>First name</label>
+                <label style={labelStyle}>{t('login.firstName')}</label>
                 <input
                   type="text"
                   required
@@ -188,7 +190,7 @@ export function LoginPage() {
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Last name</label>
+                <label style={labelStyle}>{t('login.lastName')}</label>
                 <input
                   type="text"
                   required
@@ -202,7 +204,7 @@ export function LoginPage() {
           )}
 
           <div>
-            <label style={labelStyle}>Email</label>
+            <label style={labelStyle}>{t('login.email')}</label>
             <input
               type="email"
               required
@@ -214,7 +216,7 @@ export function LoginPage() {
           </div>
 
           <div>
-            <label style={labelStyle}>Password</label>
+            <label style={labelStyle}>{t('login.password')}</label>
             <input
               type="password"
               required
@@ -249,29 +251,29 @@ export function LoginPage() {
             }}
             className="hover:opacity-90 transition-opacity"
           >
-            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            {loading ? t('login.pleaseWait') : mode === 'login' ? t('login.signIn') : t('login.createAccount')}
           </button>
         </form>
 
         <p style={{ marginTop: 18, textAlign: 'center', fontSize: 13, color: '#64748b' }}>
           {mode === 'login' ? (
             <>
-              No account?{' '}
+              {t('login.noAccount')}{' '}
               <button
                 style={{ color: 'var(--orange)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
                 onClick={() => { setMode('register'); setError(null) }}
               >
-                Register
+                {t('login.register')}
               </button>
             </>
           ) : (
             <>
-              Already registered?{' '}
+              {t('login.alreadyRegistered')}{' '}
               <button
                 style={{ color: 'var(--orange)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}
                 onClick={() => { setMode('login'); setError(null) }}
               >
-                Sign in
+                {t('login.signInLink')}
               </button>
             </>
           )}

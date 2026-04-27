@@ -16,7 +16,6 @@ type GroupService interface {
 	CalculatePlacements(ctx context.Context, groupID int64) (needsManual []int64, err error)
 	SetManualPlace(ctx context.Context, groupPlayerID int64, place int16) error
 	AddNonCalculatedPlayer(ctx context.Context, groupID, userID int64) error
-	MarkNoShow(ctx context.Context, groupPlayerID int64, gamesToWin int) error
 	GetGroupDetail(ctx context.Context, groupID int64) (*model.Group, []model.GroupPlayer, []model.Match, error)
 	ListGroups(ctx context.Context, eventID int64) ([]model.Group, error)
 	CreateGroup(ctx context.Context, eventID int64, division string, groupNo int, scheduled time.Time) (*model.Group, error)
@@ -106,10 +105,6 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 		return nil, fmt.Errorf("groupService.CalculatePlacements matches: %w", err)
 	}
 
-	// Build withdraw maps for DNS detection.
-	allWithdraw1 := make(map[int64]bool) // groupPlayerID → all matches withdrawn as p1
-	allWithdraw2 := make(map[int64]bool) // groupPlayerID → all matches withdrawn as p2
-
 	// Exclude non-calculated players.
 	var ranked []model.GroupPlayer
 	for _, p := range players {
@@ -148,9 +143,6 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 			return nil, fmt.Errorf("groupService.CalculatePlacements update tiebreak: %w", err)
 		}
 	}
-
-	_ = allWithdraw1
-	_ = allWithdraw2
 
 	// Sort by points DESC, then tiebreak DESC.
 	sort.Slice(ranked, func(i, j int) bool {
@@ -275,19 +267,6 @@ func (s *groupService) AddNonCalculatedPlayer(ctx context.Context, groupID, user
 	return err
 }
 
-// MarkNoShow marks all matches for a player as withdrawn and recalculates group standings.
-func (s *groupService) MarkNoShow(ctx context.Context, groupPlayerID int64, gamesToWin int) error {
-	// We need to know the groupID — fetch players by iterating matches.
-	// This requires a slightly different approach: fetch group via groupPlayerID from matches.
-	// Since the interface doesn't have GetGroupPlayerByID, we use matches.
-	// The caller should ensure groupID context if needed.
-	// For simplicity, we accept that we need to find matches by groupPlayerID.
-
-	// We can't easily find groupID from groupPlayerID without a direct lookup.
-	// The handler will provide groupID, so let's trust that the caller provides matches context.
-	// For now, we'll handle this in the match service which has full context.
-	return fmt.Errorf("use MatchService.MarkNoShow instead")
-}
 
 func (s *groupService) ListGroups(ctx context.Context, eventID int64) ([]model.Group, error) {
 	return s.groupRepo.ListByEvent(ctx, eventID)
@@ -328,26 +307,18 @@ func (s *groupService) SeedPlayer(ctx context.Context, groupID, userID int64) er
 		return fmt.Errorf("cannot seed players into a non-DRAFT event")
 	}
 
-	// Check the player is not already in another group within this event.
-	groups, err := s.groupRepo.ListByEvent(ctx, grp.EventID)
+	// Check the player is not already in another group within this event (single query).
+	existing, err := s.groupRepo.ListPlayerGroupsInEvent(ctx, userID, grp.EventID)
 	if err != nil {
-		return fmt.Errorf("groupService.SeedPlayer list groups: %w", err)
+		return fmt.Errorf("groupService.SeedPlayer check existing: %w", err)
 	}
-	for _, g := range groups {
-		players, err := s.groupRepo.GetPlayers(ctx, g.GroupID)
-		if err != nil {
-			return err
-		}
-		for _, p := range players {
-			if p.UserID == userID {
-				return fmt.Errorf("player %d is already assigned to a group in this event", userID)
-			}
-		}
+	if len(existing) > 0 {
+		return fmt.Errorf("player %d is already assigned to a group in this event", userID)
 	}
 
 	// Compute next seed number.
-	existing, _ := s.groupRepo.GetPlayers(ctx, groupID)
-	seed := int16(len(existing) + 1)
+	currentPlayers, _ := s.groupRepo.GetPlayers(ctx, groupID)
+	seed := int16(len(currentPlayers) + 1)
 
 	gp := &model.GroupPlayer{
 		GroupID:         groupID,

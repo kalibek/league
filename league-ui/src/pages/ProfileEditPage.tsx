@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useMyProfile, useUpsertProfile, useCountries, useCities, useBlades, useRubbers } from '../hooks/useProfile'
 import { Button } from '../components/Button/Button'
 import type { Country, City, Blade, Rubber } from '../types'
@@ -50,12 +51,16 @@ function AddNewInput({
   onConfirm,
   onCancel,
   placeholder,
+  addLabel,
+  cancelLabel,
 }: {
   state: AddNewState
   onChange: (v: string) => void
   onConfirm: () => void
   onCancel: () => void
   placeholder: string
+  addLabel: string
+  cancelLabel: string
 }) {
   if (!state.show) return null
   return (
@@ -78,14 +83,14 @@ function AddNewInput({
         style={{ fontSize: 12, padding: '7px 14px', backgroundColor: 'var(--orange)', color: '#fff', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600 }}
         onClick={onConfirm}
       >
-        Add
+        {addLabel}
       </button>
       <button
         type="button"
         style={{ fontSize: 12, padding: '7px 12px', border: '1.5px solid var(--border)', borderRadius: 8, cursor: 'pointer', backgroundColor: '#fff', color: '#64748b' }}
         onClick={onCancel}
       >
-        Cancel
+        {cancelLabel}
       </button>
     </div>
   )
@@ -100,6 +105,10 @@ function SelectWithAdd<T extends { name: string }>({
   onAdd,
   addPlaceholder,
   disabled,
+  selectPlaceholder,
+  addNewLabel,
+  addLabel,
+  cancelLabel,
 }: {
   label: string
   items: T[]
@@ -109,6 +118,10 @@ function SelectWithAdd<T extends { name: string }>({
   onAdd?: (name: string) => Promise<T | null>
   addPlaceholder: string
   disabled?: boolean
+  selectPlaceholder: string
+  addNewLabel: string
+  addLabel: string
+  cancelLabel: string
 }) {
   const [addState, setAddState] = useState<AddNewState>({ show: false, value: '' })
 
@@ -131,7 +144,7 @@ function SelectWithAdd<T extends { name: string }>({
           onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
           disabled={disabled}
         >
-          <option value="">— select —</option>
+          <option value="">{selectPlaceholder}</option>
           {items.map((item) => (
             <option key={String(item[valueKey])} value={String(item[valueKey])}>
               {item.name}
@@ -144,7 +157,7 @@ function SelectWithAdd<T extends { name: string }>({
             style={{ fontSize: 12, color: 'var(--orange)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
             onClick={() => setAddState({ show: true, value: '' })}
           >
-            + Add new
+            {addNewLabel}
           </button>
         )}
       </div>
@@ -155,6 +168,8 @@ function SelectWithAdd<T extends { name: string }>({
           onConfirm={handleConfirm}
           onCancel={() => setAddState({ show: false, value: '' })}
           placeholder={addPlaceholder}
+          addLabel={addLabel}
+          cancelLabel={cancelLabel}
         />
       )}
     </div>
@@ -162,6 +177,7 @@ function SelectWithAdd<T extends { name: string }>({
 }
 
 export function ProfileEditPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { profile, loading: profileLoading } = useMyProfile()
   const { save, loading: saving, error: saveError } = useUpsertProfile()
@@ -187,21 +203,23 @@ export function ProfileEditPage() {
 
   useEffect(() => {
     if (!profile) return
-    setForm({
+    const next = {
       firstName: profile.firstName ?? '',
       lastName: profile.lastName ?? '',
       countryId: profile.country?.countryId ?? null,
       cityId: profile.city?.cityId ?? null,
       birthdate: profile.birthdate ? profile.birthdate.slice(0, 10) : '',
-      grip: (profile.grip as typeof form.grip) ?? '',
-      gender: (profile.gender as typeof form.gender) ?? '',
+      grip: (profile.grip as '' | 'penhold' | 'shakehand') ?? '',
+      gender: (profile.gender as '' | 'male' | 'female' | 'other') ?? '',
       bladeId: profile.blade?.bladeId ?? null,
       fhRubberId: profile.fhRubber?.rubberId ?? null,
       bhRubberId: profile.bhRubber?.rubberId ?? null,
-    })
-    if (profile.country?.countryId) {
-      setSelectedCountryId(profile.country.countryId)
     }
+    const countryId = profile.country?.countryId ?? null
+    Promise.resolve().then(() => {
+      setForm(next)
+      if (countryId) setSelectedCountryId(countryId)
+    })
   }, [profile])
 
   const handleCountryChange = (id: number | null) => {
@@ -230,7 +248,7 @@ export function ProfileEditPage() {
 
   if (profileLoading) return (
     <div style={{ padding: '48px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
-      Loading profile…
+      {t('profileEdit.loadingProfile')}
     </div>
   )
 
@@ -254,10 +272,21 @@ export function ProfileEditPage() {
     cursor: 'pointer',
   }
 
+  const gripLabels: Record<'penhold' | 'shakehand', string> = {
+    penhold: t('profileEdit.penhold'),
+    shakehand: t('profileEdit.shakehand'),
+  }
+
+  const genderLabels: Record<'male' | 'female' | 'other', string> = {
+    male: t('profileEdit.male'),
+    female: t('profileEdit.female'),
+    other: t('profileEdit.other'),
+  }
+
   return (
     <div className="max-w-2xl mx-auto py-10 px-4">
       <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.5px', marginBottom: 24 }}>
-        Edit Profile
+        {t('profileEdit.title')}
       </h1>
 
       <form
@@ -273,11 +302,11 @@ export function ProfileEditPage() {
           boxShadow: '0 2px 8px rgba(11,60,93,0.06)',
         }}
       >
-        <p style={sectionLabel}>Personal Info</p>
+        <p style={sectionLabel}>{t('profileEdit.personalInfo')}</p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
-            <label style={labelStyle}>First Name</label>
+            <label style={labelStyle}>{t('profileEdit.firstName')}</label>
             <input
               type="text"
               style={inputStyle}
@@ -287,7 +316,7 @@ export function ProfileEditPage() {
             />
           </div>
           <div>
-            <label style={labelStyle}>Last Name</label>
+            <label style={labelStyle}>{t('profileEdit.lastName')}</label>
             <input
               type="text"
               style={inputStyle}
@@ -299,28 +328,36 @@ export function ProfileEditPage() {
         </div>
 
         <SelectWithAdd<Country>
-          label="Country"
+          label={t('profileEdit.country')}
           items={countries}
           valueKey="countryId"
           value={form.countryId}
           onChange={handleCountryChange}
-          addPlaceholder="Country name"
+          addPlaceholder={t('profileEdit.countryNamePlaceholder')}
           disabled={false}
+          selectPlaceholder={t('profileEdit.select')}
+          addNewLabel={t('profileEdit.addNew')}
+          addLabel={t('profileEdit.add')}
+          cancelLabel={t('profileEdit.cancel')}
         />
 
         <SelectWithAdd<City>
-          label="City"
+          label={t('profileEdit.city')}
           items={cities}
           valueKey="cityId"
           value={form.cityId}
           onChange={(id) => setForm((f) => ({ ...f, cityId: id }))}
           onAdd={form.countryId ? handleAddCity : undefined}
-          addPlaceholder="City name"
+          addPlaceholder={t('profileEdit.cityNamePlaceholder')}
           disabled={!form.countryId}
+          selectPlaceholder={t('profileEdit.select')}
+          addNewLabel={t('profileEdit.addNew')}
+          addLabel={t('profileEdit.add')}
+          cancelLabel={t('profileEdit.cancel')}
         />
 
         <div>
-          <label style={labelStyle}>Birthdate</label>
+          <label style={labelStyle}>{t('profileEdit.birthdate')}</label>
           <input
             type="date"
             style={inputStyle}
@@ -331,7 +368,7 @@ export function ProfileEditPage() {
         </div>
 
         <div>
-          <label style={labelStyle}>Grip</label>
+          <label style={labelStyle}>{t('profileEdit.grip')}</label>
           <div style={{ display: 'flex', gap: 20 }}>
             {(['penhold', 'shakehand'] as const).map((g) => (
               <label key={g} style={radioLabel}>
@@ -343,14 +380,14 @@ export function ProfileEditPage() {
                   onChange={() => setForm((f) => ({ ...f, grip: g }))}
                   style={{ accentColor: 'var(--orange)' }}
                 />
-                {g.charAt(0).toUpperCase() + g.slice(1)}
+                {gripLabels[g]}
               </label>
             ))}
           </div>
         </div>
 
         <div>
-          <label style={labelStyle}>Gender</label>
+          <label style={labelStyle}>{t('profileEdit.gender')}</label>
           <div style={{ display: 'flex', gap: 20 }}>
             {(['male', 'female', 'other'] as const).map((g) => (
               <label key={g} style={radioLabel}>
@@ -362,44 +399,56 @@ export function ProfileEditPage() {
                   onChange={() => setForm((f) => ({ ...f, gender: g }))}
                   style={{ accentColor: 'var(--orange)' }}
                 />
-                {g.charAt(0).toUpperCase() + g.slice(1)}
+                {genderLabels[g]}
               </label>
             ))}
           </div>
         </div>
 
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
-          <p style={sectionLabel}>Equipment Setup</p>
+          <p style={sectionLabel}>{t('profileEdit.equipmentSetup')}</p>
         </div>
 
         <SelectWithAdd<Blade>
-          label="Blade"
+          label={t('profileEdit.blade')}
           items={blades}
           valueKey="bladeId"
           value={form.bladeId}
           onChange={(id) => setForm((f) => ({ ...f, bladeId: id }))}
           onAdd={addBlade}
-          addPlaceholder="Blade name (e.g. Timo Boll ALC)"
+          addPlaceholder={t('profileEdit.bladePlaceholder')}
+          selectPlaceholder={t('profileEdit.select')}
+          addNewLabel={t('profileEdit.addNew')}
+          addLabel={t('profileEdit.add')}
+          cancelLabel={t('profileEdit.cancel')}
         />
 
         <SelectWithAdd<Rubber>
-          label="Forehand Rubber"
+          label={t('profileEdit.forehandRubber')}
           items={rubbers}
           valueKey="rubberId"
           value={form.fhRubberId}
           onChange={(id) => setForm((f) => ({ ...f, fhRubberId: id }))}
           onAdd={addRubber}
-          addPlaceholder="Rubber name (e.g. Tenergy 05)"
+          addPlaceholder={t('profileEdit.rubberPlaceholder')}
+          selectPlaceholder={t('profileEdit.select')}
+          addNewLabel={t('profileEdit.addNew')}
+          addLabel={t('profileEdit.add')}
+          cancelLabel={t('profileEdit.cancel')}
         />
 
         <SelectWithAdd<Rubber>
-          label="Backhand Rubber"
+          label={t('profileEdit.backhandRubber')}
           items={rubbers}
           valueKey="rubberId"
           value={form.bhRubberId}
           onChange={(id) => setForm((f) => ({ ...f, bhRubberId: id }))}
           onAdd={addRubber}
-          addPlaceholder="Rubber name (e.g. MXP)"
+          addPlaceholder={t('profileEdit.rubberPlaceholder')}
+          selectPlaceholder={t('profileEdit.select')}
+          addNewLabel={t('profileEdit.addNew')}
+          addLabel={t('profileEdit.add')}
+          cancelLabel={t('profileEdit.cancel')}
         />
 
         {saveError && (
@@ -410,10 +459,10 @@ export function ProfileEditPage() {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 8 }}>
           <Button variant="secondary" type="button" onClick={() => navigate(-1)}>
-            Cancel
+            {t('profileEdit.cancel')}
           </Button>
           <Button variant="primary" type="submit" loading={saving}>
-            Save Profile
+            {t('profileEdit.saveProfile')}
           </Button>
         </div>
       </form>

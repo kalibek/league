@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useLeagues } from '../hooks/useLeagues'
 import { usePlayers } from '../hooks/usePlayers'
 import { LeagueCard } from '../components/LeagueCard/LeagueCard'
@@ -23,6 +24,7 @@ function SectionHeader({ title, to, label }: { title: string; to: string; label:
 }
 
 export function HomePage() {
+  const { t } = useTranslation()
   const { leagues, loading: leaguesLoading, error: leaguesError } = useLeagues()
   const { players, loading: playersLoading, error: playersError } = usePlayers({ sort: 'rating', limit: 10, offset: 0 })
 
@@ -31,7 +33,7 @@ export function HomePage() {
   const playerColumns: Column<User>[] = [
     {
       key: 'rank',
-      header: '#',
+      header: t('players.rank'),
       render: (p) => (
         <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>
           {players.indexOf(p) + 1}
@@ -40,7 +42,7 @@ export function HomePage() {
     },
     {
       key: 'name',
-      header: 'Player',
+      header: t('players.player'),
       render: (p) => (
         <Link
           to={`/players/${p.userId}`}
@@ -53,7 +55,7 @@ export function HomePage() {
     },
     {
       key: 'rating',
-      header: 'Rating',
+      header: t('players.rating'),
       render: (p) => (
         <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>
           {Math.round(p.currentRating)}
@@ -62,7 +64,7 @@ export function HomePage() {
     },
     {
       key: 'deviation',
-      header: 'RD',
+      header: t('players.rd'),
       render: (p) => (
         <span style={{ fontSize: 12, color: '#94a3b8' }}>±{Math.round(p.deviation)}</span>
       ),
@@ -74,9 +76,9 @@ export function HomePage() {
 
       {/* Leagues section */}
       <section>
-        <SectionHeader title="Leagues" to="/leagues" label="View all" />
+        <SectionHeader title={t('home.leagues')} to="/leagues" label={t('home.viewAll')} />
 
-        {leaguesLoading && <p style={{ color: '#94a3b8', fontSize: 14 }}>Loading…</p>}
+        {leaguesLoading && <p style={{ color: '#94a3b8', fontSize: 14 }}>{t('home.loading')}</p>}
         {leaguesError && (
           <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
             {leaguesError}
@@ -85,7 +87,7 @@ export function HomePage() {
         {!leaguesLoading && leagues.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>🏓</div>
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#64748b' }}>No leagues yet.</p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#64748b' }}>{t('home.noLeagues')}</p>
           </div>
         )}
 
@@ -113,7 +115,7 @@ export function HomePage() {
               }}
               className="hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors"
             >
-              Show {leagues.length - 3} more league{leagues.length - 3 !== 1 ? 's' : ''}
+              {t('home.showMoreLeagues', { count: leagues.length - 3 })}
             </Link>
           </div>
         )}
@@ -121,9 +123,9 @@ export function HomePage() {
 
       {/* Players section */}
       <section>
-        <SectionHeader title="Top Players" to="/players" label="View all" />
+        <SectionHeader title={t('home.topPlayers')} to="/players" label={t('home.viewAll')} />
 
-        {playersLoading && <p style={{ color: '#94a3b8', fontSize: 14 }}>Loading…</p>}
+        {playersLoading && <p style={{ color: '#94a3b8', fontSize: 14 }}>{t('home.loading')}</p>}
         {playersError && (
           <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
             {playersError}
@@ -134,7 +136,7 @@ export function HomePage() {
           columns={playerColumns}
           rows={players}
           rowKey={(p) => p.userId}
-          emptyMessage="No players found"
+          emptyMessage={t('home.noPlayersFound')}
         />
 
         {!playersLoading && players.length > 0 && (
@@ -155,7 +157,7 @@ export function HomePage() {
               }}
               className="hover:border-[#FF7A00] hover:text-[#FF7A00] transition-colors"
             >
-              Show more players
+              {t('home.showMorePlayers')}
             </Link>
           </div>
         )}

@@ -1,5 +1,6 @@
 import type { Match } from '../../types'
 import { Button } from '../Button/Button'
+import { useTranslation } from 'react-i18next'
 
 interface ScoreEntryFormProps {
   match: Match
@@ -19,6 +20,7 @@ export function ScoreEntryForm({
   onClose,
   loading = false,
 }: ScoreEntryFormProps) {
+  const { t } = useTranslation()
   const p1Wins: [number, number][] = []
   const p2Wins: [number, number][] = []
   for (let other = 0; other < gamesToWin; other++) {
@@ -31,7 +33,7 @@ export function ScoreEntryForm({
       <div className="flex gap-3">
         <div className="flex-1">
           <p className="text-xs font-medium text-gray-500 uppercase mb-2 truncate" title={player1Name}>
-            {player1Name} wins
+            {t('scoreEntry.wins', { name: player1Name })}
           </p>
           <div className="flex flex-col gap-1.5">
             {p1Wins.map(([s1, s2]) => (
@@ -48,7 +50,7 @@ export function ScoreEntryForm({
         </div>
         <div className="flex-1">
           <p className="text-xs font-medium text-gray-500 uppercase mb-2 truncate" title={player2Name}>
-            {player2Name} wins
+            {t('scoreEntry.wins', { name: player2Name })}
           </p>
           <div className="flex flex-col gap-1.5">
             {p2Wins.map(([s1, s2]) => (
@@ -66,7 +68,7 @@ export function ScoreEntryForm({
       </div>
       <div className="flex justify-end">
         <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
-          Cancel
+          {t('scoreEntry.cancel')}
         </Button>
       </div>
     </div>

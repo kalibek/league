@@ -54,7 +54,7 @@ func main() {
 
 	// Handlers
 	adminH := handler.NewAdminHandler(ratingSvc)
-	authH := handler.NewAuthHandler(authSvc, leagueRepo, cfg.FrontendURL)
+	authH := handler.NewAuthHandler(authSvc, cfg.FrontendURL)
 	playersH := handler.NewPlayersHandler(playerSvc)
 	profileH := handler.NewProfileHandler(profileSvc)
 	leaguesH := handler.NewLeaguesHandler(leagueSvc)

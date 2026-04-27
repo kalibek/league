@@ -15,23 +15,21 @@ import { extractErrorMessage } from './utils'
 
 export function useMyProfile() {
   const [profile, setProfile] = useState<PlayerProfileDetail | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const load = useCallback(() => {
-    setLoading(true)
-    setError(null)
-    getMyProfile()
-      .then((res) => setProfile(res.data))
-      .catch((e) => setError(extractErrorMessage(e)))
-      .finally(() => setLoading(false))
-  }, [])
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    load()
-  }, [load])
+    let cancelled = false
+    getMyProfile()
+      .then((res) => { if (!cancelled) { setProfile(res.data); setError(null); setLoading(false) } })
+      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
+    return () => { cancelled = true }
+  }, [tick])
 
-  return { profile, setProfile, loading, error, refresh: load }
+  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+
+  return { profile, setProfile, loading, error, refresh }
 }
 
 export function useUpsertProfile() {
@@ -57,10 +55,9 @@ export function useUpsertProfile() {
 
 export function useCountries() {
   const [countries, setCountries] = useState<Country[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
     listCountries()
       .then((res) => setCountries(res.data))
       .finally(() => setLoading(false))
@@ -72,21 +69,21 @@ export function useCountries() {
 export function useCities(countryId: number | null) {
   const [cities, setCities] = useState<City[]>([])
   const [loading, setLoading] = useState(false)
-
-  const load = useCallback(() => {
-    if (!countryId) {
-      setCities([])
-      return
-    }
-    setLoading(true)
-    listCities(countryId)
-      .then((res) => setCities(res.data))
-      .finally(() => setLoading(false))
-  }, [countryId])
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    load()
-  }, [load])
+    if (!countryId) {
+      Promise.resolve().then(() => setCities([]))
+      return
+    }
+    let cancelled = false
+    listCities(countryId)
+      .then((res) => { if (!cancelled) { setCities(res.data); setLoading(false) } })
+      .catch(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [countryId, tick])
+
+  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
 
   const add = async (name: string): Promise<City | null> => {
     if (!countryId) return null
@@ -100,15 +97,14 @@ export function useCities(countryId: number | null) {
     }
   }
 
-  return { cities, loading, add, refresh: load }
+  return { cities, loading, add, refresh }
 }
 
 export function useBlades() {
   const [blades, setBlades] = useState<Blade[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
     listBlades()
       .then((res) => setBlades(res.data))
       .finally(() => setLoading(false))
@@ -130,10 +126,9 @@ export function useBlades() {
 
 export function useRubbers() {
   const [rubbers, setRubbers] = useState<Rubber[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
     listRubbers()
       .then((res) => setRubbers(res.data))
       .finally(() => setLoading(false))
