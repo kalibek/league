@@ -10,6 +10,12 @@ const (
 	GroupDone       GroupStatus = "DONE"
 )
 
+const (
+	MoveUp = iota
+	MoveDown
+	MoveStay
+)
+
 type Group struct {
 	GroupID     int64       `db:"group_id"     json:"groupId"`
 	EventID     int64       `db:"event_id"     json:"eventId"`

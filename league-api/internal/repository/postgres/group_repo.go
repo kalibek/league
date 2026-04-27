@@ -75,6 +75,30 @@ func (r *groupRepo) GetPlayers(ctx context.Context, groupID int64) ([]model.Grou
 	return players, nil
 }
 
+func (r *groupRepo) GetPlayersByMovement(ctx context.Context, groupID int64, movement int) ([]model.GroupPlayer, error) {
+	query := ""
+	switch movement {
+	case model.MoveUp:
+		query = `SELECT * FROM group_players WHERE group_id = $1 AND advances = true ORDER BY place`
+		break
+	case model.MoveDown:
+		query = `SELECT * FROM group_players WHERE group_id = $1 AND recedes = true ORDER BY place DESC`
+		break
+	case model.MoveStay:
+		query = `SELECT * FROM group_players WHERE group_id = $1 AND advances = false and recedes = false ORDER BY place`
+	}
+
+	players := make([]model.GroupPlayer, 0)
+	err := r.db.SelectContext(ctx, &players,
+		query,
+		groupID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("groupRepo.GetPlayers: %w", err)
+	}
+	return players, nil
+}
+
 func (r *groupRepo) AddPlayer(ctx context.Context, gp *model.GroupPlayer) (int64, error) {
 	const q = `
 		INSERT INTO group_players (group_id, user_id, seed, is_non_calculated)
@@ -138,4 +162,19 @@ func (r *groupRepo) UpdatePlayer(ctx context.Context, gp *model.GroupPlayer) err
 		return fmt.Errorf("groupRepo.UpdatePlayer: %w", err)
 	}
 	return nil
+}
+
+func (r *groupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error) {
+	// Only allow safe sort columns to prevent SQL injection.
+	q, args, err := sqlx.In(`SELECT * FROM users WHERE user_id in (?) ORDER BY current_rating DESC`, ids)
+	if err != nil {
+		return nil, fmt.Errorf("groupRepo.ListUsersByIdsByRatingDesc in query: %w", err)
+	}
+	q = r.db.Rebind(q)
+
+	users := make([]model.User, 0)
+	if err := r.db.SelectContext(ctx, &users, q, args...); err != nil {
+		return nil, fmt.Errorf("groupRepo.ListUsersByIdsByRatingDesc select query: %w", err)
+	}
+	return users, nil
 }

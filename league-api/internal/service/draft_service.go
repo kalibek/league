@@ -3,12 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"sort"
-	"time"
-
 	"league-api/internal/model"
 	"league-api/internal/repository"
 	"league-api/internal/ws"
+	"sort"
 )
 
 // DraftService handles end-of-event draft creation with promotion/relegation.
@@ -302,11 +300,6 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 		}
 	}
 
-	league, err := s.leagueRepo.GetByID(ctx, leagueID)
-	if err != nil {
-		return nil, fmt.Errorf("draftService.CreateDraft league: %w", err)
-	}
-
 	// Create new event for next month.
 	finishedEvent, err := s.eventRepo.GetByID(ctx, finishedEventID)
 	if err != nil {
@@ -338,126 +331,92 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 		return nil, fmt.Errorf("draftService.CreateDraft create event: %w", err)
 	}
 
-	// Build division → groups map from finished event.
-	divGroups := make(map[string][]model.Group)
-	for _, g := range groups {
-		divGroups[g.Division] = append(divGroups[g.Division], g)
-	}
-
-	// Get ordered division list (Superleague > A > B > C ...).
-	divisions := orderedDivisions(divGroups)
-
-	// For each division, collect stay/advance/recede players using the flags
-	// set by FinishGroup. This correctly handles multiple groups per division.
-	type divBucket struct {
-		stay     []int64
-		advancing []int64 // leave this division → go to higher
-		receding  []int64 // leave this division → go to lower
-	}
-	buckets := make(map[string]*divBucket, len(divisions))
-	for _, div := range divisions {
-		buckets[div] = &divBucket{}
-	}
-
-	for _, div := range divisions {
-		for _, grp := range divGroups[div] {
-			players, err := s.groupRepo.GetPlayers(ctx, grp.GroupID)
+	// loop through all groups
+	// each group gets: stayers from same (div, groupNo) + receders from the group above,
+	// + advancers from below:
+	//  - if the group is the top group, then advancers stay
+	//  - if the group is the bottom group, then receders stay
+	// players are seeded by their rating desc
+	for i, g := range groups {
+		newPlayerIds := make([]int64, 0)
+		if i == 0 {
+			gPlayers, err := s.groupRepo.GetPlayersByMovement(ctx, g.GroupID, model.MoveUp)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("draftService.CreateDraft cannot fetch players: %w", err)
 			}
-			var ranked []model.GroupPlayer
-			for _, p := range players {
-				if !p.IsNonCalculated {
-					ranked = append(ranked, p)
-				}
+			for _, gp := range gPlayers {
+				newPlayerIds = append(newPlayerIds, gp.UserID)
 			}
-			sort.Slice(ranked, func(i, j int) bool { return ranked[i].Place < ranked[j].Place })
-			for _, p := range ranked {
-				switch {
-				case p.Advances:
-					buckets[div].advancing = append(buckets[div].advancing, p.UserID)
-				case p.Recedes:
-					buckets[div].receding = append(buckets[div].receding, p.UserID)
-				default:
-					buckets[div].stay = append(buckets[div].stay, p.UserID)
-				}
-			}
-		}
-	}
-
-	// Build new groups: stay players + incoming advances from lower div + incoming recedes from higher div.
-	groupSize := league.Config.GroupSize
-	if groupSize <= 0 {
-		groupSize = 6
-	}
-
-	for idx, div := range divisions {
-		// Stay in same division.
-		var newGroupPlayers []int64
-		newGroupPlayers = append(newGroupPlayers, buckets[div].stay...)
-
-		// Players advancing FROM the top division have nowhere to go — they stay.
-		if idx == 0 {
-			newGroupPlayers = append(newGroupPlayers, buckets[div].advancing...)
-		}
-
-		// Players receding FROM the bottom division have nowhere to go — they stay.
-		if idx == len(divisions)-1 {
-			newGroupPlayers = append(newGroupPlayers, buckets[div].receding...)
-		}
-
-		// Players receding FROM the higher division come INTO this division.
-		if idx > 0 {
-			higherDiv := divisions[idx-1]
-			newGroupPlayers = append(newGroupPlayers, buckets[higherDiv].receding...)
-		}
-
-		// Players advancing FROM the lower division come INTO this division.
-		if idx < len(divisions)-1 {
-			lowerDiv := divisions[idx+1]
-			newGroupPlayers = append(newGroupPlayers, buckets[lowerDiv].advancing...)
-		}
-
-		// Create groups of groupSize.
-		numGroups := (len(newGroupPlayers) + groupSize - 1) / groupSize
-		if numGroups == 0 {
-			numGroups = 1
-		}
-
-		for gno := 0; gno < numGroups; gno++ {
-			start := gno * groupSize
-			end := start + groupSize
-			if end > len(newGroupPlayers) {
-				end = len(newGroupPlayers)
-			}
-			groupPlayers := newGroupPlayers[start:end]
-
-			newGroup := &model.Group{
-				EventID:   eventID,
-				Status:    model.GroupDraft,
-				Division:  div,
-				GroupNo:   gno + 1,
-				Scheduled: time.Now().AddDate(0, 1, 0),
-			}
-			gid, err := s.groupRepo.Create(ctx, newGroup)
+		} else {
+			// receders from group above
+			rPlayers, err := s.groupRepo.GetPlayersByMovement(ctx, groups[i-1].GroupID, model.MoveDown)
 			if err != nil {
-				return nil, fmt.Errorf("draftService.CreateDraft create group: %w", err)
+				return nil, fmt.Errorf("draftService.CreateDraft cannot fetch players: %w", err)
+			}
+			for _, gp := range rPlayers {
+				newPlayerIds = append(newPlayerIds, gp.UserID)
+			}
+		}
+		// stayers
+		gPlayers, err := s.groupRepo.GetPlayersByMovement(ctx, g.GroupID, model.MoveStay)
+		if err != nil {
+			return nil, fmt.Errorf("draftService.CreateDraft cannot fetch players: %w", err)
+		}
+		for _, gp := range gPlayers {
+			newPlayerIds = append(newPlayerIds, gp.UserID)
+		}
+
+		if i == len(groups)-1 {
+			gPlayers, err := s.groupRepo.GetPlayersByMovement(ctx, g.GroupID, model.MoveDown)
+			if err != nil {
+				return nil, fmt.Errorf("draftService.CreateDraft cannot fetch players: %w", err)
+			}
+			for _, gp := range gPlayers {
+				newPlayerIds = append(newPlayerIds, gp.UserID)
+			}
+		} else {
+			// advancers from group below
+			aPlayers, err := s.groupRepo.GetPlayersByMovement(ctx, groups[i+1].GroupID, model.MoveUp)
+			if err != nil {
+				return nil, fmt.Errorf("draftService.CreateDraft cannot fetch players: %w", err)
+			}
+			for _, gp := range aPlayers {
+				newPlayerIds = append(newPlayerIds, gp.UserID)
+			}
+		}
+		// create the group
+		newGroup := &model.Group{
+			EventID:   eventID,
+			Status:    model.GroupDraft,
+			Division:  g.Division,
+			GroupNo:   g.GroupNo,
+			Scheduled: g.Scheduled.AddDate(0, 1, 0),
+		}
+		gid, err := s.groupRepo.Create(ctx, newGroup)
+		if err != nil {
+			return nil, fmt.Errorf("draftService.CreateDraft cannot create group: %w", err)
+		}
+		users, err := s.groupRepo.ListUsersByIdsByRatingDesc(ctx, newPlayerIds)
+		if err != nil {
+			return nil, fmt.Errorf("draftService.CreateDraft cannot fetch users: %w", err)
+		}
+		for i, u := range users {
+			gp := &model.GroupPlayer{
+				GroupID:         gid,
+				UserID:          u.UserID,
+				Seed:            int16(i + 1),
+				Place:           0,
+				Points:          0,
+				TiebreakPoints:  0,
+				Advances:        false,
+				Recedes:         false,
+				IsNonCalculated: false,
+			}
+			_, err := s.groupRepo.AddPlayer(ctx, gp)
+			if err != nil {
+				return nil, fmt.Errorf("draftService.CreateDraft cannot create group player: %w", err)
 			}
 
-			// Add players.
-			for seed, userID := range groupPlayers {
-				gp := &model.GroupPlayer{
-					GroupID:         gid,
-					UserID:          userID,
-					Seed:            int16(seed + 1),
-					IsNonCalculated: false,
-				}
-				gpID, err := s.groupRepo.AddPlayer(ctx, gp)
-				if err != nil {
-					return nil, err
-				}
-				gp.GroupPlayerID = gpID
-			}
 		}
 	}
 

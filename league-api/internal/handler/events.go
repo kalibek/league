@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,10 +13,10 @@ import (
 )
 
 type EventsHandler struct {
-	eventSvc   service.EventService
-	draftSvc   service.DraftService
-	leagueSvc  service.LeagueService
-	groupRepo  interface {
+	eventSvc  service.EventService
+	draftSvc  service.DraftService
+	leagueSvc service.LeagueService
+	groupRepo interface {
 		ListByEvent(ctx interface{}, eventID int64) ([]model.Group, error)
 		GetPlayers(ctx interface{}, groupID int64) ([]model.GroupPlayer, error)
 	}
@@ -150,6 +151,7 @@ func (h *SimpleEventsHandler) CreateNext(c *gin.Context) {
 	}
 	newEvent, err := h.draftSvc.CreateDraft(c.Request.Context(), leagueID, eventID)
 	if err != nil {
+		log.Println(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

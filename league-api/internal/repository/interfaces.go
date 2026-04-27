@@ -53,11 +53,13 @@ type GroupRepository interface {
 	Create(ctx context.Context, g *model.Group) (int64, error)
 	UpdateStatus(ctx context.Context, id int64, status model.GroupStatus) error
 	GetPlayers(ctx context.Context, groupID int64) ([]model.GroupPlayer, error)
+	GetPlayersByMovement(ctx context.Context, groupID int64, moves int) ([]model.GroupPlayer, error)
 	AddPlayer(ctx context.Context, gp *model.GroupPlayer) (int64, error)
 	UpdatePlayer(ctx context.Context, gp *model.GroupPlayer) error
 	RemovePlayer(ctx context.Context, groupPlayerID int64) error
 	ResetGroupPlayers(ctx context.Context, groupID int64) error
 	ListPlayerGroupsInEvent(ctx context.Context, userID, eventID int64) ([]model.GroupPlayer, error)
+	ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error)
 }
 
 type MatchRepository interface {

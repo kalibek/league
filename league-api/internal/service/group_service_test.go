@@ -192,7 +192,7 @@ func (m *mockMatchRepo) Create(ctx context.Context, match *model.Match) (int64, 
 	return 1, nil
 }
 
-func (m *mockMatchRepo) UpdateScore(ctx context.Context, id int64, score1, score2 int16) error {
+func (m *mockMatchRepo) UpdateScore(ctx context.Context, id int64, score1, score2 int16, withdraw1, withdraw2 bool) error {
 	return nil
 }
 
