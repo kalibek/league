@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { formatDate } from '../hooks/utils'
 import { useEvent, useFinishEvent } from '../hooks/useEvents'
 import { useUpdateMatchScore } from '../hooks/useMatches'
-import { useFinishGroup, useReopenGroup, useMarkNoShow, useSetManualPlace } from '../hooks/useGroups'
+import { useFinishGroup, useReopenGroup, useSetManualPlace } from '../hooks/useGroups'
 import { useEventWebSocket } from '../hooks/useWebSocket'
 import { useAuth } from '../hooks/useAuth'
 import { GroupCard } from '../components/GroupCard/GroupCard'
@@ -29,12 +29,24 @@ export function LiveViewPage() {
   const { update: updateScore, loading: scoreSaving } = useUpdateMatchScore()
   const { finish: finishGroup, loading: finishing } = useFinishGroup()
   const { reopen: reopenGroup, loading: reopening } = useReopenGroup()
-  const { noShow } = useMarkNoShow()
   const { setPlace, loading: placing } = useSetManualPlace()
-  const { finish: finishEventAction, loading: finishingEvent, error: finishEventError } = useFinishEvent()
+  const {
+    finish: finishEventAction,
+    loading: finishingEvent,
+    error: finishEventError,
+  } = useFinishEvent()
 
-  const [scoreModal, setScoreModal] = useState<{ match: Match; groupId: number; player1Name: string; player2Name: string } | null>(null)
-  const [placementModal, setPlacementModal] = useState<{ players: GroupPlayer[]; groupId: number; eventId: number } | null>(null)
+  const [scoreModal, setScoreModal] = useState<{
+    match: Match
+    groupId: number
+    player1Name: string
+    player2Name: string
+  } | null>(null)
+  const [placementModal, setPlacementModal] = useState<{
+    players: GroupPlayer[]
+    groupId: number
+    eventId: number
+  } | null>(null)
   const [collapseSignal, setCollapseSignal] = useState(0)
 
   const gamesToWin = event?.groups?.[0]
@@ -42,67 +54,90 @@ export function LiveViewPage() {
     : 3
 
   // WebSocket handler — update local state on live messages.
-  const handleWSMessage = useCallback((msg: WSMessage) => {
-    if (!event) return
+  const handleWSMessage = useCallback(
+    (msg: WSMessage) => {
+      if (!event) return
 
-    setEvent((prev: EventDetail | null) => {
-      if (!prev) return prev
+      setEvent((prev: EventDetail | null) => {
+        if (!prev) return prev
 
-      if (msg.type === 'match_updated') {
-        return {
-          ...prev,
-          groups: prev.groups.map((g) => {
-            if (g.groupId !== msg.groupId) return g
-            return {
-              ...g,
-              matches: g.matches.map((m) => {
-                const payload = msg.payload as { matchId: number; score1: number; score2: number }
-                if (m.matchId !== payload?.matchId) return m
-                return {
-                  ...m,
-                  score1: payload.score1 ?? m.score1,
-                  score2: payload.score2 ?? m.score2,
-                  status: 'DONE' as const,
-                }
-              }),
-            }
-          }),
-        }
-      }
-
-      if (msg.type === 'group_finished') {
-        return {
-          ...prev,
-          groups: prev.groups.map((g) =>
-            g.groupId === msg.groupId ? { ...g, status: 'DONE' as const } : g
-          ),
-        }
-      }
-
-      if (msg.type === 'event_finished') {
-        return { ...prev, status: 'DONE' as const }
-      }
-
-      if (msg.type === 'manual_placement_required') {
-        const grp = prev.groups.find((g) => g.groupId === msg.groupId)
-        if (grp) {
-          const tiedPlayerIds = (msg.payload as { playerIds: number[] })?.playerIds ?? []
-          const tiedPlayers = grp.players.filter((p) => tiedPlayerIds.includes(p.groupPlayerId))
-          if (tiedPlayers.length > 0) {
-            setPlacementModal({ players: tiedPlayers, groupId: grp.groupId, eventId })
+        if (msg.type === 'match_updated') {
+          return {
+            ...prev,
+            groups: prev.groups.map((g) => {
+              if (g.groupId !== msg.groupId) return g
+              return {
+                ...g,
+                matches: g.matches.map((m) => {
+                  const payload = msg.payload as {
+                    matchId: number
+                    score1: number
+                    score2: number
+                    withdraw1: boolean
+                    withdraw2: boolean
+                  }
+                  if (m.matchId !== payload?.matchId) return m
+                  return {
+                    ...m,
+                    score1: payload.score1 ?? m.score1,
+                    score2: payload.score2 ?? m.score2,
+                    withdraw1: payload.withdraw1 ?? m.withdraw1,
+                    withdraw2: payload.withdraw2 ?? m.withdraw2,
+                    status: 'DONE' as const,
+                  }
+                }),
+              }
+            }),
           }
         }
-      }
 
-      return prev
-    })
-  }, [event, eventId, setEvent])
+        if (msg.type === 'group_finished') {
+          return {
+            ...prev,
+            groups: prev.groups.map((g) =>
+              g.groupId === msg.groupId ? { ...g, status: 'DONE' as const } : g
+            ),
+          }
+        }
 
-  useEventWebSocket(eventId, handleWSMessage)
+        if (msg.type === 'event_finished') {
+          return { ...prev, status: 'DONE' as const }
+        }
 
-  const handleScoreSubmit = async (score1: number, score2: number) => {
+        if (msg.type === 'manual_placement_required') {
+          const grp = prev.groups.find((g) => g.groupId === msg.groupId)
+          if (grp) {
+            const tiedPlayerIds = (msg.payload as { playerIds: number[] })?.playerIds ?? []
+            const tiedPlayers = grp.players.filter((p) => tiedPlayerIds.includes(p.groupPlayerId))
+            if (tiedPlayers.length > 0) {
+              setPlacementModal({ players: tiedPlayers, groupId: grp.groupId, eventId })
+            }
+          }
+        }
+
+        return prev
+      })
+    },
+    [event, eventId, setEvent]
+  )
+
+  const { connected } = useEventWebSocket(eventId, handleWSMessage, {
+    enabled: event?.status === 'IN_PROGRESS',
+  })
+
+  const handleScoreSubmit = async (
+    score1: number,
+    score2: number,
+    withdraw1: boolean,
+    withdraw2: boolean
+  ) => {
     if (!scoreModal) return
-    const ok = await updateScore(scoreModal.groupId, scoreModal.match.matchId, { score1, score2 })
+    const ok = await updateScore(scoreModal.groupId, scoreModal.match.matchId, {
+      score1,
+      score2,
+      withdraw1,
+      withdraw2,
+    })
     if (ok) {
       setScoreModal(null)
       // Optimistically update local state.
@@ -116,13 +151,62 @@ export function LiveViewPage() {
               ...g,
               matches: g.matches.map((m) =>
                 m.matchId === scoreModal.match.matchId
-                  ? { ...m, score1, score2, status: 'DONE' as const }
+                  ? { ...m, score1, score2, withdraw1, withdraw2, status: 'DONE' as const }
                   : m
               ),
             }
           }),
         }
       })
+    }
+  }
+
+  const handleMarkNoShow = async (groupId: number, gpId: number) => {
+    const groupMatches = event?.groups.find((g) => g.groupId === groupId)?.matches ?? []
+    for (const match of groupMatches.filter(
+      (m) => m.groupPlayer1Id === gpId || m.groupPlayer2Id === gpId
+    )) {
+      if (!match) continue
+      let ok: Match | null = null
+      let [ score1, score2, withdraw1, withdraw2 ] = [0, 0, false, false];
+      if (match.groupPlayer1Id === gpId) {
+          score1 =  0
+          score2 = gamesToWin
+          withdraw1 = true
+          withdraw2 = false
+      }
+      if (match.groupPlayer2Id === gpId) {
+        score1 = gamesToWin
+        score2 = 0
+        withdraw1 = false
+        withdraw2 = true
+      }
+      ok = await updateScore(groupId, match.matchId, {
+        score1,
+        score2,
+        withdraw1,
+        withdraw2,
+      })
+      if (ok) {
+        // Optimistically update local state.
+        setEvent((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            groups: prev.groups.map((g) => {
+              if (g.groupId !== groupId) return g
+              return {
+                ...g,
+                matches: g.matches.map((m) =>
+                  m.matchId === match.matchId
+                    ? { ...m, score1, score2, withdraw1, withdraw2, status: 'DONE' as const }
+                    : m
+                ),
+              }
+            }),
+          }
+        })
+      }
     }
   }
 
@@ -138,7 +222,14 @@ export function LiveViewPage() {
               ? {
                   ...g,
                   status: 'IN_PROGRESS' as const,
-                  players: g.players.map((p) => ({ ...p, points: 0, tiebreakPoints: 0, place: 0, advances: false, recedes: false })),
+                  players: g.players.map((p) => ({
+                    ...p,
+                    points: 0,
+                    tiebreakPoints: 0,
+                    place: 0,
+                    advances: false,
+                    recedes: false,
+                  })),
                 }
               : g
           ),
@@ -154,10 +245,6 @@ export function LiveViewPage() {
     }
   }
 
-  const handleMarkNoShow = async (groupId: number, groupPlayerId: number) => {
-    await noShow(eventId, groupId, groupPlayerId)
-  }
-
   const handleConfirmPlacement = async (orderedPlayerIds: number[]) => {
     if (!placementModal) return
     const ok = await setPlace(placementModal.eventId, placementModal.groupId, orderedPlayerIds)
@@ -170,7 +257,7 @@ export function LiveViewPage() {
   const handleFinishEvent = async () => {
     const result = await finishEventAction(leagueId, eventId)
     if (result) {
-      setEvent((prev) => prev ? { ...prev, status: 'DONE' as const } : prev)
+      setEvent((prev) => (prev ? { ...prev, status: 'DONE' as const } : prev))
     }
   }
 
@@ -194,7 +281,24 @@ export function LiveViewPage() {
           >
             {t('liveView.backToLeague')}
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            {event.title}
+            {event.status === 'IN_PROGRESS' && (
+              <span
+                title={connected ? 'Live: connected' : 'Live: reconnecting…'}
+                style={{
+                  display: 'inline-block',
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  backgroundColor: connected ? '#22c55e' : '#ef4444',
+                  flexShrink: 0,
+                  transition: 'background-color 0.3s',
+                }}
+                aria-label={connected ? 'WebSocket connected' : 'WebSocket disconnected'}
+              />
+            )}
+          </h1>
           <p className="text-sm text-gray-500 mt-1">
             {formatDate(event.startDate)} — {formatDate(event.endDate)}
           </p>
@@ -264,7 +368,9 @@ export function LiveViewPage() {
             {canManage || canUmpire ? (
               <>
                 <div className="mb-4">
-                  <p className="text-xs uppercase text-gray-400 font-medium mb-2">{t('liveView.matchResults')}</p>
+                  <p className="text-xs uppercase text-gray-400 font-medium mb-2">
+                    {t('liveView.matchResults')}
+                  </p>
                   <MatchGrid
                     players={group.players}
                     matches={group.matches}
@@ -333,7 +439,11 @@ export function LiveViewPage() {
       </div>
 
       {/* Score entry modal */}
-      <Modal open={!!scoreModal} onClose={() => setScoreModal(null)} title={t('liveView.enterScoreTitle')}>
+      <Modal
+        open={!!scoreModal}
+        onClose={() => setScoreModal(null)}
+        title={t('liveView.enterScoreTitle')}
+      >
         {scoreModal && (
           <ScoreEntryForm
             match={scoreModal.match}
@@ -355,9 +465,7 @@ export function LiveViewPage() {
       >
         {placementModal && (
           <div>
-            <p className="text-sm text-gray-600 mb-4">
-              {t('liveView.manualPlacementDescription')}
-            </p>
+            <p className="text-sm text-gray-600 mb-4">{t('liveView.manualPlacementDescription')}</p>
             <PlacementOverride
               players={placementModal.players}
               onConfirm={handleConfirmPlacement}

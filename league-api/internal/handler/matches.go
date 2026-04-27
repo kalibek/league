@@ -46,8 +46,10 @@ func (h *MatchesHandler) UpdateScore(c *gin.Context) {
 	}
 
 	var req struct {
-		Score1 int16 `json:"score1"`
-		Score2 int16 `json:"score2"`
+		Score1    int16 `json:"score1"`
+		Score2    int16 `json:"score2"`
+		Withdraw1 bool  `json:"withdraw1"`
+		Withdraw2 bool  `json:"withdraw2"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -56,7 +58,7 @@ func (h *MatchesHandler) UpdateScore(c *gin.Context) {
 
 	gamesToWin := h.getGamesToWin(c.Request.Context(), groupID)
 
-	if err := h.matchSvc.UpdateScore(c.Request.Context(), matchID, req.Score1, req.Score2, gamesToWin); err != nil {
+	if err := h.matchSvc.UpdateScore(c.Request.Context(), matchID, req.Score1, req.Score2, gamesToWin, req.Withdraw1, req.Withdraw2); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

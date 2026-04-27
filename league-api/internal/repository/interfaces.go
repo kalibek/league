@@ -64,12 +64,9 @@ type MatchRepository interface {
 	GetByID(ctx context.Context, id int64) (*model.Match, error)
 	ListByGroup(ctx context.Context, groupID int64) ([]model.Match, error)
 	Create(ctx context.Context, m *model.Match) (int64, error)
-	UpdateScore(ctx context.Context, id int64, score1, score2 int16) error
+	UpdateScore(ctx context.Context, id int64, score1, score2 int16, withdraw1, withdraw2 bool) error
 	UpdateStatus(ctx context.Context, id int64, status model.MatchStatus) error
 	BulkCreate(ctx context.Context, matches []model.Match) error
-	// SetWithdraw marks one side of a match as a forfeit.
-	// position must be 1 or 2; sets the corresponding withdraw flag and match status=DONE.
-	SetWithdraw(ctx context.Context, matchID int64, position int) error
 	ResetGroupMatches(ctx context.Context, groupID int64) error
 }
 

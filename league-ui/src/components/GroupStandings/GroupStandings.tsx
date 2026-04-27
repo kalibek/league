@@ -62,6 +62,9 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick }: Gro
     const isP1 = m.groupPlayer1Id === rowPlayer.groupPlayerId
     const s1 = isP1 ? m.score1 : m.score2
     const s2 = isP1 ? m.score2 : m.score1
+    // Walkover: W-L / L-W only when a player withdrew or DNS.
+    const rowWithdrew = isP1 ? m.withdraw1 : m.withdraw2
+    if (m.withdraw1 || m.withdraw2) return rowWithdrew ? 'L-W' : 'W-L'
     return `${s1}:${s2}`
   }
 

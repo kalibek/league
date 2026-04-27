@@ -13,11 +13,11 @@ import (
 )
 
 type GroupsHandler struct {
-	groupSvc    service.GroupService
-	draftSvc    service.DraftService
-	matchSvc    service.MatchService
-	leagueRepo  repository.LeagueRepository
-	eventRepo   repository.EventRepository
+	groupSvc   service.GroupService
+	draftSvc   service.DraftService
+	matchSvc   service.MatchService
+	leagueRepo repository.LeagueRepository
+	eventRepo  repository.EventRepository
 }
 
 func NewGroupsHandler(
@@ -134,14 +134,14 @@ func (h *GroupsHandler) Get(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"groupId":     grp.GroupID,
-		"eventId":     grp.EventID,
-		"status":      grp.Status,
-		"division":    grp.Division,
-		"groupNo":     grp.GroupNo,
-		"scheduled":   grp.Scheduled,
-		"players":     players,
-		"matches":     matches,
+		"groupId":   grp.GroupID,
+		"eventId":   grp.EventID,
+		"status":    grp.Status,
+		"division":  grp.Division,
+		"groupNo":   grp.GroupNo,
+		"scheduled": grp.Scheduled,
+		"players":   players,
+		"matches":   matches,
 	})
 }
 
@@ -193,29 +193,6 @@ func (h *GroupsHandler) AddPlayer(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"ok": true})
-}
-
-// PUT /api/v1/events/:eid/groups/:gid/players/:pid/no-show
-func (h *GroupsHandler) MarkNoShow(c *gin.Context) {
-	groupID, err := strconv.ParseInt(c.Param("gid"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid group id"})
-		return
-	}
-	groupPlayerID, err := strconv.ParseInt(c.Param("pid"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid player id"})
-		return
-	}
-
-	// Get gamesToWin from league config.
-	gamesToWin := h.getGamesToWin(c.Request.Context(), groupID)
-
-	if err := h.matchSvc.MarkNoShow(c.Request.Context(), groupID, groupPlayerID, gamesToWin); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 // PUT /api/v1/events/:eid/groups/:gid/players/:pid/place

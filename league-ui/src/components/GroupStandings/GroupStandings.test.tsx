@@ -22,7 +22,7 @@ const basePlayer = (overrides: Partial<GroupPlayer>): GroupPlayer => ({
   advances: false,
   recedes: false,
   isNonCalculated: false,
-  user: { userId: 1, firstName: 'Alice', lastName: 'Smith', email: 'a@b.com', currentRating: 1500, deviation: 200, volatility: 0.06 },
+  user: { userId: 1, firstName: 'Alice', lastName: 'Smith', email: 'a@b.com', currentRating: 1500, deviation: 200, volatility: 0.06, isAdmin: false },
   ...overrides,
 })
 
@@ -86,9 +86,9 @@ describe('GroupStandings', () => {
     // Backend computed: A=+2, B=-2 (pts=5); C=-3, D=+3 (pts=3)
     const players = [
       basePlayer({ groupPlayerId: 1, userId: 1, points: 5, tiebreakPoints: 2, seed: 1 }),
-      basePlayer({ groupPlayerId: 2, userId: 2, points: 5, tiebreakPoints: -2, seed: 2, user: { userId: 2, firstName: 'Bob', lastName: 'Jones', email: 'b@c.com', currentRating: 1400, deviation: 200, volatility: 0.06 } }),
-      basePlayer({ groupPlayerId: 3, userId: 3, points: 3, tiebreakPoints: -3, seed: 3, user: { userId: 3, firstName: 'Carol', lastName: 'Lee', email: 'c@d.com', currentRating: 1300, deviation: 200, volatility: 0.06 } }),
-      basePlayer({ groupPlayerId: 4, userId: 4, points: 3, tiebreakPoints: 3, seed: 4, user: { userId: 4, firstName: 'Dave', lastName: 'Kim', email: 'd@e.com', currentRating: 1200, deviation: 200, volatility: 0.06 } }),
+      basePlayer({ groupPlayerId: 2, userId: 2, points: 5, tiebreakPoints: -2, seed: 2, user: { isAdmin: false, userId: 2, firstName: 'Bob', lastName: 'Jones', email: 'b@c.com', currentRating: 1400, deviation: 200, volatility: 0.06 } }),
+      basePlayer({ groupPlayerId: 3, userId: 3, points: 3, tiebreakPoints: -3, seed: 3, user: { isAdmin: false, userId: 3, firstName: 'Carol', lastName: 'Lee', email: 'c@d.com', currentRating: 1300, deviation: 200, volatility: 0.06 } }),
+      basePlayer({ groupPlayerId: 4, userId: 4, points: 3, tiebreakPoints: 3, seed: 4, user:  { isAdmin: false, userId: 4, firstName: 'Dave', lastName: 'Kim', email: 'd@e.com', currentRating: 1200, deviation: 200, volatility: 0.06 } }),
     ]
     renderStandings(players, noMatch)
     const rows = screen.getAllByRole('row')

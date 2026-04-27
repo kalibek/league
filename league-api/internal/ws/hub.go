@@ -3,19 +3,31 @@ package ws
 import (
 	"encoding/json"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-const writeTimeout = 10 * time.Second
+const (
+	writeTimeout   = 10 * time.Second
+	historyMaxAge  = time.Hour
+	historyMaxSize = 200
+)
 
 // Message is the standard WebSocket broadcast message.
 type Message struct {
-	Type    string `json:"type"`
-	GroupID int64  `json:"groupId"`
-	MatchID int64  `json:"matchId,omitempty"`
-	Payload any    `json:"payload,omitempty"`
+	Type      string    `json:"type"`
+	GroupID   int64     `json:"groupId"`
+	MatchID   int64     `json:"matchId,omitempty"`
+	Payload   any       `json:"payload,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// historyEntry holds a serialised message and its timestamp for replay.
+type historyEntry struct {
+	timestamp time.Time
+	data      []byte
 }
 
 // Client represents a connected WebSocket client subscribed to an event.
@@ -32,11 +44,16 @@ type Hub struct {
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan broadcastReq
+
+	// per-eventID message history — protected by historyMu
+	historyMu sync.RWMutex
+	history   map[int64][]historyEntry
 }
 
 type broadcastReq struct {
-	eventID int64
-	data    []byte
+	eventID   int64
+	data      []byte
+	timestamp time.Time
 }
 
 // NewHub creates and returns a new Hub.
@@ -46,6 +63,7 @@ func NewHub() *Hub {
 		register:   make(chan *Client, 32),
 		unregister: make(chan *Client, 32),
 		broadcast:  make(chan broadcastReq, 256),
+		history:    make(map[int64][]historyEntry),
 	}
 }
 
@@ -71,6 +89,10 @@ func (h *Hub) Run() {
 			}
 
 		case req := <-h.broadcast:
+			// Append to history before broadcasting so a reconnecting client
+			// calling MessagesSince concurrently sees it.
+			h.appendHistory(req.eventID, req.timestamp, req.data)
+
 			room, ok := h.rooms[req.eventID]
 			if !ok {
 				continue
@@ -88,14 +110,62 @@ func (h *Hub) Run() {
 	}
 }
 
-// BroadcastToEvent serialises msg and sends it to all clients in the event room.
+// appendHistory adds an entry to the per-event ring buffer and prunes stale entries.
+func (h *Hub) appendHistory(eventID int64, ts time.Time, data []byte) {
+	h.historyMu.Lock()
+	defer h.historyMu.Unlock()
+
+	buf := h.history[eventID]
+
+	// Trim entries older than historyMaxAge.
+	cutoff := time.Now().UTC().Add(-historyMaxAge)
+	start := 0
+	for start < len(buf) && buf[start].timestamp.Before(cutoff) {
+		start++
+	}
+	buf = buf[start:]
+
+	// Enforce max size (ring semantics — drop oldest).
+	if len(buf) >= historyMaxSize {
+		buf = buf[len(buf)-historyMaxSize+1:]
+	}
+
+	buf = append(buf, historyEntry{timestamp: ts, data: data})
+	h.history[eventID] = buf
+}
+
+// MessagesSince returns all buffered raw JSON messages for eventID with
+// timestamp strictly after `since`, in chronological order.
+func (h *Hub) MessagesSince(eventID int64, since time.Time) [][]byte {
+	h.historyMu.RLock()
+	defer h.historyMu.RUnlock()
+
+	buf := h.history[eventID]
+	if len(buf) == 0 {
+		return nil
+	}
+
+	var out [][]byte
+	for _, e := range buf {
+		if e.timestamp.After(since) {
+			out = append(out, e.data)
+		}
+	}
+	return out
+}
+
+// BroadcastToEvent serialises msg (stamping Timestamp if zero) and sends it to
+// all clients in the event room.
 func (h *Hub) BroadcastToEvent(eventID int64, msg Message) {
+	if msg.Timestamp.IsZero() {
+		msg.Timestamp = time.Now().UTC()
+	}
 	data, err := json.Marshal(msg)
 	if err != nil {
 		log.Printf("hub.BroadcastToEvent marshal: %v", err)
 		return
 	}
-	h.broadcast <- broadcastReq{eventID: eventID, data: data}
+	h.broadcast <- broadcastReq{eventID: eventID, data: data, timestamp: msg.Timestamp}
 }
 
 // Register adds a client to the hub.

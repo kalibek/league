@@ -11,6 +11,7 @@ const player: User = {
   currentRating: 1532.7,
   deviation: 45.3,
   volatility: 0.06,
+  isAdmin: false,
 }
 
 describe('PlayerCard', () => {

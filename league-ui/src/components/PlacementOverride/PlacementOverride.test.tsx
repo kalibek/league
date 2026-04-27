@@ -15,7 +15,7 @@ const makePlayer = (id: number, name: string): GroupPlayer => ({
   advances: false,
   recedes: false,
   isNonCalculated: false,
-  user: { userId: id, firstName: name, lastName: 'X', email: `${id}@t.com`, currentRating: 1500, deviation: 200, volatility: 0.06 },
+  user: { userId: id, firstName: name, lastName: 'X', email: `${id}@t.com`, currentRating: 1500, deviation: 200, volatility: 0.06, isAdmin: false },
 })
 
 describe('PlacementOverride', () => {

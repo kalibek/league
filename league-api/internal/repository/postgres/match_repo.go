@@ -54,11 +54,13 @@ func (r *matchRepo) Create(ctx context.Context, m *model.Match) (int64, error) {
 	return id, nil
 }
 
-func (r *matchRepo) UpdateScore(ctx context.Context, id int64, score1, score2 int16) error {
+func (r *matchRepo) UpdateScore(ctx context.Context, id int64, score1, score2 int16, withdraw1, withdraw2 bool) error {
 	const q = `
-		UPDATE matches SET score1 = $1, score2 = $2, last_updated = NOW()
-		WHERE match_id = $3`
-	_, err := r.db.ExecContext(ctx, q, score1, score2, id)
+		UPDATE matches SET score1 = $1, score2 = $2, 
+		    withdraw1 = $3, withdraw2 = $4, 
+			last_updated = NOW()
+		WHERE match_id = $5`
+	_, err := r.db.ExecContext(ctx, q, score1, score2, withdraw1, withdraw2, id)
 	if err != nil {
 		return fmt.Errorf("matchRepo.UpdateScore: %w", err)
 	}
@@ -105,25 +107,6 @@ func (r *matchRepo) ResetGroupMatches(ctx context.Context, groupID int64) error 
 	_, err := r.db.ExecContext(ctx, q, groupID)
 	if err != nil {
 		return fmt.Errorf("matchRepo.ResetGroupMatches: %w", err)
-	}
-	return nil
-}
-
-// SetWithdraw marks one side of a match as withdrawn and sets status=DONE.
-// position must be 1 or 2.
-func (r *matchRepo) SetWithdraw(ctx context.Context, matchID int64, position int) error {
-	var q string
-	switch position {
-	case 1:
-		q = `UPDATE matches SET withdraw1 = TRUE, status = 'DONE', last_updated = NOW() WHERE match_id = $1`
-	case 2:
-		q = `UPDATE matches SET withdraw2 = TRUE, status = 'DONE', last_updated = NOW() WHERE match_id = $1`
-	default:
-		return fmt.Errorf("matchRepo.SetWithdraw: invalid position %d", position)
-	}
-	_, err := r.db.ExecContext(ctx, q, matchID)
-	if err != nil {
-		return fmt.Errorf("matchRepo.SetWithdraw: %w", err)
 	}
 	return nil
 }

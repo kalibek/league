@@ -11,8 +11,7 @@ import (
 
 // MatchService handles score entry, no-show, and placement recalculation.
 type MatchService interface {
-	UpdateScore(ctx context.Context, matchID int64, score1, score2 int16, gamesToWin int) error
-	MarkNoShow(ctx context.Context, groupID, groupPlayerID int64, gamesToWin int) error
+	UpdateScore(ctx context.Context, matchID int64, score1, score2 int16, gamesToWin int, withdraw1, withdraw2 bool) error
 	RecalcGroupPoints(ctx context.Context, groupID int64) error
 }
 
@@ -35,7 +34,7 @@ func NewMatchService(
 }
 
 // UpdateScore validates and persists scores, recalculates group standings, and broadcasts.
-func (s *matchService) UpdateScore(ctx context.Context, matchID int64, score1, score2 int16, gamesToWin int) error {
+func (s *matchService) UpdateScore(ctx context.Context, matchID int64, score1, score2 int16, gamesToWin int, withdraw1, withdraw2 bool) error {
 	m, err := s.matchRepo.GetByID(ctx, matchID)
 	if err != nil {
 		return fmt.Errorf("matchService.UpdateScore get: %w", err)
@@ -47,7 +46,7 @@ func (s *matchService) UpdateScore(ctx context.Context, matchID int64, score1, s
 		return fmt.Errorf("invalid scores: one must equal %d and the other must be less", gamesToWin)
 	}
 
-	if err := s.matchRepo.UpdateScore(ctx, matchID, score1, score2); err != nil {
+	if err := s.matchRepo.UpdateScore(ctx, matchID, score1, score2, withdraw1, withdraw2); err != nil {
 		return fmt.Errorf("matchService.UpdateScore: %w", err)
 	}
 	if err := s.matchRepo.UpdateStatus(ctx, matchID, model.MatchDone); err != nil {
@@ -69,69 +68,12 @@ func (s *matchService) UpdateScore(ctx context.Context, matchID int64, score1, s
 		GroupID: m.GroupID,
 		MatchID: matchID,
 		Payload: map[string]any{
-			"matchId": matchID,
-			"score1":  score1,
-			"score2":  score2,
+			"matchId":   matchID,
+			"score1":    score1,
+			"score2":    score2,
+			"withdraw1": withdraw1,
+			"withdraw2": withdraw2,
 		},
-	})
-
-	return nil
-}
-
-// MarkNoShow marks all of a player's matches as withdrawn and recalculates standings.
-func (s *matchService) MarkNoShow(ctx context.Context, groupID, groupPlayerID int64, gamesToWin int) error {
-	matches, err := s.matchRepo.ListByGroup(ctx, groupID)
-	if err != nil {
-		return fmt.Errorf("matchService.MarkNoShow list: %w", err)
-	}
-
-	for _, m := range matches {
-		if m.Status == model.MatchDone {
-			continue
-		}
-		isP1 := m.GroupPlayer1ID != nil && *m.GroupPlayer1ID == groupPlayerID
-		isP2 := m.GroupPlayer2ID != nil && *m.GroupPlayer2ID == groupPlayerID
-		if !isP1 && !isP2 {
-			continue
-		}
-
-		position := 2
-		if isP1 {
-			position = 1
-		}
-
-		// SetWithdraw marks the match DONE and sets the withdraw flag.
-		if err := s.matchRepo.SetWithdraw(ctx, m.MatchID, position); err != nil {
-			return fmt.Errorf("matchService.MarkNoShow withdraw: %w", err)
-		}
-
-		// Set scores: DNS player gets 0, opponent gets gamesToWin.
-		var s1, s2 int16
-		if isP1 {
-			s1 = 0
-			s2 = int16(gamesToWin)
-		} else {
-			s1 = int16(gamesToWin)
-			s2 = 0
-		}
-		if err := s.matchRepo.UpdateScore(ctx, m.MatchID, s1, s2); err != nil {
-			return fmt.Errorf("matchService.MarkNoShow score: %w", err)
-		}
-	}
-
-	if err := s.recalcGroupPoints(ctx, groupID); err != nil {
-		return fmt.Errorf("matchService.MarkNoShow recalc: %w", err)
-	}
-
-	// Broadcast via WebSocket — hub rooms are keyed by eventID, not groupID.
-	grp, err := s.groupRepo.GetByID(ctx, groupID)
-	if err != nil {
-		return fmt.Errorf("matchService.MarkNoShow get group: %w", err)
-	}
-	s.hub.BroadcastToEvent(grp.EventID, ws.Message{
-		Type:    "match_updated",
-		GroupID: groupID,
-		Payload: map[string]any{"noShow": groupPlayerID},
 	})
 
 	return nil

@@ -15,7 +15,7 @@ const makePlayer = (id: number, firstName: string): GroupPlayer => ({
   advances: false,
   recedes: false,
   isNonCalculated: false,
-  user: { userId: id, firstName, lastName: 'X', email: `${id}@test.com`, currentRating: 1500, deviation: 200, volatility: 0.06 },
+  user: { userId: id, firstName, lastName: 'X', email: `${id}@test.com`, currentRating: 1500, deviation: 200, volatility: 0.06, isAdmin: false},
 })
 
 const doneMatch = (p1: number, p2: number, s1: number, s2: number): Match => ({

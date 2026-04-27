@@ -258,7 +258,9 @@
   },
   "scoreEntry": {
     "wins": "{{name}} жеңеді",
-    "cancel": "Болдырмау"
+    "cancel": "Болдырмау",
+    "walkover": "Walkover",
+    "withdrew": "бас тартты"
   },
   "placementOverride": {
     "dragInstruction": "Ойыншыларды дұрыс ретпен орналастырыңыз (жоғарыда — үздік).",

@@ -10,7 +10,9 @@ export function useUpdateMatchScore() {
   const update = async (
     groupId: number,
     matchId: number,
-    data: { score1: number; score2: number }
+    data: { score1: number; score2: number,
+      withdraw1: boolean; withdraw2: boolean,
+    }
   ): Promise<Match | null> => {
     setLoading(true)
     setError(null)

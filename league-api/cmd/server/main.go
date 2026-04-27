@@ -61,7 +61,7 @@ func main() {
 	eventsH := handler.NewEventsHandler(eventSvc, draftSvc, leagueSvc)
 	groupsH := handler.NewGroupsHandler(groupSvc, draftSvc, matchSvc, leagueRepo, eventRepo)
 	matchesH := handler.NewMatchesHandler(matchSvc, groupSvc, leagueRepo, eventRepo)
-	wsH := handler.NewWebSocketHandler(hub)
+	wsH := handler.NewWebSocketHandler(hub, eventRepo)
 
 	// Router
 	r := gin.Default()
@@ -130,7 +130,6 @@ func main() {
 		secured.POST("/events/:eid/groups/:gid/players", groupsH.AddPlayer)
 		secured.POST("/events/:eid/groups/:gid/seed", groupsH.SeedPlayer)
 		secured.DELETE("/events/:eid/groups/:gid/players/:gpid", groupsH.RemovePlayer)
-		secured.PUT("/events/:eid/groups/:gid/players/:pid/no-show", groupsH.MarkNoShow)
 		secured.PUT("/events/:eid/groups/:gid/players/:pid/place", groupsH.SetManualPlace)
 		secured.PUT("/events/:eid/groups/:gid/placement", groupsH.SetManualPlacements)
 

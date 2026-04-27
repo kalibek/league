@@ -7,7 +7,11 @@ interface ScoreEntryFormProps {
   gamesToWin: number
   player1Name?: string
   player2Name?: string
-  onSubmit: (score1: number, score2: number) => void
+  onSubmit: (
+    score1: number,
+    score2: number,
+    withdraw1: boolean,
+    withdraw2: boolean) => void
   onClose: () => void
   loading?: boolean
 }
@@ -39,7 +43,7 @@ export function ScoreEntryForm({
             {p1Wins.map(([s1, s2]) => (
               <button
                 key={`${s1}-${s2}`}
-                onClick={() => onSubmit(s1, s2)}
+                onClick={() => onSubmit(s1, s2, false, false)}
                 disabled={loading}
                 className="w-full py-2 rounded-md border border-gray-200 bg-white hover:bg-green-50 hover:border-green-400 text-sm font-semibold text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -56,7 +60,7 @@ export function ScoreEntryForm({
             {p2Wins.map(([s1, s2]) => (
               <button
                 key={`${s1}-${s2}`}
-                onClick={() => onSubmit(s1, s2)}
+                onClick={() => onSubmit(s1, s2, false, false)}
                 disabled={loading}
                 className="w-full py-2 rounded-md border border-gray-200 bg-white hover:bg-green-50 hover:border-green-400 text-sm font-semibold text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -66,6 +70,30 @@ export function ScoreEntryForm({
           </div>
         </div>
       </div>
+        <>
+          <hr className="border-gray-100" />
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase mb-2">
+              {t('scoreEntry.walkover')}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onSubmit(3, 0, false, true)}
+                disabled={loading}
+                className="flex-1 py-2 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 text-sm font-semibold text-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                W-L
+              </button>
+              <button
+                onClick={() => onSubmit(0, 3, true, false)}
+                disabled={loading}
+                className="flex-1 py-2 rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 text-sm font-semibold text-amber-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                L-W
+              </button>
+            </div>
+          </div>
+        </>
       <div className="flex justify-end">
         <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
           {t('scoreEntry.cancel')}

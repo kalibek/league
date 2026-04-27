@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listGroups, getGroup, createGroup, seedPlayer, removeGroupPlayer, finishGroup, reopenGroup, addPlayer, markNoShow, setManualPlace } from '../api/groups'
+import { listGroups, getGroup, createGroup, seedPlayer, removeGroupPlayer, finishGroup, reopenGroup, addPlayer, setManualPlace } from '../api/groups'
 import type { Group, GroupDetail } from '../types'
 import { extractErrorMessage } from './utils'
 
@@ -168,27 +168,6 @@ export function useAddPlayer() {
   }
 
   return { add, loading, error }
-}
-
-export function useMarkNoShow() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const noShow = async (eventId: number, groupId: number, groupPlayerId: number) => {
-    setLoading(true)
-    setError(null)
-    try {
-      await markNoShow(eventId, groupId, groupPlayerId)
-      return true
-    } catch (e) {
-      setError(extractErrorMessage(e))
-      return false
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return { noShow, loading, error }
 }
 
 export function useSetManualPlace() {

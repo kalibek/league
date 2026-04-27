@@ -112,6 +112,7 @@ export interface WSMessage {
   groupId: number
   matchId?: number
   payload: unknown
+  timestamp: string
 }
 
 export interface UserRole {

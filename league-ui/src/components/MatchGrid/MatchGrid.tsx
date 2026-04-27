@@ -25,7 +25,10 @@ function getRoundMatchState(m: Match): 'pending' | 'done' | 'walkover' {
 function getRoundScoreLabel(m: Match): string {
   const state = getRoundMatchState(m)
   if (state === 'pending') return '—'
-  if (state === 'walkover') return 'W/O'
+  if (state === 'walkover') {
+    if (m.withdraw1 && m.withdraw2) return 'W/O'
+    return m.withdraw1 ? 'L-W' : 'W-L'  // from player1's perspective
+  }
   return m.score1 !== null && m.score2 !== null ? `${m.score1} : ${m.score2}` : '—'
 }
 

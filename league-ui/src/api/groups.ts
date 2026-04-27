@@ -27,9 +27,6 @@ export const reopenGroup = (eventId: number, groupId: number) =>
 export const addPlayer = (eventId: number, groupId: number, userId: number) =>
   client.post(`/secured/events/${eventId}/groups/${groupId}/players`, { userId })
 
-export const markNoShow = (eventId: number, groupId: number, groupPlayerId: number) =>
-  client.put(`/secured/events/${eventId}/groups/${groupId}/players/${groupPlayerId}/no-show`, {})
-
 export const setManualPlace = (
   eventId: number,
   groupId: number,
