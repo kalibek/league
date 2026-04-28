@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { GroupStandings } from './GroupStandings'
 import type { GroupPlayer, Match } from '../../types'
@@ -103,7 +104,7 @@ describe('GroupStandings', () => {
     const players = [
       basePlayer({
         groupPlayerId: gpId,
-        user: { userId: gpId, firstName: 'DNS', lastName: 'Player', email: 'd@e.com', currentRating: 1500, deviation: 200, volatility: 0.06 },
+        user: { userId: gpId, firstName: 'DNS', lastName: 'Player', email: 'd@e.com', currentRating: 1500, deviation: 200, volatility: 0.06, isAdmin: false },
       }),
     ]
     const matches: Match[] = [
@@ -114,5 +115,68 @@ describe('GroupStandings', () => {
     ]
     renderStandings(players, matches)
     expect(screen.getByText('DNS')).toBeInTheDocument()
+  })
+
+  it('calls onNoShow when no-show button is clicked', async () => {
+    const onNoShow = vi.fn()
+    const player = basePlayer({ groupPlayerId: 5 })
+    render(
+      <MemoryRouter>
+        <GroupStandings players={[player]} matches={[]} onNoShow={onNoShow} />
+      </MemoryRouter>
+    )
+    const btn = screen.getByTitle(/mark/i)
+    await userEvent.click(btn)
+    expect(onNoShow).toHaveBeenCalledWith(5)
+  })
+
+  it('shows match score in cell for done match (no walkover)', () => {
+    const p1 = basePlayer({ groupPlayerId: 1, seed: 1 })
+    const p2 = basePlayer({
+      groupPlayerId: 2, seed: 2, userId: 2,
+      user: { userId: 2, firstName: 'Bob', lastName: 'Jones', email: 'b@c.com', currentRating: 1400, deviation: 200, volatility: 0.06, isAdmin: false },
+    })
+    const match: Match = {
+      matchId: 1, groupId: 1, groupPlayer1Id: 1, groupPlayer2Id: 2,
+      score1: 3, score2: 1, withdraw1: false, withdraw2: false, status: 'DONE',
+    }
+    renderStandings([p1, p2], [match])
+    // score cells from row player perspective
+    expect(screen.getAllByText('3:1').length).toBeGreaterThan(0)
+  })
+
+  it('calls onScoreClick when score cell button is clicked', async () => {
+    const onScoreClick = vi.fn()
+    const p1 = basePlayer({ groupPlayerId: 1, seed: 1 })
+    const p2 = basePlayer({
+      groupPlayerId: 2, seed: 2, userId: 2,
+      user: { userId: 2, firstName: 'Bob', lastName: 'Jones', email: 'b@c.com', currentRating: 1400, deviation: 200, volatility: 0.06, isAdmin: false },
+    })
+    const match: Match = {
+      matchId: 1, groupId: 1, groupPlayer1Id: 1, groupPlayer2Id: 2,
+      score1: null, score2: null, withdraw1: false, withdraw2: false, status: 'DRAFT',
+    }
+    render(
+      <MemoryRouter>
+        <GroupStandings players={[p1, p2]} matches={[match]} onScoreClick={onScoreClick} />
+      </MemoryRouter>
+    )
+    const scoreBtns = screen.getAllByRole('button')
+    await userEvent.click(scoreBtns[0])
+    expect(onScoreClick).toHaveBeenCalledOnce()
+  })
+
+  it('shows walkover score as W-L in cell', () => {
+    const p1 = basePlayer({ groupPlayerId: 1, seed: 1 })
+    const p2 = basePlayer({
+      groupPlayerId: 2, seed: 2, userId: 2,
+      user: { userId: 2, firstName: 'Bob', lastName: 'Jones', email: 'b@c.com', currentRating: 1400, deviation: 200, volatility: 0.06, isAdmin: false },
+    })
+    const match: Match = {
+      matchId: 1, groupId: 1, groupPlayer1Id: 1, groupPlayer2Id: 2,
+      score1: 3, score2: 0, withdraw1: false, withdraw2: true, status: 'DONE',
+    }
+    renderStandings([p1, p2], [match])
+    expect(screen.getAllByText('W-L').length).toBeGreaterThan(0)
   })
 })

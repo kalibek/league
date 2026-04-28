@@ -15,6 +15,7 @@ type draftMockGroupRepo struct {
 	groups      map[int64][]model.Group  // eventID → groups
 	groupByID   map[int64]*model.Group
 	statusCalls []model.GroupStatus
+	players     map[int64][]model.GroupPlayer // groupID → players
 }
 
 func (m *draftMockGroupRepo) GetByID(ctx context.Context, id int64) (*model.Group, error) {
@@ -53,10 +54,41 @@ func (m *draftMockGroupRepo) ListPlayerGroupsInEvent(ctx context.Context, userID
 	return nil, nil
 }
 
+func (m *draftMockGroupRepo) GetPlayersByMovement(ctx context.Context, groupID int64, moves int) ([]model.GroupPlayer, error) {
+	all := m.players[groupID]
+	var result []model.GroupPlayer
+	for _, p := range all {
+		switch moves {
+		case model.MoveUp:
+			if p.Advances {
+				result = append(result, p)
+			}
+		case model.MoveDown:
+			if p.Recedes {
+				result = append(result, p)
+			}
+		case model.MoveStay:
+			if !p.Advances && !p.Recedes {
+				result = append(result, p)
+			}
+		}
+	}
+	return result, nil
+}
+
+func (m *draftMockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error) {
+	users := make([]model.User, 0, len(ids))
+	for _, id := range ids {
+		users = append(users, model.User{UserID: id})
+	}
+	return users, nil
+}
+
 type draftMockEventRepo struct {
 	events      map[int64]*model.LeagueEvent
 	statusCalls []model.EventStatus
 	updateErr   error
+	createID    int64
 }
 
 func (m *draftMockEventRepo) GetByID(ctx context.Context, id int64) (*model.LeagueEvent, error) {
@@ -71,6 +103,9 @@ func (m *draftMockEventRepo) ListByLeague(ctx context.Context, leagueID int64) (
 }
 
 func (m *draftMockEventRepo) Create(ctx context.Context, e *model.LeagueEvent) (int64, error) {
+	if m.createID != 0 {
+		return m.createID, nil
+	}
 	return 1, nil
 }
 

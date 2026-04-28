@@ -53,4 +53,44 @@ describe('PlacementOverride', () => {
     await userEvent.click(screen.getByRole('button', { name: /confirm placement/i }))
     expect(onConfirm).toHaveBeenCalledWith([2, 1])
   })
+
+  it('move down button reorders players', async () => {
+    const onConfirm = vi.fn()
+    const players = [makePlayer(1, 'Alice'), makePlayer(2, 'Bob')]
+    render(<PlacementOverride players={players} onConfirm={onConfirm} onClose={vi.fn()} />)
+
+    // Move Alice down
+    const moveDownBtns = screen.getAllByLabelText('Move down')
+    await userEvent.click(moveDownBtns[0]) // first player's move-down
+
+    await userEvent.click(screen.getByRole('button', { name: /confirm placement/i }))
+    expect(onConfirm).toHaveBeenCalledWith([2, 1])
+  })
+
+  it('move up is disabled for first player', () => {
+    const players = [makePlayer(1, 'Alice'), makePlayer(2, 'Bob')]
+    render(<PlacementOverride players={players} onConfirm={vi.fn()} onClose={vi.fn()} />)
+    const moveUpBtns = screen.getAllByLabelText('Move up')
+    expect(moveUpBtns[0]).toBeDisabled()
+  })
+
+  it('move down is disabled for last player', () => {
+    const players = [makePlayer(1, 'Alice'), makePlayer(2, 'Bob')]
+    render(<PlacementOverride players={players} onConfirm={vi.fn()} onClose={vi.fn()} />)
+    const moveDownBtns = screen.getAllByLabelText('Move down')
+    expect(moveDownBtns[moveDownBtns.length - 1]).toBeDisabled()
+  })
+
+  it('shows points and tiebreak info for each player', () => {
+    const players = [makePlayer(1, 'Alice')]
+    render(<PlacementOverride players={players} onConfirm={vi.fn()} onClose={vi.fn()} />)
+    expect(screen.getByText(/4 pts \/ 1 TB/)).toBeInTheDocument()
+  })
+
+  it('disables buttons when loading', () => {
+    const players = [makePlayer(1, 'Alice')]
+    render(<PlacementOverride players={players} onConfirm={vi.fn()} onClose={vi.fn()} loading={true} />)
+    expect(screen.getByRole('button', { name: /confirm placement/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled()
+  })
 })

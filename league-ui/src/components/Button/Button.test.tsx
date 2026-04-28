@@ -35,8 +35,10 @@ describe('Button', () => {
     expect(handler).not.toHaveBeenCalled()
   })
 
-  it('applies danger variant classes', () => {
+  it('applies danger variant inline style', () => {
     render(<Button variant="danger">Delete</Button>)
-    expect(screen.getByRole('button').className).toContain('bg-red-600')
+    const btn = screen.getByRole('button', { name: 'Delete' })
+    expect(btn).toBeInTheDocument()
+    expect(btn).toHaveStyle({ backgroundColor: '#dc2626' })
   })
 })

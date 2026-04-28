@@ -168,6 +168,36 @@ func (m *mockGroupRepo) ListPlayerGroupsInEvent(ctx context.Context, userID, eve
 	return nil, nil
 }
 
+func (m *mockGroupRepo) GetPlayersByMovement(ctx context.Context, groupID int64, moves int) ([]model.GroupPlayer, error) {
+	all := m.players[groupID]
+	var result []model.GroupPlayer
+	for _, p := range all {
+		switch moves {
+		case model.MoveUp:
+			if p.Advances {
+				result = append(result, p)
+			}
+		case model.MoveDown:
+			if p.Recedes {
+				result = append(result, p)
+			}
+		case model.MoveStay:
+			if !p.Advances && !p.Recedes {
+				result = append(result, p)
+			}
+		}
+	}
+	return result, nil
+}
+
+func (m *mockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error) {
+	users := make([]model.User, 0, len(ids))
+	for _, id := range ids {
+		users = append(users, model.User{UserID: id})
+	}
+	return users, nil
+}
+
 // mockMatchRepo also satisfies repository.MatchRepository.
 type mockMatchRepo struct {
 	matches map[int64][]model.Match

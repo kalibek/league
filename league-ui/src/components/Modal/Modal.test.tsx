@@ -33,4 +33,25 @@ describe('Modal', () => {
     await userEvent.click(screen.getByRole('dialog'))
     expect(onClose).toHaveBeenCalledOnce()
   })
+
+  it('calls onClose when Escape key is pressed', async () => {
+    const onClose = vi.fn()
+    render(<Modal open={true} onClose={onClose}>Content</Modal>)
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('does not call onClose on Escape when closed', async () => {
+    const onClose = vi.fn()
+    render(<Modal open={false} onClose={onClose}>Content</Modal>)
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('does not close when clicking inside modal content', async () => {
+    const onClose = vi.fn()
+    render(<Modal open={true} onClose={onClose}>Content</Modal>)
+    await userEvent.click(screen.getByText('Content'))
+    expect(onClose).not.toHaveBeenCalled()
+  })
 })
