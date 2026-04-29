@@ -17,7 +17,7 @@ func TestListCountries(t *testing.T) {
 			{CountryID: 2, Name: "Russia", Code: "RU"},
 		},
 	}
-	svc := NewProfileService(pr, &mockUserRepoForProfile{user: &model.User{}})
+	svc := NewProfileService(nil,pr, &mockUserRepoForProfile{user: &model.User{}})
 
 	countries, err := svc.ListCountries(context.Background())
 	if err != nil {
@@ -35,7 +35,7 @@ func TestListCities(t *testing.T) {
 			{CityID: 2, Name: "Nur-Sultan", CountryID: 1},
 		},
 	}
-	svc := NewProfileService(pr, &mockUserRepoForProfile{user: &model.User{}})
+	svc := NewProfileService(nil,pr, &mockUserRepoForProfile{user: &model.User{}})
 
 	cities, err := svc.ListCities(context.Background(), 1)
 	if err != nil {
@@ -53,7 +53,7 @@ func TestListBlades(t *testing.T) {
 			{BladeID: 2, Name: "Zhang Jike"},
 		},
 	}
-	svc := NewProfileService(pr, &mockUserRepoForProfile{user: &model.User{}})
+	svc := NewProfileService(nil,pr, &mockUserRepoForProfile{user: &model.User{}})
 
 	blades, err := svc.ListBlades(context.Background())
 	if err != nil {
@@ -71,7 +71,7 @@ func TestListRubbers(t *testing.T) {
 			{RubberID: 2, Name: "MXP"},
 		},
 	}
-	svc := NewProfileService(pr, &mockUserRepoForProfile{user: &model.User{}})
+	svc := NewProfileService(nil,pr, &mockUserRepoForProfile{user: &model.User{}})
 
 	rubbers, err := svc.ListRubbers(context.Background())
 	if err != nil {
@@ -84,7 +84,7 @@ func TestListRubbers(t *testing.T) {
 
 func TestAddCity_Success(t *testing.T) {
 	pr := &mockProfileRepo{}
-	svc := NewProfileService(pr, &mockUserRepoForProfile{user: &model.User{}})
+	svc := NewProfileService(nil,pr, &mockUserRepoForProfile{user: &model.User{}})
 
 	city, err := svc.AddCity(context.Background(), "Shymkent", 1)
 	if err != nil {
@@ -97,7 +97,7 @@ func TestAddCity_Success(t *testing.T) {
 
 func TestAddBlade_Success(t *testing.T) {
 	pr := &mockProfileRepo{}
-	svc := NewProfileService(pr, &mockUserRepoForProfile{user: &model.User{}})
+	svc := NewProfileService(nil,pr, &mockUserRepoForProfile{user: &model.User{}})
 
 	blade, err := svc.AddBlade(context.Background(), "Viscaria")
 	if err != nil {
@@ -110,7 +110,7 @@ func TestAddBlade_Success(t *testing.T) {
 
 func TestAddRubber_Success(t *testing.T) {
 	pr := &mockProfileRepo{}
-	svc := NewProfileService(pr, &mockUserRepoForProfile{user: &model.User{}})
+	svc := NewProfileService(nil,pr, &mockUserRepoForProfile{user: &model.User{}})
 
 	rubber, err := svc.AddRubber(context.Background(), "Dignics 09C")
 	if err != nil {
@@ -128,7 +128,7 @@ func TestNewMatchService_Constructor(t *testing.T) {
 	gr := &matchSvcMockGroupRepo{groups: map[int64]*model.Group{}, players: map[int64][]model.GroupPlayer{}}
 	hub := newTestHub()
 
-	svc := NewMatchService(mr, gr, hub)
+	svc := NewMatchService(nil,mr, gr, hub)
 	if svc == nil {
 		t.Fatal("expected non-nil match service")
 	}
@@ -142,7 +142,7 @@ func TestNewDraftService_Constructor(t *testing.T) {
 	gr := &draftMockGroupRepo{groups: map[int64][]model.Group{}, groupByID: map[int64]*model.Group{}}
 	mr := &draftMockMatchRepo{matches: map[int64][]model.Match{}}
 
-	svc := NewDraftService(lr, er, gr, mr, &nopMatchService{}, &nopRatingService{}, &nopGroupService{}, nil)
+	svc := NewDraftService(nil,lr, er, gr, mr, &nopMatchService{}, &nopRatingService{}, &nopGroupService{}, nil)
 	if svc == nil {
 		t.Fatal("expected non-nil draft service")
 	}
@@ -152,7 +152,7 @@ func TestNewDraftService_Constructor(t *testing.T) {
 
 func TestGetEventDetail_EventNotFound(t *testing.T) {
 	er := &evtMockEventRepo{events: map[int64]*model.LeagueEvent{}}
-	svc := NewEventService(er, &evtMockGroupRepo{groups: map[int64][]model.Group{}}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+	svc := NewEventService(nil,er, &evtMockGroupRepo{groups: map[int64][]model.Group{}}, &evtMockMatchRepo{}, &evtMockUserRepo{})
 
 	_, err := svc.GetEventDetail(context.Background(), 999)
 	if err == nil {
@@ -166,7 +166,7 @@ func TestCreateDraftEvent_CreateError(t *testing.T) {
 		byLeague:  map[int64][]model.LeagueEvent{1: {}},
 		createErr: errDummy,
 	}
-	svc := NewEventService(er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+	svc := NewEventService(nil,er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
 
 	_, err := svc.CreateDraftEvent(context.Background(), 1, "Test", time.Now(), time.Now().Add(time.Hour))
 	if err == nil {

@@ -223,7 +223,7 @@ func TestNewRatingService(t *testing.T) {
 	rr := &ratingMockRatingRepo{}
 	er := &ratingMockEventRepo{}
 
-	svc := NewRatingService(ur, gr, mr, rr, er)
+	svc := NewRatingService(nil, ur, gr, mr, rr, er)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 	}

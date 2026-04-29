@@ -190,7 +190,7 @@ func TestCreateDraftEvent_Success(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(er, gr, mr, ur)
+	svc := NewEventService(nil,er, gr, mr, ur)
 
 	start := time.Now()
 	end := start.Add(30 * 24 * time.Hour)
@@ -214,7 +214,7 @@ func TestCreateDraftEvent_AlreadyActiveEvent(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(er, gr, mr, ur)
+	svc := NewEventService(nil,er, gr, mr, ur)
 
 	_, err := svc.CreateDraftEvent(context.Background(), 1, "Test Event", time.Now(), time.Now().Add(24*time.Hour))
 	if err == nil {
@@ -232,7 +232,7 @@ func TestCreateDraftEvent_InProgressBlocks(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(er, gr, mr, ur)
+	svc := NewEventService(nil,er, gr, mr, ur)
 
 	_, err := svc.CreateDraftEvent(context.Background(), 1, "Test Event", time.Now(), time.Now().Add(24*time.Hour))
 	if err == nil {
@@ -264,7 +264,7 @@ func TestStartEvent_Success(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(er, gr, mr, ur)
+	svc := NewEventService(nil,er, gr, mr, ur)
 
 	err := svc.StartEvent(context.Background(), 5)
 	if err != nil {
@@ -289,7 +289,7 @@ func TestStartEvent_NotDraft(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(er, gr, mr, ur)
+	svc := NewEventService(nil,er, gr, mr, ur)
 
 	err := svc.StartEvent(context.Background(), 5)
 	if err == nil {
@@ -314,7 +314,7 @@ func TestStartEvent_NoPlayers_NoMatches(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(er, gr, mr, ur)
+	svc := NewEventService(nil,er, gr, mr, ur)
 
 	err := svc.StartEvent(context.Background(), 5)
 	if err != nil {
@@ -349,7 +349,7 @@ func TestStartEvent_NonCalculatedExcluded(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(er, gr, mr, ur)
+	svc := NewEventService(nil,er, gr, mr, ur)
 
 	err := svc.StartEvent(context.Background(), 5)
 	if err != nil {
@@ -372,7 +372,7 @@ func TestListEvents(t *testing.T) {
 		events:   map[int64]*model.LeagueEvent{},
 		byLeague: map[int64][]model.LeagueEvent{10: evts},
 	}
-	svc := NewEventService(er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+	svc := NewEventService(nil,er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
 
 	list, err := svc.ListEvents(context.Background(), 10)
 	if err != nil {
@@ -386,7 +386,7 @@ func TestListEvents(t *testing.T) {
 func TestGetEvent_Found(t *testing.T) {
 	ev := &model.LeagueEvent{EventID: 7, Status: model.EventDraft}
 	er := &evtMockEventRepo{events: map[int64]*model.LeagueEvent{7: ev}}
-	svc := NewEventService(er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+	svc := NewEventService(nil,er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
 
 	got, err := svc.GetEvent(context.Background(), 7)
 	if err != nil {
@@ -399,7 +399,7 @@ func TestGetEvent_Found(t *testing.T) {
 
 func TestGetEvent_NotFound(t *testing.T) {
 	er := &evtMockEventRepo{events: map[int64]*model.LeagueEvent{}}
-	svc := NewEventService(er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+	svc := NewEventService(nil,er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
 
 	_, err := svc.GetEvent(context.Background(), 99)
 	if err == nil {
@@ -425,7 +425,7 @@ func TestGetEventDetail_WithGroups(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(er, gr, mr, ur)
+	svc := NewEventService(nil,er, gr, mr, ur)
 
 	detail, err := svc.GetEventDetail(context.Background(), 5)
 	if err != nil {

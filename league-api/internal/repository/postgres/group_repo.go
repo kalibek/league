@@ -6,21 +6,29 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 )
 
 type groupRepo struct {
-	db *sqlx.DB
+	pool *sqlx.DB
 }
 
 func NewGroupRepo(db *sqlx.DB) repository.GroupRepository {
-	return &groupRepo{db}
+	return &groupRepo{pool: db}
+}
+
+func (r *groupRepo) db(ctx context.Context) idb.DBTX {
+	if tx := idb.ExtractTx(ctx); tx != nil {
+		return tx
+	}
+	return r.pool
 }
 
 func (r *groupRepo) GetByID(ctx context.Context, id int64) (*model.Group, error) {
 	var g model.Group
-	err := r.db.GetContext(ctx, &g, `SELECT * FROM groups WHERE group_id = $1`, id)
+	err := r.db(ctx).GetContext(ctx, &g, `SELECT * FROM groups WHERE group_id = $1`, id)
 	if err != nil {
 		return nil, fmt.Errorf("groupRepo.GetByID: %w", err)
 	}
@@ -29,7 +37,7 @@ func (r *groupRepo) GetByID(ctx context.Context, id int64) (*model.Group, error)
 
 func (r *groupRepo) ListByEvent(ctx context.Context, eventID int64) ([]model.Group, error) {
 	groups := make([]model.Group, 0)
-	err := r.db.SelectContext(ctx, &groups,
+	err := r.db(ctx).SelectContext(ctx, &groups,
 		`SELECT * FROM groups WHERE event_id = $1 ORDER BY division, group_no`,
 		eventID,
 	)
@@ -45,9 +53,16 @@ func (r *groupRepo) Create(ctx context.Context, g *model.Group) (int64, error) {
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING group_id`
 	var id int64
-	err := r.db.QueryRowContext(ctx, q,
-		g.EventID, g.Status, g.Division, g.GroupNo, g.Scheduled,
-	).Scan(&id)
+	var err error
+	if tx := idb.ExtractTx(ctx); tx != nil {
+		err = tx.QueryRowContext(ctx, q,
+			g.EventID, g.Status, g.Division, g.GroupNo, g.Scheduled,
+		).Scan(&id)
+	} else {
+		err = r.pool.QueryRowContext(ctx, q,
+			g.EventID, g.Status, g.Division, g.GroupNo, g.Scheduled,
+		).Scan(&id)
+	}
 	if err != nil {
 		return 0, fmt.Errorf("groupRepo.Create: %w", err)
 	}
@@ -56,7 +71,7 @@ func (r *groupRepo) Create(ctx context.Context, g *model.Group) (int64, error) {
 
 func (r *groupRepo) UpdateStatus(ctx context.Context, id int64, status model.GroupStatus) error {
 	const q = `UPDATE groups SET status = $1, last_updated = NOW() WHERE group_id = $2`
-	_, err := r.db.ExecContext(ctx, q, status, id)
+	_, err := r.db(ctx).ExecContext(ctx, q, status, id)
 	if err != nil {
 		return fmt.Errorf("groupRepo.UpdateStatus: %w", err)
 	}
@@ -65,7 +80,7 @@ func (r *groupRepo) UpdateStatus(ctx context.Context, id int64, status model.Gro
 
 func (r *groupRepo) GetPlayers(ctx context.Context, groupID int64) ([]model.GroupPlayer, error) {
 	players := make([]model.GroupPlayer, 0)
-	err := r.db.SelectContext(ctx, &players,
+	err := r.db(ctx).SelectContext(ctx, &players,
 		`SELECT * FROM group_players WHERE group_id = $1 ORDER BY seed`,
 		groupID,
 	)
@@ -89,7 +104,7 @@ func (r *groupRepo) GetPlayersByMovement(ctx context.Context, groupID int64, mov
 	}
 
 	players := make([]model.GroupPlayer, 0)
-	err := r.db.SelectContext(ctx, &players,
+	err := r.db(ctx).SelectContext(ctx, &players,
 		query,
 		groupID,
 	)
@@ -105,9 +120,16 @@ func (r *groupRepo) AddPlayer(ctx context.Context, gp *model.GroupPlayer) (int64
 		VALUES ($1, $2, $3, $4)
 		RETURNING group_player_id`
 	var id int64
-	err := r.db.QueryRowContext(ctx, q,
-		gp.GroupID, gp.UserID, gp.Seed, gp.IsNonCalculated,
-	).Scan(&id)
+	var err error
+	if tx := idb.ExtractTx(ctx); tx != nil {
+		err = tx.QueryRowContext(ctx, q,
+			gp.GroupID, gp.UserID, gp.Seed, gp.IsNonCalculated,
+		).Scan(&id)
+	} else {
+		err = r.pool.QueryRowContext(ctx, q,
+			gp.GroupID, gp.UserID, gp.Seed, gp.IsNonCalculated,
+		).Scan(&id)
+	}
 	if err != nil {
 		return 0, fmt.Errorf("groupRepo.AddPlayer: %w", err)
 	}
@@ -115,7 +137,7 @@ func (r *groupRepo) AddPlayer(ctx context.Context, gp *model.GroupPlayer) (int64
 }
 
 func (r *groupRepo) RemovePlayer(ctx context.Context, groupPlayerID int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM group_players WHERE group_player_id = $1`, groupPlayerID)
+	_, err := r.db(ctx).ExecContext(ctx, `DELETE FROM group_players WHERE group_player_id = $1`, groupPlayerID)
 	if err != nil {
 		return fmt.Errorf("groupRepo.RemovePlayer: %w", err)
 	}
@@ -128,7 +150,7 @@ func (r *groupRepo) ResetGroupPlayers(ctx context.Context, groupID int64) error 
 		SET place = 0, points = 0, tiebreak_points = 0,
 		    advances = FALSE, recedes = FALSE, last_updated = NOW()
 		WHERE group_id = $1`
-	_, err := r.db.ExecContext(ctx, q, groupID)
+	_, err := r.db(ctx).ExecContext(ctx, q, groupID)
 	if err != nil {
 		return fmt.Errorf("groupRepo.ResetGroupPlayers: %w", err)
 	}
@@ -137,7 +159,7 @@ func (r *groupRepo) ResetGroupPlayers(ctx context.Context, groupID int64) error 
 
 func (r *groupRepo) ListPlayerGroupsInEvent(ctx context.Context, userID, eventID int64) ([]model.GroupPlayer, error) {
 	players := make([]model.GroupPlayer, 0)
-	err := r.db.SelectContext(ctx, &players, `
+	err := r.db(ctx).SelectContext(ctx, &players, `
 		SELECT gp.*
 		FROM group_players gp
 		JOIN groups g ON g.group_id = gp.group_id
@@ -154,7 +176,7 @@ func (r *groupRepo) UpdatePlayer(ctx context.Context, gp *model.GroupPlayer) err
 		UPDATE group_players
 		SET place = $1, points = $2, tiebreak_points = $3, advances = $4, recedes = $5, last_updated = NOW()
 		WHERE group_player_id = $6`
-	_, err := r.db.ExecContext(ctx, q,
+	_, err := r.db(ctx).ExecContext(ctx, q,
 		gp.Place, gp.Points, gp.TiebreakPoints, gp.Advances, gp.Recedes,
 		gp.GroupPlayerID,
 	)
@@ -170,10 +192,10 @@ func (r *groupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64)
 	if err != nil {
 		return nil, fmt.Errorf("groupRepo.ListUsersByIdsByRatingDesc in query: %w", err)
 	}
-	q = r.db.Rebind(q)
+	q = r.pool.Rebind(q)
 
 	users := make([]model.User, 0)
-	if err := r.db.SelectContext(ctx, &users, q, args...); err != nil {
+	if err := r.db(ctx).SelectContext(ctx, &users, q, args...); err != nil {
 		return nil, fmt.Errorf("groupRepo.ListUsersByIdsByRatingDesc select query: %w", err)
 	}
 	return users, nil

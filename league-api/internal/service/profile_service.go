@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 )
@@ -35,12 +38,13 @@ type ProfileService interface {
 }
 
 type profileService struct {
+	db          *sqlx.DB
 	profileRepo repository.ProfileRepository
 	userRepo    repository.UserRepository
 }
 
-func NewProfileService(profileRepo repository.ProfileRepository, userRepo repository.UserRepository) ProfileService {
-	return &profileService{profileRepo: profileRepo, userRepo: userRepo}
+func NewProfileService(db *sqlx.DB, profileRepo repository.ProfileRepository, userRepo repository.UserRepository) ProfileService {
+	return &profileService{db: db, profileRepo: profileRepo, userRepo: userRepo}
 }
 
 func (s *profileService) GetProfile(ctx context.Context, userID int64) (*model.PlayerProfileDetail, error) {
@@ -92,23 +96,6 @@ func (s *profileService) GetProfile(ctx context.Context, userID int64) (*model.P
 }
 
 func (s *profileService) UpsertProfile(ctx context.Context, userID int64, req UpsertProfileRequest) (*model.PlayerProfileDetail, error) {
-	if req.FirstName != "" || req.LastName != "" {
-		user, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil {
-			return nil, fmt.Errorf("profileService.UpsertProfile get user: %w", err)
-		}
-		fn, ln := user.FirstName, user.LastName
-		if req.FirstName != "" {
-			fn = req.FirstName
-		}
-		if req.LastName != "" {
-			ln = req.LastName
-		}
-		if err := s.userRepo.UpdateName(ctx, userID, fn, ln); err != nil {
-			return nil, fmt.Errorf("profileService.UpsertProfile update name: %w", err)
-		}
-	}
-
 	row := &model.PlayerProfileRow{
 		UserID:     userID,
 		CountryID:  req.CountryID,
@@ -127,8 +114,29 @@ func (s *profileService) UpsertProfile(ctx context.Context, userID int64, req Up
 		row.Birthdate = &t
 	}
 
-	if err := s.profileRepo.UpsertProfile(ctx, row); err != nil {
-		return nil, fmt.Errorf("profileService.UpsertProfile upsert: %w", err)
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		if req.FirstName != "" || req.LastName != "" {
+			user, err := s.userRepo.GetByID(txCtx, userID)
+			if err != nil {
+				return fmt.Errorf("profileService.UpsertProfile get user: %w", err)
+			}
+			fn, ln := user.FirstName, user.LastName
+			if req.FirstName != "" {
+				fn = req.FirstName
+			}
+			if req.LastName != "" {
+				ln = req.LastName
+			}
+			if err := s.userRepo.UpdateName(txCtx, userID, fn, ln); err != nil {
+				return fmt.Errorf("profileService.UpsertProfile update name: %w", err)
+			}
+		}
+		if err := s.profileRepo.UpsertProfile(txCtx, row); err != nil {
+			return fmt.Errorf("profileService.UpsertProfile upsert: %w", err)
+		}
+		return nil
+	}); txErr != nil {
+		return nil, txErr
 	}
 
 	return s.GetProfile(ctx, userID)

@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
+
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 	"league-api/pkg/glicko2"
@@ -25,6 +28,7 @@ type RecalcResult struct {
 }
 
 type ratingService struct {
+	db         *sqlx.DB
 	userRepo   repository.UserRepository
 	groupRepo  repository.GroupRepository
 	matchRepo  repository.MatchRepository
@@ -33,6 +37,7 @@ type ratingService struct {
 }
 
 func NewRatingService(
+	db *sqlx.DB,
 	userRepo repository.UserRepository,
 	groupRepo repository.GroupRepository,
 	matchRepo repository.MatchRepository,
@@ -40,6 +45,7 @@ func NewRatingService(
 	eventRepo repository.EventRepository,
 ) RatingService {
 	return &ratingService{
+		db:         db,
 		userRepo:   userRepo,
 		groupRepo:  groupRepo,
 		matchRepo:  matchRepo,
@@ -162,10 +168,12 @@ func (s *ratingService) CalculateGroupRatings(ctx context.Context, groupID int64
 
 // RecalculateGroupRatings deletes existing history for the group and recalculates.
 func (s *ratingService) RecalculateGroupRatings(ctx context.Context, groupID int64) error {
-	if err := s.ratingRepo.DeleteByGroup(ctx, groupID); err != nil {
-		return fmt.Errorf("ratingService.RecalculateGroupRatings delete: %w", err)
-	}
-	return s.CalculateGroupRatings(ctx, groupID)
+	return idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		if err := s.ratingRepo.DeleteByGroup(txCtx, groupID); err != nil {
+			return fmt.Errorf("ratingService.RecalculateGroupRatings delete: %w", err)
+		}
+		return s.CalculateGroupRatings(txCtx, groupID)
+	})
 }
 
 // RecalculateAllRatings wipes all rating history, resets every user to the initial
@@ -173,23 +181,27 @@ func (s *ratingService) RecalculateGroupRatings(ctx context.Context, groupID int
 func (s *ratingService) RecalculateAllRatings(ctx context.Context) (RecalcResult, error) {
 	var result RecalcResult
 
-	if err := s.ratingRepo.DeleteAll(ctx); err != nil {
-		return result, fmt.Errorf("ratingService.RecalculateAllRatings delete history: %w", err)
-	}
-	if err := s.userRepo.ResetAllRatings(ctx); err != nil {
-		return result, fmt.Errorf("ratingService.RecalculateAllRatings reset users: %w", err)
-	}
-
+	// Read the list of done events before starting the transaction.
 	events, err := s.eventRepo.ListDone(ctx)
 	if err != nil {
 		return result, fmt.Errorf("ratingService.RecalculateAllRatings list events: %w", err)
 	}
 
+	// Pre-fetch all group/match data outside the transaction (reads only).
+	type groupData struct {
+		group   model.Group
+		matches []model.Match
+	}
+	type eventData struct {
+		groups []groupData
+	}
+	eventDatas := make([]eventData, 0, len(events))
 	for _, ev := range events {
 		groups, err := s.groupRepo.ListByEvent(ctx, ev.EventID)
 		if err != nil {
 			return result, fmt.Errorf("ratingService.RecalculateAllRatings list groups event %d: %w", ev.EventID, err)
 		}
+		var gds []groupData
 		for _, g := range groups {
 			if g.Status != model.GroupDone {
 				continue
@@ -198,17 +210,36 @@ func (s *ratingService) RecalculateAllRatings(ctx context.Context) (RecalcResult
 			if err != nil {
 				return result, fmt.Errorf("ratingService.RecalculateAllRatings list matches group %d: %w", g.GroupID, err)
 			}
-			if err := s.CalculateGroupRatings(ctx, g.GroupID); err != nil {
-				return result, fmt.Errorf("ratingService.RecalculateAllRatings calc group %d: %w", g.GroupID, err)
-			}
-			result.GroupsProcessed++
-			for _, m := range matches {
-				if m.Status == model.MatchDone {
-					result.MatchesProcessed++
+			gds = append(gds, groupData{group: g, matches: matches})
+		}
+		eventDatas = append(eventDatas, eventData{groups: gds})
+	}
+
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		if err := s.ratingRepo.DeleteAll(txCtx); err != nil {
+			return fmt.Errorf("ratingService.RecalculateAllRatings delete history: %w", err)
+		}
+		if err := s.userRepo.ResetAllRatings(txCtx); err != nil {
+			return fmt.Errorf("ratingService.RecalculateAllRatings reset users: %w", err)
+		}
+		for i, ed := range eventDatas {
+			for _, gd := range ed.groups {
+				if err := s.CalculateGroupRatings(txCtx, gd.group.GroupID); err != nil {
+					return fmt.Errorf("ratingService.RecalculateAllRatings calc group %d: %w", gd.group.GroupID, err)
+				}
+				result.GroupsProcessed++
+				for _, m := range gd.matches {
+					if m.Status == model.MatchDone {
+						result.MatchesProcessed++
+					}
 				}
 			}
+			_ = i
+			result.EventsProcessed++
 		}
-		result.EventsProcessed++
+		return nil
+	}); txErr != nil {
+		return RecalcResult{}, txErr
 	}
 
 	return result, nil

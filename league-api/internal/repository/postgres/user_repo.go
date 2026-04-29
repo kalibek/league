@@ -6,21 +6,29 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 )
 
 type userRepo struct {
-	db *sqlx.DB
+	pool *sqlx.DB
 }
 
 func NewUserRepo(db *sqlx.DB) repository.UserRepository {
-	return &userRepo{db}
+	return &userRepo{pool: db}
+}
+
+func (r *userRepo) db(ctx context.Context) idb.DBTX {
+	if tx := idb.ExtractTx(ctx); tx != nil {
+		return tx
+	}
+	return r.pool
 }
 
 func (r *userRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
 	var u model.User
-	err := r.db.GetContext(ctx, &u, `SELECT * FROM users WHERE user_id = $1`, id)
+	err := r.db(ctx).GetContext(ctx, &u, `SELECT * FROM users WHERE user_id = $1`, id)
 	if err != nil {
 		return nil, fmt.Errorf("userRepo.GetByID: %w", err)
 	}
@@ -29,7 +37,7 @@ func (r *userRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
 
 func (r *userRepo) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	var u model.User
-	err := r.db.GetContext(ctx, &u, `SELECT * FROM users WHERE email = $1`, email)
+	err := r.db(ctx).GetContext(ctx, &u, `SELECT * FROM users WHERE email = $1`, email)
 	if err != nil {
 		return nil, fmt.Errorf("userRepo.GetByEmail: %w", err)
 	}
@@ -42,10 +50,18 @@ func (r *userRepo) Create(ctx context.Context, u *model.User) (int64, error) {
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING user_id`
 	var id int64
-	err := r.db.QueryRowContext(ctx, q,
-		u.FirstName, u.LastName, u.Email,
-		u.CurrentRating, u.Deviation, u.Volatility,
-	).Scan(&id)
+	var err error
+	if tx := idb.ExtractTx(ctx); tx != nil {
+		err = tx.QueryRowContext(ctx, q,
+			u.FirstName, u.LastName, u.Email,
+			u.CurrentRating, u.Deviation, u.Volatility,
+		).Scan(&id)
+	} else {
+		err = r.pool.QueryRowContext(ctx, q,
+			u.FirstName, u.LastName, u.Email,
+			u.CurrentRating, u.Deviation, u.Volatility,
+		).Scan(&id)
+	}
 	if err != nil {
 		return 0, fmt.Errorf("userRepo.Create: %w", err)
 	}
@@ -63,7 +79,7 @@ func (r *userRepo) List(ctx context.Context, limit, offset int, sortBy string) (
 	}
 	q := fmt.Sprintf(`SELECT * FROM users ORDER BY %s LIMIT $1 OFFSET $2`, orderCol)
 	users := make([]model.User, 0)
-	if err := r.db.SelectContext(ctx, &users, q, limit, offset); err != nil {
+	if err := r.db(ctx).SelectContext(ctx, &users, q, limit, offset); err != nil {
 		return nil, fmt.Errorf("userRepo.List: %w", err)
 	}
 	return users, nil
@@ -103,7 +119,7 @@ func (r *userRepo) Search(ctx context.Context, q string, limit, offset int, sort
 		LIMIT $2 OFFSET $3`, orderCol)
 
 	users := make([]model.User, 0)
-	if err := r.db.SelectContext(ctx, &users, query, pattern, limit, offset); err != nil {
+	if err := r.db(ctx).SelectContext(ctx, &users, query, pattern, limit, offset); err != nil {
 		return nil, fmt.Errorf("userRepo.Search: %w", err)
 	}
 	return users, nil
@@ -114,7 +130,7 @@ func (r *userRepo) UpdateRating(ctx context.Context, userID int64, rating, devia
 		UPDATE users
 		SET current_rating = $1, deviation = $2, volatility = $3, last_updated = NOW()
 		WHERE user_id = $4`
-	_, err := r.db.ExecContext(ctx, q, rating, deviation, volatility, userID)
+	_, err := r.db(ctx).ExecContext(ctx, q, rating, deviation, volatility, userID)
 	if err != nil {
 		return fmt.Errorf("userRepo.UpdateRating: %w", err)
 	}
@@ -123,7 +139,7 @@ func (r *userRepo) UpdateRating(ctx context.Context, userID int64, rating, devia
 
 func (r *userRepo) ResetAllRatings(ctx context.Context) error {
 	const q = `UPDATE users SET current_rating = 1500, deviation = 350, volatility = 0.06, last_updated = NOW()`
-	_, err := r.db.ExecContext(ctx, q)
+	_, err := r.db(ctx).ExecContext(ctx, q)
 	if err != nil {
 		return fmt.Errorf("userRepo.ResetAllRatings: %w", err)
 	}
@@ -132,7 +148,7 @@ func (r *userRepo) ResetAllRatings(ctx context.Context) error {
 
 func (r *userRepo) SetPasswordHash(ctx context.Context, userID int64, hash string) error {
 	const q = `UPDATE users SET password_hash = $1, last_updated = NOW() WHERE user_id = $2`
-	_, err := r.db.ExecContext(ctx, q, hash, userID)
+	_, err := r.db(ctx).ExecContext(ctx, q, hash, userID)
 	if err != nil {
 		return fmt.Errorf("userRepo.SetPasswordHash: %w", err)
 	}
@@ -141,7 +157,7 @@ func (r *userRepo) SetPasswordHash(ctx context.Context, userID int64, hash strin
 
 func (r *userRepo) UpdateName(ctx context.Context, userID int64, firstName, lastName string) error {
 	const q = `UPDATE users SET first_name = $1, last_name = $2, last_updated = NOW() WHERE user_id = $3`
-	_, err := r.db.ExecContext(ctx, q, firstName, lastName, userID)
+	_, err := r.db(ctx).ExecContext(ctx, q, firstName, lastName, userID)
 	if err != nil {
 		return fmt.Errorf("userRepo.UpdateName: %w", err)
 	}

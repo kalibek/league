@@ -3,10 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
+
+	"github.com/jmoiron/sqlx"
+
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 	"league-api/internal/ws"
-	"sort"
 )
 
 // DraftService handles end-of-event draft creation with promotion/relegation.
@@ -22,6 +26,7 @@ type DraftService interface {
 }
 
 type draftService struct {
+	db         *sqlx.DB
 	leagueRepo repository.LeagueRepository
 	eventRepo  repository.EventRepository
 	groupRepo  repository.GroupRepository
@@ -33,6 +38,7 @@ type draftService struct {
 }
 
 func NewDraftService(
+	db *sqlx.DB,
 	leagueRepo repository.LeagueRepository,
 	eventRepo repository.EventRepository,
 	groupRepo repository.GroupRepository,
@@ -43,6 +49,7 @@ func NewDraftService(
 	hub *ws.Hub,
 ) DraftService {
 	return &draftService{
+		db:         db,
 		leagueRepo: leagueRepo,
 		eventRepo:  eventRepo,
 		groupRepo:  groupRepo,
@@ -110,10 +117,6 @@ func (s *draftService) FinishGroup(ctx context.Context, groupID int64) error {
 func (s *draftService) finaliseGroup(ctx context.Context, grp *model.Group) error {
 	groupID := grp.GroupID
 
-	if err := s.ratingSvc.CalculateGroupRatings(ctx, groupID); err != nil {
-		return fmt.Errorf("draftService.finaliseGroup ratings: %w", err)
-	}
-
 	ev, err := s.eventRepo.GetByID(ctx, grp.EventID)
 	if err != nil {
 		return fmt.Errorf("draftService.finaliseGroup event: %w", err)
@@ -139,20 +142,25 @@ func (s *draftService) finaliseGroup(ctx context.Context, grp *model.Group) erro
 	n := len(ranked)
 	advances := league.Config.NumberOfAdvances
 	recedes := league.Config.NumberOfRecedes
-	for i := range ranked {
-		p := &ranked[i]
-		// A player cannot both advance and recede; advances takes precedence for top positions.
-		adv := advances > 0 && i < advances
-		rec := recedes > 0 && i >= n-recedes
-		p.Advances = adv && !rec
-		p.Recedes = rec && !adv
-		if err := s.groupRepo.UpdatePlayer(ctx, p); err != nil {
-			return fmt.Errorf("draftService.finaliseGroup update player: %w", err)
-		}
-	}
 
-	if err := s.groupRepo.UpdateStatus(ctx, groupID, model.GroupDone); err != nil {
-		return err
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		if err := s.ratingSvc.CalculateGroupRatings(txCtx, groupID); err != nil {
+			return fmt.Errorf("draftService.finaliseGroup ratings: %w", err)
+		}
+		for i := range ranked {
+			p := &ranked[i]
+			// A player cannot both advance and recede; advances takes precedence for top positions.
+			adv := advances > 0 && i < advances
+			rec := recedes > 0 && i >= n-recedes
+			p.Advances = adv && !rec
+			p.Recedes = rec && !adv
+			if err := s.groupRepo.UpdatePlayer(txCtx, p); err != nil {
+				return fmt.Errorf("draftService.finaliseGroup update player: %w", err)
+			}
+		}
+		return s.groupRepo.UpdateStatus(txCtx, groupID, model.GroupDone)
+	}); txErr != nil {
+		return txErr
 	}
 
 	if s.hub != nil {
@@ -210,16 +218,21 @@ func (s *draftService) SetManualPlacements(ctx context.Context, groupID int64, o
 		}
 	}
 
-	// Assign places to the manual group in the umpire-specified order.
-	for i, gpID := range orderedGroupPlayerIDs {
-		p, ok := playerMap[gpID]
-		if !ok {
-			return fmt.Errorf("groupPlayerID %d not found in group %d", gpID, groupID)
+	// Assign places to the manual group in the umpire-specified order, then finalise.
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		for i, gpID := range orderedGroupPlayerIDs {
+			p, ok := playerMap[gpID]
+			if !ok {
+				return fmt.Errorf("groupPlayerID %d not found in group %d", gpID, groupID)
+			}
+			p.Place = startingPlace + int16(i)
+			if err := s.groupRepo.UpdatePlayer(txCtx, &p); err != nil {
+				return fmt.Errorf("draftService.SetManualPlacements update player %d: %w", gpID, err)
+			}
 		}
-		p.Place = startingPlace + int16(i)
-		if err := s.groupRepo.UpdatePlayer(ctx, &p); err != nil {
-			return fmt.Errorf("draftService.SetManualPlacements update player %d: %w", gpID, err)
-		}
+		return nil
+	}); txErr != nil {
+		return txErr
 	}
 
 	return s.finaliseGroup(ctx, grp)
@@ -319,24 +332,12 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 		}
 	}
 
-	newEvent := &model.LeagueEvent{
-		LeagueID:  leagueID,
-		Status:    model.EventDraft,
-		Title:     fmt.Sprintf("Event %s", nextStart.Format("January 2006")),
-		StartDate: nextStart,
-		EndDate:   nextEnd,
+	// Pre-compute the new player lists for each group (reads only, outside the transaction).
+	type groupSeed struct {
+		group      model.Group
+		playerIDs  []int64
 	}
-	eventID, err := s.eventRepo.Create(ctx, newEvent)
-	if err != nil {
-		return nil, fmt.Errorf("draftService.CreateDraft create event: %w", err)
-	}
-
-	// loop through all groups
-	// each group gets: stayers from same (div, groupNo) + receders from the group above,
-	// + advancers from below:
-	//  - if the group is the top group, then advancers stay
-	//  - if the group is the bottom group, then receders stay
-	// players are seeded by their rating desc
+	groupSeeds := make([]groupSeed, 0, len(groups))
 	for i, g := range groups {
 		newPlayerIds := make([]int64, 0)
 		if i == 0 {
@@ -348,7 +349,6 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 				newPlayerIds = append(newPlayerIds, gp.UserID)
 			}
 		} else {
-			// receders from group above
 			rPlayers, err := s.groupRepo.GetPlayersByMovement(ctx, groups[i-1].GroupID, model.MoveDown)
 			if err != nil {
 				return nil, fmt.Errorf("draftService.CreateDraft cannot fetch players: %w", err)
@@ -357,7 +357,6 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 				newPlayerIds = append(newPlayerIds, gp.UserID)
 			}
 		}
-		// stayers
 		gPlayers, err := s.groupRepo.GetPlayersByMovement(ctx, g.GroupID, model.MoveStay)
 		if err != nil {
 			return nil, fmt.Errorf("draftService.CreateDraft cannot fetch players: %w", err)
@@ -365,7 +364,6 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 		for _, gp := range gPlayers {
 			newPlayerIds = append(newPlayerIds, gp.UserID)
 		}
-
 		if i == len(groups)-1 {
 			gPlayers, err := s.groupRepo.GetPlayersByMovement(ctx, g.GroupID, model.MoveDown)
 			if err != nil {
@@ -375,7 +373,6 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 				newPlayerIds = append(newPlayerIds, gp.UserID)
 			}
 		} else {
-			// advancers from group below
 			aPlayers, err := s.groupRepo.GetPlayersByMovement(ctx, groups[i+1].GroupID, model.MoveUp)
 			if err != nil {
 				return nil, fmt.Errorf("draftService.CreateDraft cannot fetch players: %w", err)
@@ -384,40 +381,62 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 				newPlayerIds = append(newPlayerIds, gp.UserID)
 			}
 		}
-		// create the group
-		newGroup := &model.Group{
-			EventID:   eventID,
-			Status:    model.GroupDraft,
-			Division:  g.Division,
-			GroupNo:   g.GroupNo,
-			Scheduled: g.Scheduled.AddDate(0, 1, 0),
-		}
-		gid, err := s.groupRepo.Create(ctx, newGroup)
-		if err != nil {
-			return nil, fmt.Errorf("draftService.CreateDraft cannot create group: %w", err)
-		}
-		users, err := s.groupRepo.ListUsersByIdsByRatingDesc(ctx, newPlayerIds)
-		if err != nil {
-			return nil, fmt.Errorf("draftService.CreateDraft cannot fetch users: %w", err)
-		}
-		for i, u := range users {
-			gp := &model.GroupPlayer{
-				GroupID:         gid,
-				UserID:          u.UserID,
-				Seed:            int16(i + 1),
-				Place:           0,
-				Points:          0,
-				TiebreakPoints:  0,
-				Advances:        false,
-				Recedes:         false,
-				IsNonCalculated: false,
-			}
-			_, err := s.groupRepo.AddPlayer(ctx, gp)
-			if err != nil {
-				return nil, fmt.Errorf("draftService.CreateDraft cannot create group player: %w", err)
-			}
+		groupSeeds = append(groupSeeds, groupSeed{group: g, playerIDs: newPlayerIds})
+	}
 
+	newEvent := &model.LeagueEvent{
+		LeagueID:  leagueID,
+		Status:    model.EventDraft,
+		Title:     fmt.Sprintf("Event %s", nextStart.Format("January 2006")),
+		StartDate: nextStart,
+		EndDate:   nextEnd,
+	}
+
+	var eventID int64
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		var err error
+		eventID, err = s.eventRepo.Create(txCtx, newEvent)
+		if err != nil {
+			return fmt.Errorf("draftService.CreateDraft create event: %w", err)
 		}
+
+		for _, gs := range groupSeeds {
+			g := gs.group
+			newGroup := &model.Group{
+				EventID:   eventID,
+				Status:    model.GroupDraft,
+				Division:  g.Division,
+				GroupNo:   g.GroupNo,
+				Scheduled: g.Scheduled.AddDate(0, 1, 0),
+			}
+			gid, err := s.groupRepo.Create(txCtx, newGroup)
+			if err != nil {
+				return fmt.Errorf("draftService.CreateDraft cannot create group: %w", err)
+			}
+			users, err := s.groupRepo.ListUsersByIdsByRatingDesc(txCtx, gs.playerIDs)
+			if err != nil {
+				return fmt.Errorf("draftService.CreateDraft cannot fetch users: %w", err)
+			}
+			for i, u := range users {
+				gp := &model.GroupPlayer{
+					GroupID:         gid,
+					UserID:          u.UserID,
+					Seed:            int16(i + 1),
+					Place:           0,
+					Points:          0,
+					TiebreakPoints:  0,
+					Advances:        false,
+					Recedes:         false,
+					IsNonCalculated: false,
+				}
+				if _, err := s.groupRepo.AddPlayer(txCtx, gp); err != nil {
+					return fmt.Errorf("draftService.CreateDraft cannot create group player: %w", err)
+				}
+			}
+		}
+		return nil
+	}); txErr != nil {
+		return nil, txErr
 	}
 
 	return s.eventRepo.GetByID(ctx, eventID)

@@ -146,7 +146,7 @@ func fullProfile(userID int64) *model.PlayerProfileRow {
 func TestGetProfile_NoProfileRow_IsNotComplete(t *testing.T) {
 	ur := &mockUserRepoForProfile{user: &model.User{FirstName: "John", LastName: "Doe"}}
 	pr := &mockProfileRepo{}
-	svc := NewProfileService(pr, ur)
+	svc := NewProfileService(nil,pr, ur)
 
 	detail, err := svc.GetProfile(context.Background(), 1)
 	if err != nil {
@@ -170,7 +170,7 @@ func TestGetProfile_FullProfile_IsComplete(t *testing.T) {
 		blades:    []model.Blade{{BladeID: 3, Name: "Timo Boll ALC"}},
 		rubbers:   []model.Rubber{{RubberID: 4, Name: "Tenergy 05"}, {RubberID: 5, Name: "MXP"}},
 	}
-	svc := NewProfileService(pr, ur)
+	svc := NewProfileService(nil,pr, ur)
 
 	detail, err := svc.GetProfile(context.Background(), 1)
 	if err != nil {
@@ -187,7 +187,7 @@ func TestGetProfile_FullProfile_IsComplete(t *testing.T) {
 func TestUpsertProfile_UpdatesName(t *testing.T) {
 	ur := &mockUserRepoForProfile{user: &model.User{FirstName: "Old", LastName: "Name"}}
 	pr := &mockProfileRepo{}
-	svc := NewProfileService(pr, ur)
+	svc := NewProfileService(nil,pr, ur)
 
 	req := UpsertProfileRequest{FirstName: "New", LastName: "Name"}
 	_, err := svc.UpsertProfile(context.Background(), 1, req)
@@ -202,7 +202,7 @@ func TestUpsertProfile_UpdatesName(t *testing.T) {
 func TestUpsertProfile_InvalidBirthdate(t *testing.T) {
 	ur := &mockUserRepoForProfile{user: &model.User{}}
 	pr := &mockProfileRepo{}
-	svc := NewProfileService(pr, ur)
+	svc := NewProfileService(nil,pr, ur)
 
 	bad := "not-a-date"
 	req := UpsertProfileRequest{Birthdate: &bad}
@@ -215,7 +215,7 @@ func TestUpsertProfile_InvalidBirthdate(t *testing.T) {
 func TestUpsertProfile_RepoError(t *testing.T) {
 	ur := &mockUserRepoForProfile{user: &model.User{}}
 	pr := &mockProfileRepo{upsertErr: errors.New("db error")}
-	svc := NewProfileService(pr, ur)
+	svc := NewProfileService(nil,pr, ur)
 
 	req := UpsertProfileRequest{}
 	_, err := svc.UpsertProfile(context.Background(), 1, req)
@@ -225,7 +225,7 @@ func TestUpsertProfile_RepoError(t *testing.T) {
 }
 
 func TestAddCity_EmptyName(t *testing.T) {
-	svc := NewProfileService(&mockProfileRepo{}, &mockUserRepoForProfile{})
+	svc := NewProfileService(nil,&mockProfileRepo{}, &mockUserRepoForProfile{})
 	_, err := svc.AddCity(context.Background(), "", 1)
 	if err == nil {
 		t.Fatal("expected error for empty city name")
@@ -233,7 +233,7 @@ func TestAddCity_EmptyName(t *testing.T) {
 }
 
 func TestAddBlade_EmptyName(t *testing.T) {
-	svc := NewProfileService(&mockProfileRepo{}, &mockUserRepoForProfile{})
+	svc := NewProfileService(nil,&mockProfileRepo{}, &mockUserRepoForProfile{})
 	_, err := svc.AddBlade(context.Background(), "")
 	if err == nil {
 		t.Fatal("expected error for empty blade name")
@@ -241,7 +241,7 @@ func TestAddBlade_EmptyName(t *testing.T) {
 }
 
 func TestAddRubber_EmptyName(t *testing.T) {
-	svc := NewProfileService(&mockProfileRepo{}, &mockUserRepoForProfile{})
+	svc := NewProfileService(nil,&mockProfileRepo{}, &mockUserRepoForProfile{})
 	_, err := svc.AddRubber(context.Background(), "")
 	if err == nil {
 		t.Fatal("expected error for empty rubber name")

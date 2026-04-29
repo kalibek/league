@@ -6,6 +6,9 @@ import (
 	"sort"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 )
@@ -24,17 +27,20 @@ type GroupService interface {
 }
 
 type groupService struct {
+	db        *sqlx.DB
 	groupRepo repository.GroupRepository
 	matchRepo repository.MatchRepository
 	eventRepo repository.EventRepository
 }
 
 func NewGroupService(
+	db *sqlx.DB,
 	groupRepo repository.GroupRepository,
 	matchRepo repository.MatchRepository,
 	eventRepo repository.EventRepository,
 ) GroupService {
 	return &groupService{
+		db:        db,
 		groupRepo: groupRepo,
 		matchRepo: matchRepo,
 		eventRepo: eventRepo,
@@ -136,12 +142,9 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 		}
 	}
 
-	// Update tiebreak_points in DB.
+	// Assign tiebreak values.
 	for i := range ranked {
 		ranked[i].TiebreakPoints = tbPoints[ranked[i].GroupPlayerID]
-		if err := s.groupRepo.UpdatePlayer(ctx, &ranked[i]); err != nil {
-			return nil, fmt.Errorf("groupService.CalculatePlacements update tiebreak: %w", err)
-		}
 	}
 
 	// Sort by points DESC, then tiebreak DESC.
@@ -158,7 +161,6 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 	// Group players with equal points.
 	i := 0
 	for i < len(ranked) {
-		// Find end of tie group by points.
 		j := i + 1
 		for j < len(ranked) && ranked[j].Points == ranked[i].Points {
 			j++
@@ -167,9 +169,6 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 
 		if len(tieGroup) == 1 {
 			tieGroup[0].Place = currentPlace
-			if err := s.groupRepo.UpdatePlayer(ctx, &tieGroup[0]); err != nil {
-				return nil, err
-			}
 			currentPlace++
 		} else if len(tieGroup) == 2 {
 			winner := headToHeadWinner(tieGroup[0].GroupPlayerID, tieGroup[1].GroupPlayerID, matches)
@@ -180,7 +179,6 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 				tieGroup[1].Place = currentPlace
 				tieGroup[0].Place = currentPlace + 1
 			} else {
-				// True tie — use tiebreak points.
 				if tieGroup[0].TiebreakPoints >= tieGroup[1].TiebreakPoints {
 					tieGroup[0].Place = currentPlace
 					tieGroup[1].Place = currentPlace + 1
@@ -189,14 +187,8 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 					tieGroup[0].Place = currentPlace + 1
 				}
 			}
-			for k := range tieGroup {
-				if err := s.groupRepo.UpdatePlayer(ctx, &tieGroup[k]); err != nil {
-					return nil, err
-				}
-			}
 			currentPlace += int16(len(tieGroup))
 		} else {
-			// Multiple tied players — sub-group by tiebreak points.
 			subI := 0
 			for subI < len(tieGroup) {
 				subJ := subI + 1
@@ -207,9 +199,6 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 
 				if len(subGroup) == 1 {
 					subGroup[0].Place = currentPlace
-					if err := s.groupRepo.UpdatePlayer(ctx, &subGroup[0]); err != nil {
-						return nil, err
-					}
 					currentPlace++
 				} else if len(subGroup) == 2 {
 					winner := headToHeadWinner(subGroup[0].GroupPlayerID, subGroup[1].GroupPlayerID, matches)
@@ -223,14 +212,8 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 						subGroup[0].Place = currentPlace
 						subGroup[1].Place = currentPlace + 1
 					}
-					for k := range subGroup {
-						if err := s.groupRepo.UpdatePlayer(ctx, &subGroup[k]); err != nil {
-							return nil, err
-						}
-					}
 					currentPlace += int16(len(subGroup))
 				} else {
-					// Manual intervention required.
 					for _, p := range subGroup {
 						needsManual = append(needsManual, p.GroupPlayerID)
 					}
@@ -240,6 +223,18 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 			}
 		}
 		i = j
+	}
+
+	// Persist all player updates inside a single transaction.
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		for i := range ranked {
+			if err := s.groupRepo.UpdatePlayer(txCtx, &ranked[i]); err != nil {
+				return fmt.Errorf("groupService.CalculatePlacements update player: %w", err)
+			}
+		}
+		return nil
+	}); txErr != nil {
+		return nil, txErr
 	}
 
 	return needsManual, nil

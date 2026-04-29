@@ -77,7 +77,7 @@ func buildTestAuthService(ur *authMockUserRepo) *authService {
 		JWTSecret:   "test-secret-key",
 		FrontendURL: "http://localhost:5173",
 	}
-	svc := NewAuthService(cfg, ur, &authMockOAuthRepo{})
+	svc := NewAuthService(nil, cfg, ur, &authMockOAuthRepo{})
 	return svc.(*authService)
 }
 
@@ -187,7 +187,7 @@ func TestValidateToken_WrongSecret(t *testing.T) {
 
 	// Validate with different secret.
 	cfg2 := config.Config{JWTSecret: "different-secret", FrontendURL: "http://localhost:5173"}
-	svc2 := NewAuthService(cfg2, ur, &authMockOAuthRepo{}).(*authService)
+	svc2 := NewAuthService(nil, cfg2, ur, &authMockOAuthRepo{}).(*authService)
 
 	_, err = svc2.ValidateToken(tokenStr)
 	if err == nil {

@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 )
@@ -19,6 +22,7 @@ type EventService interface {
 }
 
 type eventService struct {
+	db        *sqlx.DB
 	eventRepo repository.EventRepository
 	groupRepo repository.GroupRepository
 	matchRepo repository.MatchRepository
@@ -26,12 +30,13 @@ type eventService struct {
 }
 
 func NewEventService(
+	db *sqlx.DB,
 	eventRepo repository.EventRepository,
 	groupRepo repository.GroupRepository,
 	matchRepo repository.MatchRepository,
 	userRepo repository.UserRepository,
 ) EventService {
-	return &eventService{eventRepo: eventRepo, groupRepo: groupRepo, matchRepo: matchRepo, userRepo: userRepo}
+	return &eventService{db: db, eventRepo: eventRepo, groupRepo: groupRepo, matchRepo: matchRepo, userRepo: userRepo}
 }
 
 func (s *eventService) CreateDraftEvent(ctx context.Context, leagueID int64, title string, startDate, endDate time.Time) (*model.LeagueEvent, error) {
@@ -74,12 +79,17 @@ func (s *eventService) StartEvent(ctx context.Context, eventID int64) error {
 		return fmt.Errorf("eventService.StartEvent list groups: %w", err)
 	}
 
+	// Pre-compute match stubs per group (reads only, outside transaction).
+	type groupStubs struct {
+		groupID int64
+		stubs   []model.Match
+	}
+	allStubs := make([]groupStubs, 0, len(groups))
 	for _, g := range groups {
 		allPlayers, err := s.groupRepo.GetPlayers(ctx, g.GroupID)
 		if err != nil {
 			return fmt.Errorf("eventService.StartEvent get players for group %d: %w", g.GroupID, err)
 		}
-		// Only calculated players participate in round-robin matches.
 		var players []model.GroupPlayer
 		for _, p := range allPlayers {
 			if !p.IsNonCalculated {
@@ -99,17 +109,22 @@ func (s *eventService) StartEvent(ctx context.Context, eventID int64) error {
 				})
 			}
 		}
-		if len(stubs) > 0 {
-			if err := s.matchRepo.BulkCreate(ctx, stubs); err != nil {
-				return fmt.Errorf("eventService.StartEvent bulk create matches for group %d: %w", g.GroupID, err)
-			}
-		}
-		if err := s.groupRepo.UpdateStatus(ctx, g.GroupID, model.GroupInProgress); err != nil {
-			return fmt.Errorf("eventService.StartEvent update group %d status: %w", g.GroupID, err)
-		}
+		allStubs = append(allStubs, groupStubs{groupID: g.GroupID, stubs: stubs})
 	}
 
-	return s.eventRepo.UpdateStatus(ctx, eventID, model.EventInProgress)
+	return idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		for _, gs := range allStubs {
+			if len(gs.stubs) > 0 {
+				if err := s.matchRepo.BulkCreate(txCtx, gs.stubs); err != nil {
+					return fmt.Errorf("eventService.StartEvent bulk create matches for group %d: %w", gs.groupID, err)
+				}
+			}
+			if err := s.groupRepo.UpdateStatus(txCtx, gs.groupID, model.GroupInProgress); err != nil {
+				return fmt.Errorf("eventService.StartEvent update group %d status: %w", gs.groupID, err)
+			}
+		}
+		return s.eventRepo.UpdateStatus(txCtx, eventID, model.EventInProgress)
+	})
 }
 
 func (s *eventService) ListEvents(ctx context.Context, leagueID int64) ([]model.LeagueEvent, error) {

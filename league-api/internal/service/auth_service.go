@@ -14,12 +14,14 @@ import (
 	"encoding/json"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/facebook"
 	"golang.org/x/oauth2/google"
 
 	"league-api/internal/config"
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 )
@@ -35,6 +37,7 @@ type AuthService interface {
 }
 
 type authService struct {
+	db          *sqlx.DB
 	cfg         config.Config
 	userRepo    repository.UserRepository
 	oauthRepo   repository.OAuthAccountRepository
@@ -42,6 +45,7 @@ type authService struct {
 }
 
 func NewAuthService(
+	db *sqlx.DB,
 	cfg config.Config,
 	userRepo repository.UserRepository,
 	oauthRepo repository.OAuthAccountRepository,
@@ -72,6 +76,7 @@ func NewAuthService(
 		},
 	}
 	return &authService{
+		db:        db,
 		cfg:       cfg,
 		userRepo:  userRepo,
 		oauthRepo: oauthRepo,
@@ -150,7 +155,7 @@ func (s *authService) HandleCallback(ctx context.Context, provider, code, _ stri
 			return nil, "", fmt.Errorf("lookup user by email: %w", err)
 		}
 		if errors.Is(err, sql.ErrNoRows) || user == nil {
-			// Create new user.
+			// Create new user and link OAuth account atomically.
 			firstName, lastName := parseName(provider, info)
 			newUser := &model.User{
 				FirstName:     firstName,
@@ -160,22 +165,37 @@ func (s *authService) HandleCallback(ctx context.Context, provider, code, _ stri
 				Deviation:     350,
 				Volatility:    0.06,
 			}
-			id, err := s.userRepo.Create(ctx, newUser)
-			if err != nil {
-				return nil, "", fmt.Errorf("create user: %w", err)
+			var createdUser *model.User
+			if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+				id, err := s.userRepo.Create(txCtx, newUser)
+				if err != nil {
+					return fmt.Errorf("create user: %w", err)
+				}
+				if err := s.oauthRepo.Create(txCtx, &model.OAuthAccount{
+					UserID:      id,
+					Provider:    provider,
+					ProviderSub: providerSub,
+				}); err != nil {
+					return fmt.Errorf("create oauth account: %w", err)
+				}
+				createdUser, err = s.userRepo.GetByID(txCtx, id)
+				if err != nil {
+					return fmt.Errorf("reload user: %w", err)
+				}
+				return nil
+			}); txErr != nil {
+				return nil, "", txErr
 			}
-			user, err = s.userRepo.GetByID(ctx, id)
-			if err != nil {
-				return nil, "", fmt.Errorf("reload user: %w", err)
+			user = createdUser
+		} else {
+			// Link OAuth account to existing user.
+			if err := s.oauthRepo.Create(ctx, &model.OAuthAccount{
+				UserID:      user.UserID,
+				Provider:    provider,
+				ProviderSub: providerSub,
+			}); err != nil {
+				return nil, "", fmt.Errorf("create oauth account: %w", err)
 			}
-		}
-		// Link OAuth account.
-		if err := s.oauthRepo.Create(ctx, &model.OAuthAccount{
-			UserID:      user.UserID,
-			Provider:    provider,
-			ProviderSub: providerSub,
-		}); err != nil {
-			return nil, "", fmt.Errorf("create oauth account: %w", err)
 		}
 	}
 
@@ -356,16 +376,22 @@ func (s *authService) Register(ctx context.Context, firstName, lastName, email, 
 		Deviation:     350,
 		Volatility:    0.06,
 	}
-	id, err := s.userRepo.Create(ctx, newUser)
-	if err != nil {
-		return nil, "", fmt.Errorf("create user: %w", err)
-	}
-	if err := s.userRepo.SetPasswordHash(ctx, id, string(hash)); err != nil {
-		return nil, "", fmt.Errorf("set password: %w", err)
-	}
-	user, err := s.userRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, "", fmt.Errorf("reload user: %w", err)
+	var user *model.User
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		id, err := s.userRepo.Create(txCtx, newUser)
+		if err != nil {
+			return fmt.Errorf("create user: %w", err)
+		}
+		if err := s.userRepo.SetPasswordHash(txCtx, id, string(hash)); err != nil {
+			return fmt.Errorf("set password: %w", err)
+		}
+		user, err = s.userRepo.GetByID(txCtx, id)
+		if err != nil {
+			return fmt.Errorf("reload user: %w", err)
+		}
+		return nil
+	}); txErr != nil {
+		return nil, "", txErr
 	}
 	jwtToken, err := s.issueJWT(user.UserID)
 	if err != nil {

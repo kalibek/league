@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
+
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 )
@@ -32,12 +35,13 @@ type LeagueService interface {
 }
 
 type leagueService struct {
+	db         *sqlx.DB
 	leagueRepo repository.LeagueRepository
 	userRepo   repository.UserRepository
 }
 
-func NewLeagueService(leagueRepo repository.LeagueRepository, userRepo repository.UserRepository) LeagueService {
-	return &leagueService{leagueRepo: leagueRepo, userRepo: userRepo}
+func NewLeagueService(db *sqlx.DB, leagueRepo repository.LeagueRepository, userRepo repository.UserRepository) LeagueService {
+	return &leagueService{db: db, leagueRepo: leagueRepo, userRepo: userRepo}
 }
 
 // roleNameToID maps role names to the IDs seeded by migration 001.
@@ -60,26 +64,29 @@ func (s *leagueService) CreateLeague(ctx context.Context, creatorID int64, title
 		Description: description,
 		Config:      config,
 	}
-	id, err := s.leagueRepo.Create(ctx, l)
-	if err != nil {
-		return nil, fmt.Errorf("leagueService.CreateLeague: %w", err)
-	}
-
-	// Assign creator as Maintainer.
+	var id int64
 	maintainerID, _ := roleNameToID("maintainer")
-	if err := s.leagueRepo.AssignRole(ctx, model.UserRole{
-		UserID: creatorID, RoleID: maintainerID, LeagueID: id,
-	}); err != nil {
-		return nil, fmt.Errorf("assign maintainer: %w", err)
-	}
-	// Assign creator as Player.
 	playerID, _ := roleNameToID("player")
-	if err := s.leagueRepo.AssignRole(ctx, model.UserRole{
-		UserID: creatorID, RoleID: playerID, LeagueID: id,
-	}); err != nil {
-		return nil, fmt.Errorf("assign player: %w", err)
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		var err error
+		id, err = s.leagueRepo.Create(txCtx, l)
+		if err != nil {
+			return fmt.Errorf("leagueService.CreateLeague: %w", err)
+		}
+		if err := s.leagueRepo.AssignRole(txCtx, model.UserRole{
+			UserID: creatorID, RoleID: maintainerID, LeagueID: id,
+		}); err != nil {
+			return fmt.Errorf("assign maintainer: %w", err)
+		}
+		if err := s.leagueRepo.AssignRole(txCtx, model.UserRole{
+			UserID: creatorID, RoleID: playerID, LeagueID: id,
+		}); err != nil {
+			return fmt.Errorf("assign player: %w", err)
+		}
+		return nil
+	}); txErr != nil {
+		return nil, txErr
 	}
-
 	return s.leagueRepo.GetByID(ctx, id)
 }
 

@@ -42,15 +42,15 @@ func main() {
 	go hub.Run()
 
 	// Services
-	authSvc := service.NewAuthService(cfg, userRepo, oauthRepo)
-	profileSvc := service.NewProfileService(profileRepo, userRepo)
+	authSvc := service.NewAuthService(database, cfg, userRepo, oauthRepo)
+	profileSvc := service.NewProfileService(database, profileRepo, userRepo)
 	playerSvc := service.NewPlayerService(userRepo, ratingRepo, eventRepo, groupRepo, matchRepo, profileSvc)
-	leagueSvc := service.NewLeagueService(leagueRepo, userRepo)
-	eventSvc := service.NewEventService(eventRepo, groupRepo, matchRepo, userRepo)
-	ratingSvc := service.NewRatingService(userRepo, groupRepo, matchRepo, ratingRepo, eventRepo)
-	matchSvc := service.NewMatchService(matchRepo, groupRepo, hub)
-	groupSvc := service.NewGroupService(groupRepo, matchRepo, eventRepo)
-	draftSvc := service.NewDraftService(leagueRepo, eventRepo, groupRepo, matchRepo, matchSvc, ratingSvc, groupSvc, hub)
+	leagueSvc := service.NewLeagueService(database, leagueRepo, userRepo)
+	eventSvc := service.NewEventService(database, eventRepo, groupRepo, matchRepo, userRepo)
+	ratingSvc := service.NewRatingService(database, userRepo, groupRepo, matchRepo, ratingRepo, eventRepo)
+	matchSvc := service.NewMatchService(database, matchRepo, groupRepo, hub)
+	groupSvc := service.NewGroupService(database, groupRepo, matchRepo, eventRepo)
+	draftSvc := service.NewDraftService(database, leagueRepo, eventRepo, groupRepo, matchRepo, matchSvc, ratingSvc, groupSvc, hub)
 
 	// Handlers
 	adminH := handler.NewAdminHandler(ratingSvc)

@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
+
+	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
 	"league-api/internal/ws"
@@ -16,17 +19,20 @@ type MatchService interface {
 }
 
 type matchService struct {
+	db        *sqlx.DB
 	matchRepo repository.MatchRepository
 	groupRepo repository.GroupRepository
 	hub       *ws.Hub
 }
 
 func NewMatchService(
+	db *sqlx.DB,
 	matchRepo repository.MatchRepository,
 	groupRepo repository.GroupRepository,
 	hub *ws.Hub,
 ) MatchService {
 	return &matchService{
+		db:        db,
 		matchRepo: matchRepo,
 		groupRepo: groupRepo,
 		hub:       hub,
@@ -46,16 +52,19 @@ func (s *matchService) UpdateScore(ctx context.Context, matchID int64, score1, s
 		return fmt.Errorf("invalid scores: one must equal %d and the other must be less", gamesToWin)
 	}
 
-	if err := s.matchRepo.UpdateScore(ctx, matchID, score1, score2, withdraw1, withdraw2); err != nil {
-		return fmt.Errorf("matchService.UpdateScore: %w", err)
-	}
-	if err := s.matchRepo.UpdateStatus(ctx, matchID, model.MatchDone); err != nil {
-		return fmt.Errorf("matchService.UpdateScore status: %w", err)
-	}
-
-	// Recalculate points for both players.
-	if err := s.recalcGroupPoints(ctx, m.GroupID); err != nil {
-		return fmt.Errorf("matchService.UpdateScore recalc: %w", err)
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		if err := s.matchRepo.UpdateScore(txCtx, matchID, score1, score2, withdraw1, withdraw2); err != nil {
+			return fmt.Errorf("matchService.UpdateScore: %w", err)
+		}
+		if err := s.matchRepo.UpdateStatus(txCtx, matchID, model.MatchDone); err != nil {
+			return fmt.Errorf("matchService.UpdateScore status: %w", err)
+		}
+		if err := s.recalcGroupPoints(txCtx, m.GroupID); err != nil {
+			return fmt.Errorf("matchService.UpdateScore recalc: %w", err)
+		}
+		return nil
+	}); txErr != nil {
+		return txErr
 	}
 
 	// Broadcast via WebSocket — hub rooms are keyed by eventID, not groupID.
