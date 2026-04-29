@@ -70,6 +70,14 @@ export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraft
           onChange={set('groupSize')}
           required
         />
+        <Input
+          label={t('leagueConfig.numberOfTables')}
+          type="number"
+          min={0}
+          value={config.numberOfTables}
+          onChange={set('numberOfTables')}
+          required
+        />
       </div>
       {!embedded && (
         <Button type="submit" loading={loading}>

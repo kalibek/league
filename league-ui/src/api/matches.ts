@@ -7,3 +7,9 @@ export const updateMatchScore = (
   data: { score1: number; score2: number }
 ) =>
   client.put<Match>(`/secured/groups/${groupId}/matches/${matchId}`, data)
+
+export const setMatchTableNumber = (groupId: number, matchId: number, tableNumber: number) =>
+  client.put(`/secured/groups/${groupId}/matches/${matchId}/table`, { tableNumber })
+
+export const getTablesInUse = (eventId: number) =>
+  client.get<{ tablesInUse: number[] }>(`/public/events/${eventId}/tables-in-use`)

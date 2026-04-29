@@ -12,6 +12,7 @@ type LeagueConfig struct {
 	NumberOfRecedes  int `json:"numberOfRecedes"`
 	GamesToWin       int `json:"gamesToWin"`
 	GroupSize        int `json:"groupSize"`
+	NumberOfTables   int `json:"numberOfTables"`
 }
 
 // Scan implements sql.Scanner so sqlx can read the JSONB column into LeagueConfig.

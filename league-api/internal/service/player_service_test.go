@@ -227,6 +227,14 @@ func (m *psMatchRepo) SetWithdraw(ctx context.Context, matchID int64, position i
 	return nil
 }
 
+func (m *psMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
+	return nil
+}
+
+func (m *psMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+	return nil, nil
+}
+
 // --- nopProfileService ---
 
 type nopProfileService struct{}

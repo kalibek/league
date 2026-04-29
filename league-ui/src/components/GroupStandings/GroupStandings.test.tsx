@@ -110,7 +110,7 @@ describe('GroupStandings', () => {
     const matches: Match[] = [
       {
         matchId: 1, groupId: 1, groupPlayer1Id: gpId, groupPlayer2Id: 2,
-        score1: null, score2: null, withdraw1: true, withdraw2: false, status: 'DONE',
+        score1: null, score2: null, withdraw1: true, withdraw2: false, status: 'DONE', tableNumber: null,
       },
     ]
     renderStandings(players, matches)
@@ -138,7 +138,7 @@ describe('GroupStandings', () => {
     })
     const match: Match = {
       matchId: 1, groupId: 1, groupPlayer1Id: 1, groupPlayer2Id: 2,
-      score1: 3, score2: 1, withdraw1: false, withdraw2: false, status: 'DONE',
+      score1: 3, score2: 1, withdraw1: false, withdraw2: false, status: 'DONE', tableNumber: null,
     }
     renderStandings([p1, p2], [match])
     // score cells from row player perspective
@@ -154,7 +154,7 @@ describe('GroupStandings', () => {
     })
     const match: Match = {
       matchId: 1, groupId: 1, groupPlayer1Id: 1, groupPlayer2Id: 2,
-      score1: null, score2: null, withdraw1: false, withdraw2: false, status: 'DRAFT',
+      score1: null, score2: null, withdraw1: false, withdraw2: false, status: 'DRAFT', tableNumber: null,
     }
     render(
       <MemoryRouter>
@@ -174,7 +174,7 @@ describe('GroupStandings', () => {
     })
     const match: Match = {
       matchId: 1, groupId: 1, groupPlayer1Id: 1, groupPlayer2Id: 2,
-      score1: 3, score2: 0, withdraw1: false, withdraw2: true, status: 'DONE',
+      score1: 3, score2: 0, withdraw1: false, withdraw2: true, status: 'DONE', tableNumber: null,
     }
     renderStandings([p1, p2], [match])
     expect(screen.getAllByText('W-L').length).toBeGreaterThan(0)

@@ -144,6 +144,14 @@ func (m *evtMockMatchRepo) SetWithdraw(ctx context.Context, matchID int64, posit
 	return nil
 }
 
+func (m *evtMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
+	return nil
+}
+
+func (m *evtMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+	return nil, nil
+}
+
 type evtMockUserRepo struct{}
 
 func (m *evtMockUserRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {

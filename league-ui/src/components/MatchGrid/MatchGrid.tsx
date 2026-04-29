@@ -181,10 +181,12 @@ export function MatchGrid({ players, matches, onScoreClick }: MatchGridProps) {
                     textDecoration: 'none',
                   }
 
+                  const rowBg = m.status === 'IN_PROGRESS' ? '#fef9c3' : undefined
+
                   return (
                     <tr
                       key={m.matchId}
-                      style={{ borderTop: idx === 0 ? 'none' : '1px solid #f1f5f9' }}
+                      style={{ borderTop: idx === 0 ? 'none' : '1px solid #f1f5f9', backgroundColor: rowBg }}
                     >
                       {/* Index */}
                       <td style={{
@@ -230,17 +232,32 @@ export function MatchGrid({ players, matches, onScoreClick }: MatchGridProps) {
 
                       {/* Score pill */}
                       <td style={{ padding: '10px 14px 10px 4px', textAlign: 'right', verticalAlign: 'middle' }}>
-                        {clickable && onScoreClick ? (
-                          <button
-                            onClick={() => onScoreClick(m)}
-                            style={pillStyle}
-                            aria-label={t('matchGrid.enterScore', { p1: playerName(p1), p2: playerName(p2) })}
-                          >
-                            {label}
-                          </button>
-                        ) : (
-                          <span style={pillStyle}>{label}</span>
-                        )}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {m.tableNumber !== null && m.tableNumber !== undefined && (
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: '#92400e',
+                              background: '#fef3c7',
+                              borderRadius: 4,
+                              padding: '2px 5px',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              T{m.tableNumber}
+                            </span>
+                          )}
+                          {clickable && onScoreClick ? (
+                            <button
+                              onClick={() => onScoreClick(m)}
+                              style={pillStyle}
+                              aria-label={t('matchGrid.enterScore', { p1: playerName(p1), p2: playerName(p2) })}
+                            >
+                              {label}
+                            </button>
+                          ) : (
+                            <span style={pillStyle}>{label}</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )

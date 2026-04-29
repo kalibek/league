@@ -20,6 +20,7 @@ type Match struct {
 	Withdraw1      bool        `db:"withdraw1"        json:"withdraw1"`
 	Withdraw2      bool        `db:"withdraw2"        json:"withdraw2"`
 	Status         MatchStatus `db:"status"           json:"status"`
+	TableNumber    *int        `db:"table_number"     json:"tableNumber"`
 	Created        time.Time   `db:"created"          json:"created"`
 	LastUpdated    time.Time   `db:"last_updated"     json:"lastUpdated"`
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -22,6 +23,7 @@ func NewAdminHandler(ratingSvc service.RatingService) *AdminHandler {
 func (h *AdminHandler) RecalculateRatings(c *gin.Context) {
 	result, err := h.ratingSvc.RecalculateAllRatings(c.Request.Context())
 	if err != nil {
+		log.Printf("[handler] AdminHandler.RecalculateRatings: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

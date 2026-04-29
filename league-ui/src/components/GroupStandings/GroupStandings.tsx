@@ -219,15 +219,15 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick }: Gro
                   const content = cellContent(p, colPlayer)
                   const clickable = !!onScoreClick
 
-
-
                   const m = getMatch(p, colPlayer)
+                  const inProgress = m?.status === 'IN_PROGRESS'
 
                   return (
                     <td
                       key={colPlayer.groupPlayerId}
                       style={{
                         ...tdStyle,
+                        backgroundColor: inProgress ? '#fef9c3' : undefined,
                         color:
                           content === '—'
                             ? '#94a3b8'
@@ -236,6 +236,18 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick }: Gro
                               : '#dc2626',
                       }}
                     >
+                      {inProgress && m?.tableNumber !== null && m?.tableNumber !== undefined && (
+                        <span style={{
+                          display: 'block',
+                          fontSize: 9,
+                          fontWeight: 700,
+                          color: '#92400e',
+                          lineHeight: 1,
+                          marginBottom: 2,
+                        }}>
+                          T{m.tableNumber}
+                        </span>
+                      )}
                       {clickable && onScoreClick ? (
                         <button
                           onClick={() => m && onScoreClick(m)}

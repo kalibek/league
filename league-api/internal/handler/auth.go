@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -37,6 +38,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	url, err := h.authSvc.GetAuthURL(provider, state)
 	if err != nil {
+		log.Printf("[handler] AuthHandler.Login: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -60,6 +62,7 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 
 	_, jwtToken, err := h.authSvc.HandleCallback(c.Request.Context(), provider, code, state)
 	if err != nil {
+		log.Printf("[handler] AuthHandler.Callback: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "authentication failed"})
 		return
 	}
@@ -90,6 +93,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	user, jwtToken, err := h.authSvc.Register(c.Request.Context(), body.FirstName, body.LastName, body.Email, body.Password)
 	if err != nil {
+		log.Printf("[handler] AuthHandler.Register: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -111,6 +115,7 @@ func (h *AuthHandler) EmailLogin(c *gin.Context) {
 
 	user, jwtToken, err := h.authSvc.EmailLogin(c.Request.Context(), body.Email, body.Password)
 	if err != nil {
+		log.Printf("[handler] AuthHandler.EmailLogin: %v", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
@@ -147,6 +152,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	user, err := h.authSvc.GetUser(c.Request.Context(), userID)
 	if err != nil {
+		log.Printf("[handler] AuthHandler.Me: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load user"})
 		return
 	}

@@ -136,3 +136,27 @@ func (r *matchRepo) ResetGroupMatches(ctx context.Context, groupID int64) error 
 	}
 	return nil
 }
+
+func (r *matchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
+	const q = `
+		UPDATE matches SET table_number = $1, status = 'IN_PROGRESS', last_updated = NOW()
+		WHERE match_id = $2`
+	_, err := r.db(ctx).ExecContext(ctx, q, tableNumber, matchID)
+	if err != nil {
+		return fmt.Errorf("matchRepo.SetTableNumber: %w", err)
+	}
+	return nil
+}
+
+func (r *matchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
+	tables := make([]int, 0)
+	const q = `
+		SELECT m.table_number FROM matches m
+		JOIN groups g ON g.group_id = m.group_id
+		WHERE g.event_id = $1 AND m.status = 'IN_PROGRESS'`
+	err := r.db(ctx).SelectContext(ctx, &tables, q, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("matchRepo.ListInProgressByEvent: %w", err)
+	}
+	return tables, nil
+}

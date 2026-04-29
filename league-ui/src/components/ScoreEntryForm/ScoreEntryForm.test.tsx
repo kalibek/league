@@ -14,6 +14,7 @@ const match: Match = {
   withdraw1: false,
   withdraw2: false,
   status: 'DRAFT',
+  tableNumber: null,
 }
 
 describe('ScoreEntryForm', () => {

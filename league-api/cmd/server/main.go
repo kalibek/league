@@ -99,6 +99,7 @@ func main() {
 
 		public.GET("/events/:eid/groups", groupsH.List)
 		public.GET("/events/:eid/groups/:gid", groupsH.Get)
+		public.GET("/events/:eid/tables-in-use", matchesH.GetTablesInUse)
 	}
 
 	// Secured API — authentication required
@@ -134,6 +135,7 @@ func main() {
 		secured.PUT("/events/:eid/groups/:gid/placement", groupsH.SetManualPlacements)
 
 		secured.PUT("/groups/:gid/matches/:mid", matchesH.UpdateScore)
+		secured.PUT("/groups/:gid/matches/:mid/table", matchesH.SetTableNumber)
 	}
 
 	// Admin API — admin flag required

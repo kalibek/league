@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -23,6 +24,7 @@ func (h *ProfileHandler) GetMyProfile(c *gin.Context) {
 	userID, _ := middleware.GetUserID(c)
 	detail, err := h.profileSvc.GetProfile(c.Request.Context(), userID)
 	if err != nil {
+		log.Printf("[handler] ProfileHandler.GetMyProfile: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -39,6 +41,7 @@ func (h *ProfileHandler) UpsertMyProfile(c *gin.Context) {
 	}
 	detail, err := h.profileSvc.UpsertProfile(c.Request.Context(), userID, req)
 	if err != nil {
+		log.Printf("[handler] ProfileHandler.UpsertMyProfile: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -49,6 +52,7 @@ func (h *ProfileHandler) UpsertMyProfile(c *gin.Context) {
 func (h *ProfileHandler) ListCountries(c *gin.Context) {
 	countries, err := h.profileSvc.ListCountries(c.Request.Context())
 	if err != nil {
+		log.Printf("[handler] ProfileHandler.ListCountries: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -64,6 +68,7 @@ func (h *ProfileHandler) ListCities(c *gin.Context) {
 	}
 	cities, err := h.profileSvc.ListCities(c.Request.Context(), cid)
 	if err != nil {
+		log.Printf("[handler] ProfileHandler.ListCities: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -86,6 +91,7 @@ func (h *ProfileHandler) AddCity(c *gin.Context) {
 	}
 	city, err := h.profileSvc.AddCity(c.Request.Context(), req.Name, cid)
 	if err != nil {
+		log.Printf("[handler] ProfileHandler.AddCity: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -96,6 +102,7 @@ func (h *ProfileHandler) AddCity(c *gin.Context) {
 func (h *ProfileHandler) ListBlades(c *gin.Context) {
 	blades, err := h.profileSvc.ListBlades(c.Request.Context())
 	if err != nil {
+		log.Printf("[handler] ProfileHandler.ListBlades: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -113,6 +120,7 @@ func (h *ProfileHandler) AddBlade(c *gin.Context) {
 	}
 	blade, err := h.profileSvc.AddBlade(c.Request.Context(), req.Name)
 	if err != nil {
+		log.Printf("[handler] ProfileHandler.AddBlade: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -123,6 +131,7 @@ func (h *ProfileHandler) AddBlade(c *gin.Context) {
 func (h *ProfileHandler) ListRubbers(c *gin.Context) {
 	rubbers, err := h.profileSvc.ListRubbers(c.Request.Context())
 	if err != nil {
+		log.Printf("[handler] ProfileHandler.ListRubbers: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -140,6 +149,7 @@ func (h *ProfileHandler) AddRubber(c *gin.Context) {
 	}
 	rubber, err := h.profileSvc.AddRubber(c.Request.Context(), req.Name)
 	if err != nil {
+		log.Printf("[handler] ProfileHandler.AddRubber: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

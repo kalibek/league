@@ -70,6 +70,8 @@ type MatchRepository interface {
 	UpdateStatus(ctx context.Context, id int64, status model.MatchStatus) error
 	BulkCreate(ctx context.Context, matches []model.Match) error
 	ResetGroupMatches(ctx context.Context, groupID int64) error
+	SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error
+	ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error)
 }
 
 type ProfileRepository interface {

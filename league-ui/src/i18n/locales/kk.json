@@ -132,6 +132,7 @@
     "recedesPerGroup": "Топта төмендеу саны",
     "gamesToWin": "Жеңу үшін ойын",
     "groupSize": "Топ мөлшері",
+    "numberOfTables": "Үстел саны",
     "saveConfiguration": "Конфигурацияны сақтау"
   },
   "createLeague": {
@@ -154,7 +155,11 @@
     "enterScoreTitle": "Есеп енгізу",
     "manualPlacementTitle": "Қолмен орналастыру қажет",
     "manualPlacementDescription": "Бұл ойыншылар тең ұпай жинады. Дұрыс ретті орнату үшін сүйреп апарыңыз.",
-    "enterAllScoresFirst": "Алдымен барлық матч нәтижелерін енгізіңіз"
+    "enterAllScoresFirst": "Алдымен барлық матч нәтижелерін енгізіңіз",
+    "assignTableTitle": "Үстел тағайындау",
+    "allTablesOccupied": "Барлық үстелдер бос емес",
+    "table": "Үстел",
+    "assign": "Тағайындау"
   },
   "eventSetup": {
     "backToLeague": "← Лигаға оралу",

@@ -14,6 +14,7 @@ export interface LeagueConfig {
   numberOfRecedes: number
   gamesToWin: number
   groupSize: number
+  numberOfTables: number
 }
 
 export interface LeagueMaintainer {
@@ -80,6 +81,7 @@ export interface Match {
   withdraw1: boolean
   withdraw2: boolean
   status: MatchStatus
+  tableNumber: number | null
 }
 
 export interface RatingHistory {
@@ -106,6 +108,7 @@ export type WSMessageType =
   | 'group_finished'
   | 'event_finished'
   | 'manual_placement_required'
+  | 'table_assigned'
 
 export interface WSMessage {
   type: WSMessageType

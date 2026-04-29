@@ -16,6 +16,8 @@ import (
 type MatchService interface {
 	UpdateScore(ctx context.Context, matchID int64, score1, score2 int16, gamesToWin int, withdraw1, withdraw2 bool) error
 	RecalcGroupPoints(ctx context.Context, groupID int64) error
+	SetTableNumber(ctx context.Context, matchID int64, tableNumber int, eventID int64) error
+	ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error)
 }
 
 type matchService struct {
@@ -86,6 +88,36 @@ func (s *matchService) UpdateScore(ctx context.Context, matchID int64, score1, s
 	})
 
 	return nil
+}
+
+func (s *matchService) SetTableNumber(ctx context.Context, matchID int64, tableNumber int, eventID int64) error {
+	inProgress, err := s.matchRepo.ListInProgressByEvent(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("matchService.SetTableNumber list: %w", err)
+	}
+	for _, t := range inProgress {
+		if t == tableNumber {
+			return fmt.Errorf("table %d is already in use", tableNumber)
+		}
+	}
+	if err := s.matchRepo.SetTableNumber(ctx, matchID, tableNumber); err != nil {
+		return fmt.Errorf("matchService.SetTableNumber: %w", err)
+	}
+	m, err := s.matchRepo.GetByID(ctx, matchID)
+	if err != nil {
+		return fmt.Errorf("matchService.SetTableNumber get match: %w", err)
+	}
+	s.hub.BroadcastToEvent(eventID, ws.Message{
+		Type:    "table_assigned",
+		GroupID: m.GroupID,
+		MatchID: matchID,
+		Payload: map[string]any{"matchId": matchID, "tableNumber": tableNumber},
+	})
+	return nil
+}
+
+func (s *matchService) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
+	return s.matchRepo.ListInProgressByEvent(ctx, eventID)
 }
 
 func (s *matchService) RecalcGroupPoints(ctx context.Context, groupID int64) error {

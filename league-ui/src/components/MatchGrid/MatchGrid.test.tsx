@@ -29,6 +29,7 @@ const doneMatch = (p1: number, p2: number, s1: number, s2: number): Match => ({
   withdraw1: false,
   withdraw2: false,
   status: 'DONE',
+  tableNumber: null,
 })
 
 const renderGrid = (players: GroupPlayer[], matches: Match[], onScoreClick?: (m: Match) => void) =>
@@ -65,6 +66,7 @@ describe('MatchGrid', () => {
       withdraw1: false,
       withdraw2: false,
       status: 'DRAFT',
+      tableNumber: null,
     }
     renderGrid(players, [pendingMatch])
     const dashes = screen.getAllByText('—')
@@ -85,6 +87,7 @@ describe('MatchGrid', () => {
         withdraw1: false,
         withdraw2: false,
         status: 'DRAFT',
+        tableNumber: null,
       },
     ]
     renderGrid(players, matches, handler)

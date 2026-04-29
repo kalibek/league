@@ -50,6 +50,7 @@ func (h *SimpleEventsHandler) List(c *gin.Context) {
 	}
 	events, err := h.eventSvc.ListEvents(c.Request.Context(), leagueID)
 	if err != nil {
+		log.Printf("[handler] SimpleEventsHandler.List: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -86,6 +87,7 @@ func (h *SimpleEventsHandler) Create(c *gin.Context) {
 
 	event, err := h.eventSvc.CreateDraftEvent(c.Request.Context(), leagueID, req.Title, start, end)
 	if err != nil {
+		log.Printf("[handler] SimpleEventsHandler.Create: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -101,6 +103,7 @@ func (h *SimpleEventsHandler) Get(c *gin.Context) {
 	}
 	detail, err := h.eventSvc.GetEventDetail(c.Request.Context(), eventID)
 	if err != nil {
+		log.Printf("[handler] SimpleEventsHandler.Get: %v", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -115,6 +118,7 @@ func (h *SimpleEventsHandler) Start(c *gin.Context) {
 		return
 	}
 	if err := h.eventSvc.StartEvent(c.Request.Context(), eventID); err != nil {
+		log.Printf("[handler] SimpleEventsHandler.Start: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -130,6 +134,7 @@ func (h *SimpleEventsHandler) Finish(c *gin.Context) {
 		return
 	}
 	if err := h.draftSvc.FinishEvent(c.Request.Context(), eventID); err != nil {
+		log.Printf("[handler] SimpleEventsHandler.Finish: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -151,7 +156,7 @@ func (h *SimpleEventsHandler) CreateNext(c *gin.Context) {
 	}
 	newEvent, err := h.draftSvc.CreateDraft(c.Request.Context(), leagueID, eventID)
 	if err != nil {
-		log.Println(err)
+		log.Printf("[handler] SimpleEventsHandler.CreateNext: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -171,6 +176,7 @@ func (h *SimpleEventsHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 	if err := h.draftSvc.RecreateDraft(c.Request.Context(), eventID, cfg); err != nil {
+		log.Printf("[handler] SimpleEventsHandler.UpdateConfig: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

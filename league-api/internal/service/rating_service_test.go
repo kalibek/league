@@ -137,6 +137,14 @@ func (m *ratingMockMatchRepo) SetWithdraw(ctx context.Context, matchID int64, po
 	return nil
 }
 
+func (m *ratingMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
+	return nil
+}
+
+func (m *ratingMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+	return nil, nil
+}
+
 // ratingMockRatingRepo supports InsertHistory, DeleteByGroup, DeleteAll.
 type ratingMockRatingRepo struct {
 	insertErr    error

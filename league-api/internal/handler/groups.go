@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -45,6 +46,7 @@ func (h *GroupsHandler) List(c *gin.Context) {
 	}
 	groups, err := h.groupSvc.ListGroups(c.Request.Context(), eventID)
 	if err != nil {
+		log.Printf("[handler] GroupsHandler.List: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -78,6 +80,7 @@ func (h *GroupsHandler) Create(c *gin.Context) {
 	}
 	grp, err := h.groupSvc.CreateGroup(c.Request.Context(), eventID, req.Division, req.GroupNo, scheduled)
 	if err != nil {
+		log.Printf("[handler] GroupsHandler.Create: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -99,6 +102,7 @@ func (h *GroupsHandler) SeedPlayer(c *gin.Context) {
 		return
 	}
 	if err := h.groupSvc.SeedPlayer(c.Request.Context(), groupID, req.UserID); err != nil {
+		log.Printf("[handler] GroupsHandler.SeedPlayer: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -113,6 +117,7 @@ func (h *GroupsHandler) RemovePlayer(c *gin.Context) {
 		return
 	}
 	if err := h.groupSvc.RemovePlayer(c.Request.Context(), groupPlayerID); err != nil {
+		log.Printf("[handler] GroupsHandler.RemovePlayer: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -129,6 +134,7 @@ func (h *GroupsHandler) Get(c *gin.Context) {
 
 	grp, players, matches, err := h.groupSvc.GetGroupDetail(c.Request.Context(), groupID)
 	if err != nil {
+		log.Printf("[handler] GroupsHandler.Get: %v", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -154,6 +160,7 @@ func (h *GroupsHandler) Finish(c *gin.Context) {
 	}
 
 	if err := h.draftSvc.FinishGroup(c.Request.Context(), groupID); err != nil {
+		log.Printf("[handler] GroupsHandler.Finish: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -168,6 +175,7 @@ func (h *GroupsHandler) Reopen(c *gin.Context) {
 		return
 	}
 	if err := h.draftSvc.ReopenGroup(c.Request.Context(), groupID); err != nil {
+		log.Printf("[handler] GroupsHandler.Reopen: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -189,6 +197,7 @@ func (h *GroupsHandler) AddPlayer(c *gin.Context) {
 		return
 	}
 	if err := h.groupSvc.AddNonCalculatedPlayer(c.Request.Context(), groupID, req.UserID); err != nil {
+		log.Printf("[handler] GroupsHandler.AddPlayer: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -210,6 +219,7 @@ func (h *GroupsHandler) SetManualPlace(c *gin.Context) {
 		return
 	}
 	if err := h.groupSvc.SetManualPlace(c.Request.Context(), groupPlayerID, req.Place); err != nil {
+		log.Printf("[handler] GroupsHandler.SetManualPlace: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -231,6 +241,7 @@ func (h *GroupsHandler) SetManualPlacements(c *gin.Context) {
 		return
 	}
 	if err := h.draftSvc.SetManualPlacements(c.Request.Context(), groupID, req.OrderedPlayerIDs); err != nil {
+		log.Printf("[handler] GroupsHandler.SetManualPlacements: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

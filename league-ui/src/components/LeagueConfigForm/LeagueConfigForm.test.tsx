@@ -9,6 +9,7 @@ const config: LeagueConfig = {
   numberOfRecedes: 2,
   gamesToWin: 3,
   groupSize: 6,
+  numberOfTables: 10,
 }
 
 describe('LeagueConfigForm', () => {

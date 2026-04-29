@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -26,6 +27,7 @@ func (h *PlayersHandler) List(c *gin.Context) {
 
 	players, err := h.playerSvc.ListPlayers(c.Request.Context(), q, limit, offset, sort)
 	if err != nil {
+		log.Printf("[handler] PlayersHandler.List: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -46,6 +48,7 @@ func (h *PlayersHandler) Create(c *gin.Context) {
 
 	player, err := h.playerSvc.CreatePlayer(c.Request.Context(), req.FirstName, req.LastName, req.Email)
 	if err != nil {
+		log.Printf("[handler] PlayersHandler.Create: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -62,6 +65,7 @@ func (h *PlayersHandler) Get(c *gin.Context) {
 
 	profile, err := h.playerSvc.GetProfile(c.Request.Context(), id)
 	if err != nil {
+		log.Printf("[handler] PlayersHandler.Get: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -80,6 +84,7 @@ func (h *PlayersHandler) ListEvents(c *gin.Context) {
 
 	page, err := h.playerSvc.GetPlayerEvents(c.Request.Context(), id, limit, offset)
 	if err != nil {
+		log.Printf("[handler] PlayersHandler.ListEvents: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -97,6 +102,7 @@ func (h *PlayersHandler) Import(c *gin.Context) {
 
 	result, err := h.playerSvc.ImportCSV(c.Request.Context(), file)
 	if err != nil {
+		log.Printf("[handler] PlayersHandler.Import: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

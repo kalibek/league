@@ -240,6 +240,14 @@ func (m *mockMatchRepo) SetWithdraw(ctx context.Context, matchID int64, position
 
 func (m *mockMatchRepo) ResetGroupMatches(ctx context.Context, groupID int64) error { return nil }
 
+func (m *mockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
+	return nil
+}
+
+func (m *mockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+	return nil, nil
+}
+
 type mockEventRepo struct{}
 
 func (m *mockEventRepo) GetByID(ctx context.Context, id int64) (*model.LeagueEvent, error) {

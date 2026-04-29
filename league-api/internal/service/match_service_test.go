@@ -75,6 +75,24 @@ func (m *matchSvcMockMatchRepo) SetWithdraw(ctx context.Context, matchID int64, 
 	return nil
 }
 
+func (m *matchSvcMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
+	if match, ok := m.matches[matchID]; ok {
+		match.TableNumber = &tableNumber
+		match.Status = model.MatchInProgress
+	}
+	return nil
+}
+
+func (m *matchSvcMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+	var result []model.Match
+	for _, match := range m.matches {
+		if match.Status == model.MatchInProgress {
+			result = append(result, *match)
+		}
+	}
+	return result, nil
+}
+
 type matchSvcMockGroupRepo struct {
 	groups  map[int64]*model.Group
 	players map[int64][]model.GroupPlayer
@@ -515,6 +533,53 @@ func TestRecalcGroupPoints_NonCalculatedPlayerExcludedFromTiebreak(t *testing.T)
 	err := svc.recalcGroupPoints(context.Background(), 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- SetTableNumber tests ---
+
+func TestSetTableNumber_Success(t *testing.T) {
+	match := buildMatch(1, 10, 1, 2)
+	mr := &matchSvcMockMatchRepo{
+		matches: map[int64]*model.Match{1: match},
+	}
+	gr := &matchSvcMockGroupRepo{
+		groups: map[int64]*model.Group{10: buildGroup(10, 5)},
+	}
+	svc := &matchService{matchRepo: mr, groupRepo: gr, hub: newTestHub()}
+
+	err := svc.SetTableNumber(context.Background(), 1, 3, 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if match.TableNumber == nil || *match.TableNumber != 3 {
+		t.Errorf("expected table number 3, got %v", match.TableNumber)
+	}
+	if match.Status != model.MatchInProgress {
+		t.Errorf("expected status IN_PROGRESS, got %s", match.Status)
+	}
+}
+
+func TestSetTableNumber_TableAlreadyInUse(t *testing.T) {
+	tableNum := 3
+	match1 := &model.Match{
+		MatchID:     1,
+		GroupID:     10,
+		Status:      model.MatchInProgress,
+		TableNumber: &tableNum,
+	}
+	match2 := buildMatch(2, 10, 3, 4)
+	mr := &matchSvcMockMatchRepo{
+		matches: map[int64]*model.Match{1: match1, 2: match2},
+	}
+	gr := &matchSvcMockGroupRepo{
+		groups: map[int64]*model.Group{10: buildGroup(10, 5)},
+	}
+	svc := &matchService{matchRepo: mr, groupRepo: gr, hub: newTestHub()}
+
+	err := svc.SetTableNumber(context.Background(), 2, 3, 5)
+	if err == nil {
+		t.Fatal("expected error for table already in use")
 	}
 }
 

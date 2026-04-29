@@ -94,6 +94,14 @@ func (m *draftMockMatchRepo) SetWithdraw(ctx context.Context, matchID int64, pos
 	return nil
 }
 
+func (m *draftMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
+	return nil
+}
+
+func (m *draftMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+	return nil, nil
+}
+
 // nopMatchService implements MatchService with no-op logic.
 type nopMatchService struct{}
 
@@ -102,6 +110,14 @@ func (s *nopMatchService) UpdateScore(ctx context.Context, matchID int64, score1
 }
 
 func (s *nopMatchService) RecalcGroupPoints(ctx context.Context, groupID int64) error { return nil }
+
+func (s *nopMatchService) SetTableNumber(ctx context.Context, matchID int64, tableNumber int, eventID int64) error {
+	return nil
+}
+
+func (s *nopMatchService) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+	return nil, nil
+}
 
 // nopRatingService implements RatingService with no-op logic.
 type nopRatingService struct {

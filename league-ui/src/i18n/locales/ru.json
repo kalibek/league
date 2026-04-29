@@ -132,6 +132,7 @@
     "recedesPerGroup": "Понижений в группе",
     "gamesToWin": "Игр для победы",
     "groupSize": "Размер группы",
+    "numberOfTables": "Количество столов",
     "saveConfiguration": "Сохранить конфигурацию"
   },
   "createLeague": {
@@ -154,7 +155,11 @@
     "enterScoreTitle": "Ввести счёт",
     "manualPlacementTitle": "Требуется ручное распределение мест",
     "manualPlacementDescription": "Эти игроки набрали одинаковое количество очков. Перетащите, чтобы установить правильный порядок.",
-    "enterAllScoresFirst": "Сначала введите все результаты матчей"
+    "enterAllScoresFirst": "Сначала введите все результаты матчей",
+    "assignTableTitle": "Назначить стол",
+    "allTablesOccupied": "Все столы заняты",
+    "table": "Стол",
+    "assign": "Назначить"
   },
   "eventSetup": {
     "backToLeague": "← Назад к лиге",

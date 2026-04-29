@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -23,6 +24,7 @@ func NewLeaguesHandler(leagueSvc service.LeagueService) *LeaguesHandler {
 func (h *LeaguesHandler) List(c *gin.Context) {
 	summaries, err := h.leagueSvc.ListLeagueSummaries(c.Request.Context())
 	if err != nil {
+		log.Printf("[handler] LeaguesHandler.List: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -54,6 +56,7 @@ func (h *LeaguesHandler) Create(c *gin.Context) {
 
 	league, err := h.leagueSvc.CreateLeague(c.Request.Context(), userID, req.Title, req.Description, req.Configuration)
 	if err != nil {
+		log.Printf("[handler] LeaguesHandler.Create: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -69,6 +72,7 @@ func (h *LeaguesHandler) Get(c *gin.Context) {
 	}
 	league, err := h.leagueSvc.GetLeague(c.Request.Context(), id)
 	if err != nil {
+		log.Printf("[handler] LeaguesHandler.Get: %v", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -88,6 +92,7 @@ func (h *LeaguesHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 	if err := h.leagueSvc.UpdateConfig(c.Request.Context(), id, cfg); err != nil {
+		log.Printf("[handler] LeaguesHandler.UpdateConfig: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -117,6 +122,7 @@ func (h *LeaguesHandler) AssignRole(c *gin.Context) {
 		return
 	}
 	if err := h.leagueSvc.AssignRole(c.Request.Context(), id, req.UserID, req.RoleName); err != nil {
+		log.Printf("[handler] LeaguesHandler.AssignRole: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -146,6 +152,7 @@ func (h *LeaguesHandler) RemoveRole(c *gin.Context) {
 		return
 	}
 	if err := h.leagueSvc.RemoveRole(c.Request.Context(), id, req.UserID, req.RoleName); err != nil {
+		log.Printf("[handler] LeaguesHandler.RemoveRole: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -168,6 +175,7 @@ func (h *LeaguesHandler) GetRoles(c *gin.Context) {
 
 	roles, err := h.leagueSvc.ListLeagueRoles(c.Request.Context(), id)
 	if err != nil {
+		log.Printf("[handler] LeaguesHandler.GetRoles: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

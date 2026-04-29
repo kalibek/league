@@ -132,6 +132,7 @@
     "recedesPerGroup": "Recedes per group",
     "gamesToWin": "Games to win",
     "groupSize": "Group size",
+    "numberOfTables": "Number of tables",
     "saveConfiguration": "Save Configuration"
   },
   "createLeague": {
@@ -154,7 +155,12 @@
     "enterScoreTitle": "Enter Score",
     "manualPlacementTitle": "Manual Placement Required",
     "manualPlacementDescription": "These players are tied and cannot be automatically ranked. Drag to set the correct order.",
-    "enterAllScoresFirst": "Enter all match scores first"
+    "enterAllScoresFirst": "Enter all match scores first",
+    "inProgress": "In Progress",
+    "assignTableTitle": "Assign Table",
+    "allTablesOccupied": "All tables are currently occupied",
+    "table": "Table",
+    "assign": "Assign"
   },
   "eventSetup": {
     "backToLeague": "← Back to League",
