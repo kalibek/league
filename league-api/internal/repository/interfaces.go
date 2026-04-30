@@ -56,6 +56,7 @@ type GroupRepository interface {
 	GetPlayersByMovement(ctx context.Context, groupID int64, moves int) ([]model.GroupPlayer, error)
 	AddPlayer(ctx context.Context, gp *model.GroupPlayer) (int64, error)
 	UpdatePlayer(ctx context.Context, gp *model.GroupPlayer) error
+	SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error
 	RemovePlayer(ctx context.Context, groupPlayerID int64) error
 	ResetGroupPlayers(ctx context.Context, groupID int64) error
 	ListPlayerGroupsInEvent(ctx context.Context, userID, eventID int64) ([]model.GroupPlayer, error)

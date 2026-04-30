@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"league-api/internal/model"
 	"league-api/internal/repository"
 	"league-api/internal/service"
 )
@@ -242,6 +243,37 @@ func (h *GroupsHandler) SetManualPlacements(c *gin.Context) {
 	}
 	if err := h.draftSvc.SetManualPlacements(c.Request.Context(), groupID, req.OrderedPlayerIDs); err != nil {
 		log.Printf("[handler] GroupsHandler.SetManualPlacements: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// SetPlayerStatus handles PUT /api/v1/secured/events/:eid/groups/:gid/players/:pid/status
+// Marks a group player as DNS or resets back to active.
+// Only allowed while the parent event is IN_PROGRESS.
+func (h *GroupsHandler) SetPlayerStatus(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("gid"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid group id"})
+		return
+	}
+	groupPlayerID, err := strconv.ParseInt(c.Param("pid"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid player id"})
+		return
+	}
+
+	var req struct {
+		Status string `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.groupSvc.SetPlayerStatus(c.Request.Context(), groupID, groupPlayerID, model.PlayerStatus(req.Status)); err != nil {
+		log.Printf("[handler] GroupsHandler.SetPlayerStatus: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

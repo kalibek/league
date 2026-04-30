@@ -132,6 +132,7 @@ func main() {
 		secured.POST("/events/:eid/groups/:gid/seed", groupsH.SeedPlayer)
 		secured.DELETE("/events/:eid/groups/:gid/players/:gpid", groupsH.RemovePlayer)
 		secured.PUT("/events/:eid/groups/:gid/players/:pid/place", groupsH.SetManualPlace)
+		secured.PUT("/events/:eid/groups/:gid/players/:pid/status", groupsH.SetPlayerStatus)
 		secured.PUT("/events/:eid/groups/:gid/placement", groupsH.SetManualPlacements)
 
 		secured.PUT("/groups/:gid/matches/:mid", matchesH.UpdateScore)

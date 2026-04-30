@@ -255,7 +255,9 @@
     "move": "Move",
     "guest": "(guest)",
     "noShow": "Mark {{name}} as no-show",
-    "enterScore": "Enter score: {{p1}} vs {{p2}}"
+    "enterScore": "Enter score: {{p1}} vs {{p2}}",
+    "markDNS": "Mark {{name}} as DNS (did not start)",
+    "resetDNS": "Reset {{name}} from DNS to active"
   },
   "matchGrid": {
     "round": "Round",

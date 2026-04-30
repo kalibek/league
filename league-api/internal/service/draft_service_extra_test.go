@@ -98,7 +98,7 @@ func (m *draftMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, 
 	return nil
 }
 
-func (m *draftMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+func (m *draftMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }
 
@@ -115,7 +115,7 @@ func (s *nopMatchService) SetTableNumber(ctx context.Context, matchID int64, tab
 	return nil
 }
 
-func (s *nopMatchService) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+func (s *nopMatchService) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }
 
@@ -176,6 +176,10 @@ func (s *nopGroupService) CreateGroup(ctx context.Context, eventID int64, divisi
 func (s *nopGroupService) SeedPlayer(ctx context.Context, groupID, userID int64) error { return nil }
 
 func (s *nopGroupService) RemovePlayer(ctx context.Context, groupPlayerID int64) error { return nil }
+
+func (s *nopGroupService) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error {
+	return nil
+}
 
 // groupWithPlayers is a helper to build a draftMockGroupRepo with players in specific groups.
 type draftGroupRepoWithPlayers struct {

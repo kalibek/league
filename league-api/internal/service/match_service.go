@@ -126,6 +126,9 @@ func (s *matchService) RecalcGroupPoints(ctx context.Context, groupID int64) err
 
 // recalcGroupPoints recomputes points and tiebreak points for all players.
 // Win = 2 pts, Loss = 1 pt.
+// DNS players score 0 pts and their matches are completely voided — opponents
+// also receive 0 pts from those matches. DNS players are excluded from the
+// tiebreak calculation entirely.
 // Tiebreak = score differential, but only from matches between players
 // who share the same points total (tied group). Players with a unique
 // points total get tiebreakPoints = 0.
@@ -139,7 +142,16 @@ func (s *matchService) recalcGroupPoints(ctx context.Context, groupID int64) err
 		return err
 	}
 
+	// Build DNS set to skip matches involving DNS players.
+	dnsSet := make(map[int64]bool, len(players))
+	for _, p := range players {
+		if p.PlayerStatus == model.PlayerStatusDNS {
+			dnsSet[p.GroupPlayerID] = true
+		}
+	}
+
 	// Pass 1: compute points for every player.
+	// Matches involving any DNS player are voided (0 pts for both sides).
 	points := make(map[int64]int16, len(players))
 	for _, p := range players {
 		points[p.GroupPlayerID] = 0
@@ -155,6 +167,10 @@ func (s *matchService) recalcGroupPoints(ctx context.Context, groupID int64) err
 			continue
 		}
 		p1, p2 := *m.GroupPlayer1ID, *m.GroupPlayer2ID
+		// Skip voided matches for DNS players.
+		if dnsSet[p1] || dnsSet[p2] {
+			continue
+		}
 		s1, s2 := *m.Score1, *m.Score2
 		if m.Withdraw1 {
 			points[p2] += 2
@@ -170,10 +186,10 @@ func (s *matchService) recalcGroupPoints(ctx context.Context, groupID int64) err
 	}
 
 	// Pass 2: compute tiebreak only within same-points groups.
-	// Build sets of player IDs per points value (non-calculated players only).
+	// Exclude non-calculated players AND DNS players from tiebreak groups.
 	byPoints := make(map[int16]map[int64]bool)
 	for _, p := range players {
-		if p.IsNonCalculated {
+		if p.IsNonCalculated || p.PlayerStatus == model.PlayerStatusDNS {
 			continue
 		}
 		pts := points[p.GroupPlayerID]
@@ -201,6 +217,10 @@ func (s *matchService) recalcGroupPoints(ctx context.Context, groupID int64) err
 			continue
 		}
 		p1, p2 := *m.GroupPlayer1ID, *m.GroupPlayer2ID
+		// Skip matches involving DNS players from tiebreak.
+		if dnsSet[p1] || dnsSet[p2] {
+			continue
+		}
 		s1, s2 := *m.Score1, *m.Score2
 		// Only count if both players share the same points total.
 		pts1 := points[p1]

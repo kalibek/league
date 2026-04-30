@@ -74,14 +74,32 @@ func (s *draftService) FinishGroup(ctx context.Context, groupID int64) error {
 		return fmt.Errorf("group %d is already DONE", groupID)
 	}
 
+	// Load players to identify DNS players.
+	players, err := s.groupRepo.GetPlayers(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("draftService.FinishGroup get players: %w", err)
+	}
+	dnsSet := make(map[int64]bool)
+	for _, p := range players {
+		if p.PlayerStatus == model.PlayerStatusDNS {
+			dnsSet[p.GroupPlayerID] = true
+		}
+	}
+
 	// Ensure all matches have scores before finishing.
+	// Matches involving a DNS player are exempt from the DONE requirement.
 	matches, err := s.matchRepo.ListByGroup(ctx, groupID)
 	if err != nil {
 		return fmt.Errorf("draftService.FinishGroup list matches: %w", err)
 	}
 	for _, m := range matches {
 		if m.Status != model.MatchDone {
-			return fmt.Errorf("match %d has no score yet", m.MatchID)
+			// Exempt if either player is DNS.
+			p1DNS := m.GroupPlayer1ID != nil && dnsSet[*m.GroupPlayer1ID]
+			p2DNS := m.GroupPlayer2ID != nil && dnsSet[*m.GroupPlayer2ID]
+			if !p1DNS && !p2DNS {
+				return fmt.Errorf("match %d has no score yet", m.MatchID)
+			}
 		}
 	}
 
@@ -139,23 +157,44 @@ func (s *draftService) finaliseGroup(ctx context.Context, grp *model.Group) erro
 	}
 	sort.Slice(ranked, func(i, j int) bool { return ranked[i].Place < ranked[j].Place })
 
-	n := len(ranked)
 	advances := league.Config.NumberOfAdvances
 	recedes := league.Config.NumberOfRecedes
+
+	// Separate active and DNS players to correctly apply advance/recede logic.
+	// DNS players always relegate; active players follow normal placement rules.
+	var activePlayers []model.GroupPlayer
+	var dnsPlayers []model.GroupPlayer
+	for _, p := range ranked {
+		if p.PlayerStatus == model.PlayerStatusDNS {
+			dnsPlayers = append(dnsPlayers, p)
+		} else {
+			activePlayers = append(activePlayers, p)
+		}
+	}
+	nActive := len(activePlayers)
 
 	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
 		if err := s.ratingSvc.CalculateGroupRatings(txCtx, groupID); err != nil {
 			return fmt.Errorf("draftService.finaliseGroup ratings: %w", err)
 		}
-		for i := range ranked {
-			p := &ranked[i]
-			// A player cannot both advance and recede; advances takes precedence for top positions.
+		// Apply normal advance/recede logic only to active players.
+		for i := range activePlayers {
+			p := &activePlayers[i]
 			adv := advances > 0 && i < advances
-			rec := recedes > 0 && i >= n-recedes
+			rec := recedes > 0 && i >= nActive-recedes
 			p.Advances = adv && !rec
 			p.Recedes = rec && !adv
 			if err := s.groupRepo.UpdatePlayer(txCtx, p); err != nil {
 				return fmt.Errorf("draftService.finaliseGroup update player: %w", err)
+			}
+		}
+		// DNS players always relegate regardless of placement or recede slot count.
+		for i := range dnsPlayers {
+			p := &dnsPlayers[i]
+			p.Advances = false
+			p.Recedes = true
+			if err := s.groupRepo.UpdatePlayer(txCtx, p); err != nil {
+				return fmt.Errorf("draftService.finaliseGroup update dns player: %w", err)
 			}
 		}
 		return s.groupRepo.UpdateStatus(txCtx, groupID, model.GroupDone)

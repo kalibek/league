@@ -98,6 +98,10 @@ func (m *ratingMockGroupRepo) ListPlayerGroupsInEvent(ctx context.Context, userI
 	return nil, nil
 }
 
+func (m *ratingMockGroupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error {
+	return nil
+}
+
 func (m *ratingMockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error) {
 	return nil, nil
 }
@@ -133,15 +137,11 @@ func (m *ratingMockMatchRepo) BulkCreate(ctx context.Context, matches []model.Ma
 
 func (m *ratingMockMatchRepo) ResetGroupMatches(ctx context.Context, groupID int64) error { return nil }
 
-func (m *ratingMockMatchRepo) SetWithdraw(ctx context.Context, matchID int64, position int) error {
-	return nil
-}
-
 func (m *ratingMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
 	return nil
 }
 
-func (m *ratingMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+func (m *ratingMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }
 
@@ -750,5 +750,96 @@ func TestRecalculateAllRatings_SkipsNonDoneGroups(t *testing.T) {
 	}
 	if result.GroupsProcessed != 0 {
 		t.Errorf("expected 0 groups processed (non-done skipped), got %d", result.GroupsProcessed)
+	}
+}
+
+// --- DNS player Glicko2 tests ---
+
+func TestCalculateGroupRatings_DNSPlayerNotInPlayerStates(t *testing.T) {
+	// DNS player (gp2/user 20) should not appear in playerStates.
+	// User 20 is NOT in the userRepo — if DNS player were fetched, this would fail.
+	gp1, gp2 := int64(1), int64(2)
+	s1, s2 := int16(3), int16(1)
+
+	ur := &ratingMockUserRepo{users: map[int64]*model.User{
+		10: {UserID: 10, CurrentRating: 1500, Deviation: 350, Volatility: 0.06},
+		// User 20 intentionally missing — DNS player must never be fetched.
+	}}
+	gr := &ratingMockGroupRepo{
+		players: map[int64][]model.GroupPlayer{
+			1: {
+				{GroupPlayerID: gp1, GroupID: 1, UserID: 10, PlayerStatus: model.PlayerStatusActive},
+				{GroupPlayerID: gp2, GroupID: 1, UserID: 20, PlayerStatus: model.PlayerStatusDNS},
+			},
+		},
+	}
+	mr := &ratingMockMatchRepo{
+		matches: map[int64][]model.Match{
+			1: {
+				{
+					MatchID:        1,
+					GroupID:        1,
+					GroupPlayer1ID: &gp1,
+					GroupPlayer2ID: &gp2,
+					Score1:         &s1,
+					Score2:         &s2,
+					Status:         model.MatchDone,
+				},
+			},
+		},
+	}
+	rr := &ratingMockRatingRepo{}
+	er := &ratingMockEventRepo{}
+
+	svc := buildRatingSvc(ur, gr, mr, rr, er)
+	// Must not error: DNS player is skipped at player-loading stage,
+	// so user 20 is never queried, and the match is skipped
+	// because gp2 is not in playerStates (!ok2).
+	err := svc.CalculateGroupRatings(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error for group with DNS player: %v", err)
+	}
+}
+
+func TestCalculateGroupRatings_TwoActivePlayers_DNSThird(t *testing.T) {
+	// Three players: gp1 (active), gp2 (active), gp3 (DNS).
+	// Only gp1 vs gp2 match should affect ratings.
+	// gp3's matches are skipped (gp3 not in playerStates).
+	gp1, gp2, gp3 := int64(1), int64(2), int64(3)
+	s3, s1 := int16(3), int16(1)
+
+	ur := &ratingMockUserRepo{users: map[int64]*model.User{
+		10: {UserID: 10, CurrentRating: 1500, Deviation: 350, Volatility: 0.06},
+		20: {UserID: 20, CurrentRating: 1500, Deviation: 350, Volatility: 0.06},
+		// User 30 missing: DNS player must not be looked up.
+	}}
+	gr := &ratingMockGroupRepo{
+		players: map[int64][]model.GroupPlayer{
+			1: {
+				{GroupPlayerID: gp1, GroupID: 1, UserID: 10, PlayerStatus: model.PlayerStatusActive},
+				{GroupPlayerID: gp2, GroupID: 1, UserID: 20, PlayerStatus: model.PlayerStatusActive},
+				{GroupPlayerID: gp3, GroupID: 1, UserID: 30, PlayerStatus: model.PlayerStatusDNS},
+			},
+		},
+	}
+	mr := &ratingMockMatchRepo{
+		matches: map[int64][]model.Match{
+			1: {
+				// Active match — counts
+				{MatchID: 1, GroupID: 1, GroupPlayer1ID: &gp1, GroupPlayer2ID: &gp2, Score1: &s3, Score2: &s1, Status: model.MatchDone},
+				// DNS match — skipped
+				{MatchID: 2, GroupID: 1, GroupPlayer1ID: &gp1, GroupPlayer2ID: &gp3, Score1: &s3, Score2: &s1, Status: model.MatchDone},
+				// DNS match — skipped
+				{MatchID: 3, GroupID: 1, GroupPlayer1ID: &gp2, GroupPlayer2ID: &gp3, Score1: &s1, Score2: &s3, Status: model.MatchDone},
+			},
+		},
+	}
+	rr := &ratingMockRatingRepo{}
+	er := &ratingMockEventRepo{}
+
+	svc := buildRatingSvc(ur, gr, mr, rr, er)
+	err := svc.CalculateGroupRatings(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

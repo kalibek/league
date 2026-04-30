@@ -190,6 +190,10 @@ func (m *mockGroupRepo) GetPlayersByMovement(ctx context.Context, groupID int64,
 	return result, nil
 }
 
+func (m *mockGroupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error {
+	return nil
+}
+
 func (m *mockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error) {
 	users := make([]model.User, 0, len(ids))
 	for _, id := range ids {
@@ -234,9 +238,6 @@ func (m *mockMatchRepo) BulkCreate(ctx context.Context, matches []model.Match) e
 	return nil
 }
 
-func (m *mockMatchRepo) SetWithdraw(ctx context.Context, matchID int64, position int) error {
-	return nil
-}
 
 func (m *mockMatchRepo) ResetGroupMatches(ctx context.Context, groupID int64) error { return nil }
 
@@ -244,7 +245,7 @@ func (m *mockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, table
 	return nil
 }
 
-func (m *mockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+func (m *mockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }
 
@@ -401,5 +402,192 @@ func TestCalculatePlacements_TwoWayTie_HeadToHead(t *testing.T) {
 	}
 	if placeOf(2) != 2 {
 		t.Errorf("p2 should be 2nd, got %d", placeOf(2))
+	}
+}
+
+func makePlayersWithStatus(ids []int64, dnsIDs map[int64]bool) []model.GroupPlayer {
+	players := make([]model.GroupPlayer, len(ids))
+	for i, id := range ids {
+		status := model.PlayerStatusActive
+		if dnsIDs[id] {
+			status = model.PlayerStatusDNS
+		}
+		players[i] = model.GroupPlayer{
+			GroupPlayerID: id,
+			GroupID:       1,
+			UserID:        id,
+			Seed:          int16(i + 1),
+			PlayerStatus:  status,
+		}
+	}
+	return players
+}
+
+func TestCalculatePlacements_DNSPlayerPlacedLast(t *testing.T) {
+	// p1 (4 pts), p2 (2 pts), p3 is DNS.
+	// p3 should be placed at position 3, after p1 and p2.
+	players := makePlayersWithStatus([]int64{1, 2, 3}, map[int64]bool{3: true})
+	players[0].Points = 4
+	players[1].Points = 2
+	players[2].Points = 0 // DNS — doesn't matter
+
+	gr := &mockGroupRepo{players: map[int64][]model.GroupPlayer{1: players}}
+	mr := &mockMatchRepo{matches: map[int64][]model.Match{1: {}}}
+	er := &mockEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: er}
+	needsManual, err := svc.CalculatePlacements(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(needsManual) != 0 {
+		t.Errorf("expected no manual placements, got %v", needsManual)
+	}
+
+	placeOf := func(id int64) int16 {
+		for _, p := range gr.players[1] {
+			if p.GroupPlayerID == id {
+				return p.Place
+			}
+		}
+		return 0
+	}
+
+	if placeOf(1) != 1 {
+		t.Errorf("p1 should be place 1, got %d", placeOf(1))
+	}
+	if placeOf(2) != 2 {
+		t.Errorf("p2 should be place 2, got %d", placeOf(2))
+	}
+	if placeOf(3) != 3 {
+		t.Errorf("DNS p3 should be place 3 (last), got %d", placeOf(3))
+	}
+}
+
+func TestCalculatePlacements_MultipleDNSPlayersPlacedLast(t *testing.T) {
+	// 4 players: p1 active (4 pts), p2 active (2 pts), p3 DNS, p4 DNS.
+	players := makePlayersWithStatus([]int64{1, 2, 3, 4}, map[int64]bool{3: true, 4: true})
+	players[0].Points = 4
+	players[1].Points = 2
+
+	gr := &mockGroupRepo{players: map[int64][]model.GroupPlayer{1: players}}
+	mr := &mockMatchRepo{matches: map[int64][]model.Match{1: {}}}
+	er := &mockEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: er}
+	needsManual, err := svc.CalculatePlacements(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(needsManual) != 0 {
+		t.Errorf("expected no manual placements, got %v", needsManual)
+	}
+
+	placeOf := func(id int64) int16 {
+		for _, p := range gr.players[1] {
+			if p.GroupPlayerID == id {
+				return p.Place
+			}
+		}
+		return 0
+	}
+
+	if placeOf(1) != 1 {
+		t.Errorf("p1 should be place 1, got %d", placeOf(1))
+	}
+	if placeOf(2) != 2 {
+		t.Errorf("p2 should be place 2, got %d", placeOf(2))
+	}
+	// DNS players get places 3 and 4 (order among themselves by seed, i.e. insertion order).
+	p3place := placeOf(3)
+	p4place := placeOf(4)
+	if p3place < 3 || p3place > 4 {
+		t.Errorf("DNS p3 should have place 3 or 4, got %d", p3place)
+	}
+	if p4place < 3 || p4place > 4 {
+		t.Errorf("DNS p4 should have place 3 or 4, got %d", p4place)
+	}
+	if p3place == p4place {
+		t.Errorf("DNS players should have different places, both got %d", p3place)
+	}
+}
+
+type inProgressEventRepo struct {
+	mockEventRepo
+}
+
+func (m *inProgressEventRepo) GetByID(ctx context.Context, id int64) (*model.LeagueEvent, error) {
+	return &model.LeagueEvent{EventID: id, Status: model.EventInProgress}, nil
+}
+
+func TestSetPlayerStatus_ValidDNS(t *testing.T) {
+	gr := &mockGroupRepo{players: map[int64][]model.GroupPlayer{1: makePlayers([]int64{1})}}
+	mr := &mockMatchRepo{}
+	ipEr := &inProgressEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: ipEr}
+	err := svc.SetPlayerStatus(context.Background(), 1, 1, model.PlayerStatusDNS)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+type mockGroupRepoWithSetStatus struct {
+	mockGroupRepo
+	setStatusCalled bool
+	lastStatus      model.PlayerStatus
+}
+
+func (m *mockGroupRepoWithSetStatus) SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error {
+	m.setStatusCalled = true
+	m.lastStatus = status
+	return nil
+}
+
+func TestSetPlayerStatus_CallsRepo(t *testing.T) {
+	gr := &mockGroupRepoWithSetStatus{
+		mockGroupRepo: mockGroupRepo{
+			players: map[int64][]model.GroupPlayer{1: makePlayers([]int64{42})},
+		},
+	}
+	ipEr := &inProgressEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: &mockMatchRepo{}, eventRepo: ipEr}
+	err := svc.SetPlayerStatus(context.Background(), 1, 42, model.PlayerStatusDNS)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !gr.setStatusCalled {
+		t.Error("expected SetPlayerStatus to be called on repo")
+	}
+	if gr.lastStatus != model.PlayerStatusDNS {
+		t.Errorf("expected status dns, got %s", gr.lastStatus)
+	}
+}
+
+func TestSetPlayerStatus_InvalidStatus(t *testing.T) {
+	gr := &mockGroupRepoWithSetStatus{
+		mockGroupRepo: mockGroupRepo{players: map[int64][]model.GroupPlayer{1: makePlayers([]int64{1})}},
+	}
+	ipEr := &inProgressEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: &mockMatchRepo{}, eventRepo: ipEr}
+	err := svc.SetPlayerStatus(context.Background(), 1, 1, model.PlayerStatus("invalid"))
+	if err == nil {
+		t.Fatal("expected error for invalid status")
+	}
+}
+
+func TestSetPlayerStatus_EventNotInProgress(t *testing.T) {
+	gr := &mockGroupRepoWithSetStatus{
+		mockGroupRepo: mockGroupRepo{players: map[int64][]model.GroupPlayer{1: makePlayers([]int64{1})}},
+	}
+	// Default mockEventRepo returns event with empty status (not IN_PROGRESS)
+	er := &mockEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: &mockMatchRepo{}, eventRepo: er}
+	err := svc.SetPlayerStatus(context.Background(), 1, 1, model.PlayerStatusDNS)
+	if err == nil {
+		t.Fatal("expected error: event must be IN_PROGRESS")
 	}
 }

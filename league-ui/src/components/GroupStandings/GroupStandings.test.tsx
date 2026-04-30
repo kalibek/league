@@ -23,6 +23,7 @@ const basePlayer = (overrides: Partial<GroupPlayer>): GroupPlayer => ({
   advances: false,
   recedes: false,
   isNonCalculated: false,
+  playerStatus: 'active',
   user: { userId: 1, firstName: 'Alice', lastName: 'Smith', email: 'a@b.com', currentRating: 1500, deviation: 200, volatility: 0.06, isAdmin: false },
   ...overrides,
 })
@@ -99,22 +100,39 @@ describe('GroupStandings', () => {
     expect(rows[4]).toHaveTextContent('3')   // D
   })
 
-  it('shows DNS players with strikethrough and DNS badge', () => {
+  it('shows DNS players with strikethrough and DNS badge using playerStatus field', () => {
     const gpId = 10
     const players = [
       basePlayer({
         groupPlayerId: gpId,
+        playerStatus: 'dns',
         user: { userId: gpId, firstName: 'DNS', lastName: 'Player', email: 'd@e.com', currentRating: 1500, deviation: 200, volatility: 0.06, isAdmin: false },
       }),
     ]
-    const matches: Match[] = [
-      {
-        matchId: 1, groupId: 1, groupPlayer1Id: gpId, groupPlayer2Id: 2,
-        score1: null, score2: null, withdraw1: true, withdraw2: false, status: 'DONE', tableNumber: null,
-      },
-    ]
-    renderStandings(players, matches)
+    renderStandings(players, [])
     expect(screen.getByText('DNS')).toBeInTheDocument()
+  })
+
+  it('shows DNS players at the bottom of the standings', () => {
+    const activePlayer = basePlayer({
+      groupPlayerId: 1,
+      seed: 1,
+      playerStatus: 'active',
+      user: { userId: 1, firstName: 'Alice', lastName: 'Smith', email: 'a@b.com', currentRating: 1500, deviation: 200, volatility: 0.06, isAdmin: false },
+    })
+    const dnsPlayer = basePlayer({
+      groupPlayerId: 2,
+      seed: 2,
+      playerStatus: 'dns',
+      userId: 2,
+      user: { userId: 2, firstName: 'DNS', lastName: 'Guy', email: 'd@e.com', currentRating: 1400, deviation: 200, volatility: 0.06, isAdmin: false },
+    })
+    // Pass DNS player first in array — should still appear last in table
+    renderStandings([dnsPlayer, activePlayer], [])
+    const rows = screen.getAllByRole('row')
+    // rows[0] is header, rows[1] is first data row (active player), rows[2] is DNS player
+    expect(rows[1]).toHaveTextContent('Alice')
+    expect(rows[2]).toHaveTextContent('DNS')
   })
 
   it('calls onNoShow when no-show button is clicked', async () => {

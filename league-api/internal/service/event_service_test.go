@@ -113,6 +113,10 @@ func (m *evtMockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids [
 	return nil, nil
 }
 
+func (m *evtMockGroupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error {
+	return nil
+}
+
 type evtMockMatchRepo struct {
 	bulkCalls int
 }
@@ -148,7 +152,7 @@ func (m *evtMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, ta
 	return nil
 }
 
-func (m *evtMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+func (m *evtMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }
 

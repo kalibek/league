@@ -71,10 +71,6 @@ func (m *matchSvcMockMatchRepo) BulkCreate(ctx context.Context, matches []model.
 
 func (m *matchSvcMockMatchRepo) ResetGroupMatches(ctx context.Context, groupID int64) error { return nil }
 
-func (m *matchSvcMockMatchRepo) SetWithdraw(ctx context.Context, matchID int64, position int) error {
-	return nil
-}
-
 func (m *matchSvcMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
 	if match, ok := m.matches[matchID]; ok {
 		match.TableNumber = &tableNumber
@@ -83,11 +79,11 @@ func (m *matchSvcMockMatchRepo) SetTableNumber(ctx context.Context, matchID int6
 	return nil
 }
 
-func (m *matchSvcMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
-	var result []model.Match
+func (m *matchSvcMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
+	var result []int
 	for _, match := range m.matches {
-		if match.Status == model.MatchInProgress {
-			result = append(result, *match)
+		if match.Status == model.MatchInProgress && match.TableNumber != nil {
+			result = append(result, *match.TableNumber)
 		}
 	}
 	return result, nil
@@ -163,6 +159,10 @@ func (m *matchSvcMockGroupRepo) ResetGroupPlayers(ctx context.Context, groupID i
 
 func (m *matchSvcMockGroupRepo) ListPlayerGroupsInEvent(ctx context.Context, userID, eventID int64) ([]model.GroupPlayer, error) {
 	return nil, nil
+}
+
+func (m *matchSvcMockGroupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error {
+	return nil
 }
 
 func (m *matchSvcMockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error) {
@@ -603,5 +603,108 @@ func TestRecalcGroupPoints_Public(t *testing.T) {
 	err := svc.RecalcGroupPoints(context.Background(), 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- DNS player tests ---
+
+// buildGroupPlayersWithStatus creates players with specified statuses.
+func buildGroupPlayersWithStatus(groupID int64, ids []int64, dnsIDs map[int64]bool) []model.GroupPlayer {
+	result := make([]model.GroupPlayer, len(ids))
+	for i, id := range ids {
+		status := model.PlayerStatusActive
+		if dnsIDs[id] {
+			status = model.PlayerStatusDNS
+		}
+		result[i] = model.GroupPlayer{
+			GroupPlayerID: id,
+			GroupID:       groupID,
+			UserID:        id,
+			PlayerStatus:  status,
+		}
+	}
+	return result
+}
+
+func TestRecalcGroupPoints_DNSPlayerMatchesVoided(t *testing.T) {
+	// p1 is DNS. p2 vs p3 match counts; p1's matches are voided.
+	gp1, gp2, gp3 := int64(1), int64(2), int64(3)
+	s3, s1 := int16(3), int16(1)
+	matches := []model.Match{
+		// DNS player p1 vs p2 — should be voided
+		{MatchID: 1, GroupID: 10, GroupPlayer1ID: &gp1, GroupPlayer2ID: &gp2, Score1: &s3, Score2: &s1, Status: model.MatchDone},
+		// DNS player p1 vs p3 — should be voided
+		{MatchID: 2, GroupID: 10, GroupPlayer1ID: &gp1, GroupPlayer2ID: &gp3, Score1: &s3, Score2: &s1, Status: model.MatchDone},
+		// Normal match p2 vs p3 — counts
+		{MatchID: 3, GroupID: 10, GroupPlayer1ID: &gp2, GroupPlayer2ID: &gp3, Score1: &s3, Score2: &s1, Status: model.MatchDone},
+	}
+	players := buildGroupPlayersWithStatus(10, []int64{1, 2, 3}, map[int64]bool{1: true})
+
+	mr := &matchSvcMockMatchRepo{groupMatches: map[int64][]model.Match{10: matches}}
+	gr := &matchSvcMockGroupRepo{
+		groups:  map[int64]*model.Group{10: buildGroup(10, 5)},
+		players: map[int64][]model.GroupPlayer{10: players},
+	}
+	svc := &matchService{matchRepo: mr, groupRepo: gr}
+
+	if err := svc.recalcGroupPoints(context.Background(), 10); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	findPlayer := func(id int64) model.GroupPlayer {
+		for _, p := range gr.players[10] {
+			if p.GroupPlayerID == id {
+				return p
+			}
+		}
+		t.Fatalf("player %d not found", id)
+		return model.GroupPlayer{}
+	}
+
+	// DNS player gets 0 pts.
+	if p1 := findPlayer(1); p1.Points != 0 {
+		t.Errorf("DNS player should have 0 points, got %d", p1.Points)
+	}
+	// p2 wins normal match vs p3 → 2 pts; p1 match voided → 0 pts from it.
+	if p2 := findPlayer(2); p2.Points != 2 {
+		t.Errorf("p2 should have 2 points (only normal match counts), got %d", p2.Points)
+	}
+	// p3 loses normal match vs p2 → 1 pt.
+	if p3 := findPlayer(3); p3.Points != 1 {
+		t.Errorf("p3 should have 1 point (only normal match counts), got %d", p3.Points)
+	}
+}
+
+func TestRecalcGroupPoints_DNSPlayerExcludedFromTiebreak(t *testing.T) {
+	// p1 (DNS) and p2 tied on 0 pts but DNS player excluded from tiebreak groups.
+	// p2 and p3 tied on 2 pts — both in same tiebreak group, their match score counts.
+	gp1, gp2, gp3 := int64(1), int64(2), int64(3)
+	s3, s1 := int16(3), int16(1)
+	matches := []model.Match{
+		// p2 vs p3 (normal, done) — p2 wins
+		{MatchID: 1, GroupID: 10, GroupPlayer1ID: &gp2, GroupPlayer2ID: &gp3, Score1: &s3, Score2: &s1, Status: model.MatchDone},
+		// p1 (DNS) vs p2 — voided
+		{MatchID: 2, GroupID: 10, GroupPlayer1ID: &gp1, GroupPlayer2ID: &gp2, Score1: &s3, Score2: &s1, Status: model.MatchDone},
+	}
+	players := buildGroupPlayersWithStatus(10, []int64{1, 2, 3}, map[int64]bool{1: true})
+
+	mr := &matchSvcMockMatchRepo{groupMatches: map[int64][]model.Match{10: matches}}
+	gr := &matchSvcMockGroupRepo{
+		groups:  map[int64]*model.Group{10: buildGroup(10, 5)},
+		players: map[int64][]model.GroupPlayer{10: players},
+	}
+	svc := &matchService{matchRepo: mr, groupRepo: gr}
+
+	if err := svc.recalcGroupPoints(context.Background(), 10); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// DNS player (p1) has 0 pts and 0 tiebreak.
+	for _, p := range gr.players[10] {
+		if p.GroupPlayerID == 1 {
+			if p.Points != 0 || p.TiebreakPoints != 0 {
+				t.Errorf("DNS player should have 0/0, got %d/%d", p.Points, p.TiebreakPoints)
+			}
+		}
 	}
 }

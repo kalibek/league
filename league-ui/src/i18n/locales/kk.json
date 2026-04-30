@@ -254,7 +254,9 @@
     "move": "Қозғалыс",
     "guest": "(қонақ)",
     "noShow": "{{name}} келмеді деп белгілеу",
-    "enterScore": "Есеп енгізу: {{p1}} vs {{p2}}"
+    "enterScore": "Есеп енгізу: {{p1}} vs {{p2}}",
+    "markDNS": "{{name}} DNS деп белгілеу",
+    "resetDNS": "{{name}} үшін DNS-ті қалпына келтіру"
   },
   "matchGrid": {
     "round": "Тур",

@@ -254,7 +254,9 @@
     "move": "Движение",
     "guest": "(гость)",
     "noShow": "Отметить {{name}} как неявку",
-    "enterScore": "Ввести счёт: {{p1}} vs {{p2}}"
+    "enterScore": "Ввести счёт: {{p1}} vs {{p2}}",
+    "markDNS": "Отметить {{name}} как DNS (не вышел)",
+    "resetDNS": "Сбросить DNS для {{name}}"
   },
   "matchGrid": {
     "round": "Тур",

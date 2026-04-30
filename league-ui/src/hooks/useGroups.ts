@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listGroups, getGroup, createGroup, seedPlayer, removeGroupPlayer, finishGroup, reopenGroup, addPlayer, setManualPlace } from '../api/groups'
-import type { Group, GroupDetail } from '../types'
+import { listGroups, getGroup, createGroup, seedPlayer, removeGroupPlayer, finishGroup, reopenGroup, addPlayer, setManualPlace, setPlayerStatus } from '../api/groups'
+import type { Group, GroupDetail, PlayerStatus } from '../types'
 import { extractErrorMessage } from './utils'
 
 export function useGroups(eventId: number) {
@@ -189,4 +189,30 @@ export function useSetManualPlace() {
   }
 
   return { setPlace, loading, error }
+}
+
+export function useSetPlayerStatus() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const setStatus = async (
+    eventId: number,
+    groupId: number,
+    groupPlayerId: number,
+    status: PlayerStatus
+  ) => {
+    setLoading(true)
+    setError(null)
+    try {
+      await setPlayerStatus(eventId, groupId, groupPlayerId, status)
+      return true
+    } catch (e) {
+      setError(extractErrorMessage(e))
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { setStatus, loading, error }
 }

@@ -24,6 +24,9 @@ type GroupService interface {
 	CreateGroup(ctx context.Context, eventID int64, division string, groupNo int, scheduled time.Time) (*model.Group, error)
 	SeedPlayer(ctx context.Context, groupID, userID int64) error
 	RemovePlayer(ctx context.Context, groupPlayerID int64) error
+	// SetPlayerStatus marks a player as dns or resets to active.
+	// Only allowed when the parent event is IN_PROGRESS.
+	SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error
 }
 
 type groupService struct {
@@ -101,6 +104,7 @@ func (s *groupService) GenerateRoundRobin(ctx context.Context, groupID int64) er
 
 // CalculatePlacements computes and persists placements for a group.
 // Returns a list of groupPlayerIDs that require manual ordering (three-way tiebreak after tiebreak).
+// DNS players are always placed last, after all active players.
 func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) ([]int64, error) {
 	players, err := s.groupRepo.GetPlayers(ctx, groupID)
 	if err != nil {
@@ -111,12 +115,19 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 		return nil, fmt.Errorf("groupService.CalculatePlacements matches: %w", err)
 	}
 
-	// Exclude non-calculated players.
+	// Separate DNS players — they always go last.
+	// Exclude non-calculated players from ranking.
 	var ranked []model.GroupPlayer
+	var dnsPlayers []model.GroupPlayer
 	for _, p := range players {
-		if !p.IsNonCalculated {
-			ranked = append(ranked, p)
+		if p.IsNonCalculated {
+			continue
 		}
+		if p.PlayerStatus == model.PlayerStatusDNS {
+			dnsPlayers = append(dnsPlayers, p)
+			continue
+		}
+		ranked = append(ranked, p)
 	}
 
 	// Group ranked players by points to find tied groups.
@@ -225,11 +236,22 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 		i = j
 	}
 
+	// Assign DNS players to the bottom positions after all active ranked players.
+	for i := range dnsPlayers {
+		dnsPlayers[i].Place = currentPlace
+		currentPlace++
+	}
+
 	// Persist all player updates inside a single transaction.
 	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
 		for i := range ranked {
 			if err := s.groupRepo.UpdatePlayer(txCtx, &ranked[i]); err != nil {
 				return fmt.Errorf("groupService.CalculatePlacements update player: %w", err)
+			}
+		}
+		for i := range dnsPlayers {
+			if err := s.groupRepo.UpdatePlayer(txCtx, &dnsPlayers[i]); err != nil {
+				return fmt.Errorf("groupService.CalculatePlacements update dns player: %w", err)
 			}
 		}
 		return nil
@@ -327,6 +349,31 @@ func (s *groupService) SeedPlayer(ctx context.Context, groupID, userID int64) er
 
 func (s *groupService) RemovePlayer(ctx context.Context, groupPlayerID int64) error {
 	return s.groupRepo.RemovePlayer(ctx, groupPlayerID)
+}
+
+// SetPlayerStatus marks a group player as dns or resets to active.
+// Only allowed when the parent event is IN_PROGRESS.
+func (s *groupService) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error {
+	if status != model.PlayerStatusActive && status != model.PlayerStatusDNS {
+		return fmt.Errorf("invalid player status %q: must be 'active' or 'dns'", status)
+	}
+
+	grp, err := s.groupRepo.GetByID(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("groupService.SetPlayerStatus get group: %w", err)
+	}
+	ev, err := s.eventRepo.GetByID(ctx, grp.EventID)
+	if err != nil {
+		return fmt.Errorf("groupService.SetPlayerStatus get event: %w", err)
+	}
+	if ev.Status != model.EventInProgress {
+		return fmt.Errorf("player status can only be changed while event is IN_PROGRESS")
+	}
+
+	if err := s.groupRepo.SetPlayerStatus(ctx, groupPlayerID, status); err != nil {
+		return fmt.Errorf("groupService.SetPlayerStatus: %w", err)
+	}
+	return nil
 }
 
 // computeTiebreakPoints calculates games won minus games lost for a player across all group matches.

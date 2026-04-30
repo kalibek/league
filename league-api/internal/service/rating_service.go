@@ -67,12 +67,16 @@ func (s *ratingService) CalculateGroupRatings(ctx context.Context, groupID int64
 		return fmt.Errorf("ratingService.CalculateGroupRatings matches: %w", err)
 	}
 
-	// Build state for calculated players only.
+	// Build state for calculated, non-DNS players only.
 	gpToUserID := make(map[int64]int64)            // groupPlayerID → userID
 	playerStates := make(map[int64]glicko2.Player) // groupPlayerID → Glicko2 state
 
 	for _, p := range players {
 		if p.IsNonCalculated {
+			continue
+		}
+		// DNS players are completely invisible to Glicko2.
+		if p.PlayerStatus == model.PlayerStatusDNS {
 			continue
 		}
 		u, err := s.userRepo.GetByID(ctx, p.UserID)

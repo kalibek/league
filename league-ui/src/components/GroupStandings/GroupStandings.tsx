@@ -1,5 +1,4 @@
 import type { GroupPlayer, Match } from '../../types'
-import { isDns } from '../../types'
 import { Badge } from '../Badge/Badge'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -9,12 +8,15 @@ interface GroupStandingsProps {
   matches: Match[]
   onNoShow?: (groupPlayerId: number) => void
   onScoreClick?: (match: Match) => void
+  /** Called when admin clicks the DNS toggle button (mark or unmark DNS). */
+  onSetPlayerStatus?: (groupPlayerId: number, currentStatus: 'active' | 'dns') => void
 }
 
 // Returns null for players with a unique points total (no tie → show '—').
 // Returns the backend tiebreakPoints for players in a tied group.
+// DNS players and non-calculated players are excluded from tiebreak groups.
 function buildTiebreakDisplayMap(players: GroupPlayer[]): Map<number, number | null> {
-  const calcPlayers = players.filter((p) => !p.isNonCalculated)
+  const calcPlayers = players.filter((p) => !p.isNonCalculated && p.playerStatus !== 'dns')
   const byPoints = new Map<number, GroupPlayer[]>()
   for (const p of calcPlayers) {
     const group = byPoints.get(p.points) ?? []
@@ -30,9 +32,17 @@ function buildTiebreakDisplayMap(players: GroupPlayer[]): Map<number, number | n
   return result
 }
 
-export function GroupStandings({ players, matches, onNoShow, onScoreClick }: GroupStandingsProps) {
+export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSetPlayerStatus }: GroupStandingsProps) {
   const { t } = useTranslation()
-  const sorted = [...players].sort((a, b) => a.seed - b.seed)
+
+  // Sort: non-DNS by seed, then DNS players at the bottom (also by seed among themselves).
+  const sorted = [...players].sort((a, b) => {
+    const aDns = a.playerStatus === 'dns'
+    const bDns = b.playerStatus === 'dns'
+    if (aDns !== bDns) return aDns ? 1 : -1
+    return a.seed - b.seed
+  })
+
   const tiebreakMap = buildTiebreakDisplayMap(players)
 
   const playerName = (p: GroupPlayer) =>
@@ -137,7 +147,7 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick }: Gro
         </thead>
         <tbody>
           {sorted.map((p, i) => {
-            const dns = isDns(p.groupPlayerId, matches)
+            const dns = p.playerStatus === 'dns'
             const name = playerName(p)
 
             return (
@@ -178,6 +188,23 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick }: Gro
                         aria-label={t('groupStandings.noShow', { name })}
                       >
                         ✕
+                      </button>
+                    )}
+                    {onSetPlayerStatus && !p.isNonCalculated && (
+                      <button
+                        onClick={() => onSetPlayerStatus(p.groupPlayerId, p.playerStatus)}
+                        style={{
+                          color: dns ? '#16a34a' : '#cbd5e1',
+                          marginLeft: 4,
+                          lineHeight: 1,
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                        className={dns ? 'hover:text-green-700 transition-colors' : 'hover:text-orange-500 transition-colors'}
+                        title={dns ? t('groupStandings.resetDNS', { name }) : t('groupStandings.markDNS', { name })}
+                        aria-label={dns ? t('groupStandings.resetDNS', { name }) : t('groupStandings.markDNS', { name })}
+                      >
+                        {dns ? 'DNS' : 'DNS?'}
                       </button>
                     )}
                   </div>

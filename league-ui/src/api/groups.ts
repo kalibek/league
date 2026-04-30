@@ -1,5 +1,5 @@
 import client from './client'
-import type { Group, GroupDetail } from '../types'
+import type { Group, GroupDetail, PlayerStatus } from '../types'
 
 export const listGroups = (eventId: number) =>
   client.get<Group[]>(`/public/events/${eventId}/groups`)
@@ -33,3 +33,13 @@ export const setManualPlace = (
   orderedPlayerIds: number[]
 ) =>
   client.put(`/secured/events/${eventId}/groups/${groupId}/placement`, { orderedPlayerIds })
+
+export const setPlayerStatus = (
+  eventId: number,
+  groupId: number,
+  groupPlayerId: number,
+  status: PlayerStatus
+) =>
+  client.put(`/secured/events/${eventId}/groups/${groupId}/players/${groupPlayerId}/status`, {
+    status,
+  })

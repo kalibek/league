@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"league-api/internal/model"
 )
@@ -37,7 +38,7 @@ func (m *draftMockGroupRepo) UpdateStatus(ctx context.Context, id int64, status 
 }
 
 func (m *draftMockGroupRepo) GetPlayers(ctx context.Context, groupID int64) ([]model.GroupPlayer, error) {
-	return nil, nil
+	return m.players[groupID], nil
 }
 
 func (m *draftMockGroupRepo) AddPlayer(ctx context.Context, gp *model.GroupPlayer) (int64, error) {
@@ -74,6 +75,10 @@ func (m *draftMockGroupRepo) GetPlayersByMovement(ctx context.Context, groupID i
 		}
 	}
 	return result, nil
+}
+
+func (m *draftMockGroupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error {
+	return nil
 }
 
 func (m *draftMockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error) {
@@ -262,3 +267,164 @@ func TestFinishEvent_UpdateStatusError(t *testing.T) {
 		t.Fatal("expected error from UpdateStatus, got nil")
 	}
 }
+
+// --- FinishGroup DNS tests ---
+
+type draftMockMatchSvc struct {
+	recalcCalled bool
+}
+
+func (m *draftMockMatchSvc) UpdateScore(ctx context.Context, matchID int64, score1, score2 int16, gamesToWin int, withdraw1, withdraw2 bool) error {
+	return nil
+}
+func (m *draftMockMatchSvc) RecalcGroupPoints(ctx context.Context, groupID int64) error {
+	m.recalcCalled = true
+	return nil
+}
+func (m *draftMockMatchSvc) SetTableNumber(ctx context.Context, matchID int64, tableNumber int, eventID int64) error {
+	return nil
+}
+func (m *draftMockMatchSvc) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
+	return nil, nil
+}
+
+type draftMockGroupSvc struct {
+	needsManual []int64
+}
+
+func (m *draftMockGroupSvc) GenerateRoundRobin(ctx context.Context, groupID int64) error { return nil }
+func (m *draftMockGroupSvc) CalculatePlacements(ctx context.Context, groupID int64) ([]int64, error) {
+	return m.needsManual, nil
+}
+func (m *draftMockGroupSvc) SetManualPlace(ctx context.Context, groupPlayerID int64, place int16) error {
+	return nil
+}
+func (m *draftMockGroupSvc) AddNonCalculatedPlayer(ctx context.Context, groupID, userID int64) error {
+	return nil
+}
+func (m *draftMockGroupSvc) GetGroupDetail(ctx context.Context, groupID int64) (*model.Group, []model.GroupPlayer, []model.Match, error) {
+	return nil, nil, nil, nil
+}
+func (m *draftMockGroupSvc) ListGroups(ctx context.Context, eventID int64) ([]model.Group, error) {
+	return nil, nil
+}
+func (m *draftMockGroupSvc) CreateGroup(ctx context.Context, eventID int64, division string, groupNo int, scheduled time.Time) (*model.Group, error) {
+	return nil, nil
+}
+func (m *draftMockGroupSvc) SeedPlayer(ctx context.Context, groupID, userID int64) error { return nil }
+func (m *draftMockGroupSvc) RemovePlayer(ctx context.Context, groupPlayerID int64) error { return nil }
+func (m *draftMockGroupSvc) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error {
+	return nil
+}
+
+type draftMockRatingSvc struct{}
+
+func (m *draftMockRatingSvc) CalculateGroupRatings(ctx context.Context, groupID int64) error {
+	return nil
+}
+func (m *draftMockRatingSvc) RecalculateGroupRatings(ctx context.Context, groupID int64) error {
+	return nil
+}
+func (m *draftMockRatingSvc) DeleteGroupRatings(ctx context.Context, groupID int64) error {
+	return nil
+}
+func (m *draftMockRatingSvc) RecalculateAllRatings(ctx context.Context) (RecalcResult, error) {
+	return RecalcResult{}, nil
+}
+
+func TestFinishGroup_DNSMatchExemptFromDoneRequirement(t *testing.T) {
+	// Setup: group with 3 players. p3 is DNS. p1 vs p2 is DONE. p1 vs p3 and p2 vs p3 are DRAFT.
+	// FinishGroup should succeed because DNS player matches are exempt.
+	gp1, gp2, gp3 := int64(1), int64(2), int64(3)
+	players := []model.GroupPlayer{
+		{GroupPlayerID: gp1, GroupID: 10, UserID: 1, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: gp2, GroupID: 10, UserID: 2, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: gp3, GroupID: 10, UserID: 3, PlayerStatus: model.PlayerStatusDNS},
+	}
+
+	s3, s1 := int16(3), int16(1)
+	matches := []model.Match{
+		{MatchID: 1, GroupID: 10, GroupPlayer1ID: &gp1, GroupPlayer2ID: &gp2, Score1: &s3, Score2: &s1, Status: model.MatchDone},
+		{MatchID: 2, GroupID: 10, GroupPlayer1ID: &gp1, GroupPlayer2ID: &gp3, Status: model.MatchDraft}, // exempt
+		{MatchID: 3, GroupID: 10, GroupPlayer1ID: &gp2, GroupPlayer2ID: &gp3, Status: model.MatchDraft}, // exempt
+	}
+
+	gr := &draftMockGroupRepo{
+		groupByID: map[int64]*model.Group{
+			10: {GroupID: 10, EventID: 1, Status: model.GroupInProgress},
+		},
+		players: map[int64][]model.GroupPlayer{10: players},
+	}
+	gr.groups = map[int64][]model.Group{1: {{GroupID: 10, EventID: 1, Status: model.GroupInProgress}}}
+
+	mr := &draftMockMatchRepo{matches: map[int64][]model.Match{10: matches}}
+
+	er := &draftMockEventRepo{
+		events: map[int64]*model.LeagueEvent{
+			1: {EventID: 1, Status: model.EventInProgress, LeagueID: 100},
+		},
+	}
+
+	leagueRepo := &draftMockLeagueRepo{leagues: map[int64]*model.League{
+		100: {LeagueID: 100, Config: model.LeagueConfig{NumberOfAdvances: 1, NumberOfRecedes: 1, GamesToWin: 3}},
+	}}
+	matchSvc := &draftMockMatchSvc{}
+	groupSvc := &draftMockGroupSvc{}
+	ratingSvc := &draftMockRatingSvc{}
+
+	svc := &draftService{
+		groupRepo:  gr,
+		matchRepo:  mr,
+		eventRepo:  er,
+		leagueRepo: leagueRepo,
+		matchSvc:   matchSvc,
+		groupSvc:   groupSvc,
+		ratingSvc:  ratingSvc,
+	}
+
+	err := svc.FinishGroup(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("expected FinishGroup to succeed with DNS exempt matches, got: %v", err)
+	}
+	if !matchSvc.recalcCalled {
+		t.Error("expected RecalcGroupPoints to be called")
+	}
+}
+
+func TestFinishGroup_NonDNSUnfinishedMatchBlocks(t *testing.T) {
+	// Both players are active. A DRAFT match should block FinishGroup.
+	gp1, gp2 := int64(1), int64(2)
+	players := []model.GroupPlayer{
+		{GroupPlayerID: gp1, GroupID: 10, UserID: 1, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: gp2, GroupID: 10, UserID: 2, PlayerStatus: model.PlayerStatusActive},
+	}
+
+	matches := []model.Match{
+		{MatchID: 1, GroupID: 10, GroupPlayer1ID: &gp1, GroupPlayer2ID: &gp2, Status: model.MatchDraft},
+	}
+
+	gr := &draftMockGroupRepo{
+		groupByID: map[int64]*model.Group{
+			10: {GroupID: 10, EventID: 1, Status: model.GroupInProgress},
+		},
+		players: map[int64][]model.GroupPlayer{10: players},
+	}
+
+	mr := &draftMockMatchRepo{matches: map[int64][]model.Match{10: matches}}
+	er := &draftMockEventRepo{events: map[int64]*model.LeagueEvent{1: inProgressEvent(1)}}
+
+	svc := &draftService{
+		groupRepo: gr,
+		matchRepo: mr,
+		eventRepo: er,
+	}
+
+	err := svc.FinishGroup(context.Background(), 10)
+	if err == nil {
+		t.Fatal("expected error: unfinished non-DNS match should block FinishGroup")
+	}
+	if !strings.Contains(err.Error(), "no score yet") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+

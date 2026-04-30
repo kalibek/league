@@ -199,6 +199,10 @@ func (m *psGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int6
 	return nil, nil
 }
 
+func (m *psGroupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error {
+	return nil
+}
+
 type psMatchRepo struct {
 	matches map[int64][]model.Match // groupID → matches
 }
@@ -231,7 +235,7 @@ func (m *psMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNu
 	return nil
 }
 
-func (m *psMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]model.Match, error) {
+func (m *psMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }
 

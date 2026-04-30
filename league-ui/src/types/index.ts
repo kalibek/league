@@ -57,6 +57,8 @@ export interface Group {
   scheduled: string
 }
 
+export type PlayerStatus = 'active' | 'dns'
+
 export interface GroupPlayer {
   groupPlayerId: number
   groupId: number
@@ -68,6 +70,7 @@ export interface GroupPlayer {
   advances: boolean
   recedes: boolean
   isNonCalculated: boolean
+  playerStatus: PlayerStatus
   user?: User
 }
 
@@ -206,7 +209,19 @@ export interface PlayerProfileDetail {
   isComplete: boolean
 }
 
-export function isDns(groupPlayerId: number, matches: Match[]): boolean {
+/**
+ * Returns true if a player has DNS status.
+ * Uses the backend playerStatus field when available (preferred),
+ * falling back to inferring from all-withdrawals for backwards compatibility.
+ */
+export function isDns(groupPlayerId: number, matches: Match[], players?: GroupPlayer[]): boolean {
+  if (players) {
+    const player = players.find((p) => p.groupPlayerId === groupPlayerId)
+    if (player) {
+      return player.playerStatus === 'dns'
+    }
+  }
+  // Fallback: infer from match withdrawals (legacy behaviour).
   const playerMatches = matches.filter(
     (m) => m.groupPlayer1Id === groupPlayerId || m.groupPlayer2Id === groupPlayerId
   )

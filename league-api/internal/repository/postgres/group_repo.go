@@ -186,6 +186,18 @@ func (r *groupRepo) UpdatePlayer(ctx context.Context, gp *model.GroupPlayer) err
 	return nil
 }
 
+func (r *groupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error {
+	const q = `
+		UPDATE group_players
+		SET player_status = $1, last_updated = NOW()
+		WHERE group_player_id = $2`
+	_, err := r.db(ctx).ExecContext(ctx, q, string(status), groupPlayerID)
+	if err != nil {
+		return fmt.Errorf("groupRepo.SetPlayerStatus: %w", err)
+	}
+	return nil
+}
+
 func (r *groupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error) {
 	// Only allow safe sort columns to prevent SQL injection.
 	q, args, err := sqlx.In(`SELECT * FROM users WHERE user_id in (?) ORDER BY current_rating DESC`, ids)
