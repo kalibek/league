@@ -514,12 +514,66 @@ func TestCalculatePlacements_MultipleDNSPlayersPlacedLast(t *testing.T) {
 	}
 }
 
+// mockMatchRepoWithCapture wraps mockMatchRepo and records BulkCreate calls.
+type mockMatchRepoWithCapture struct {
+	mockMatchRepo
+	created []model.Match
+}
+
+func (m *mockMatchRepoWithCapture) BulkCreate(ctx context.Context, matches []model.Match) error {
+	m.created = append(m.created, matches...)
+	return nil
+}
+
+// mockGroupRepoWithAddCapture wraps mockGroupRepo and returns a configurable ID from AddPlayer.
+type mockGroupRepoWithAddCapture struct {
+	mockGroupRepo
+	nextID      int64
+	addedPlayer *model.GroupPlayer
+}
+
+func (m *mockGroupRepoWithAddCapture) AddPlayer(ctx context.Context, gp *model.GroupPlayer) (int64, error) {
+	m.addedPlayer = gp
+	id := m.nextID
+	if id == 0 {
+		id = 99
+	}
+	// Add to the internal map so GetPlayers returns it.
+	m.players[gp.GroupID] = append(m.players[gp.GroupID], model.GroupPlayer{
+		GroupPlayerID:   id,
+		GroupID:         gp.GroupID,
+		UserID:          gp.UserID,
+		Seed:            gp.Seed,
+		IsNonCalculated: gp.IsNonCalculated,
+		PlayerStatus:    gp.PlayerStatus,
+	})
+	return id, nil
+}
+
 type inProgressEventRepo struct {
 	mockEventRepo
 }
 
 func (m *inProgressEventRepo) GetByID(ctx context.Context, id int64) (*model.LeagueEvent, error) {
 	return &model.LeagueEvent{EventID: id, Status: model.EventInProgress}, nil
+}
+
+// doneEventRepo returns events with DONE status.
+type doneEventRepo struct {
+	mockEventRepo
+}
+
+func (m *doneEventRepo) GetByID(ctx context.Context, id int64) (*model.LeagueEvent, error) {
+	return &model.LeagueEvent{EventID: id, Status: model.EventDone}, nil
+}
+
+// draftStatusEventRepo returns events with DRAFT status.
+type draftStatusEventRepo struct {
+	mockEventRepo
+}
+
+func (m *draftStatusEventRepo) GetByID(ctx context.Context, id int64) (*model.LeagueEvent, error) {
+	return &model.LeagueEvent{EventID: id, Status: model.EventDraft}, nil
 }
 
 func TestSetPlayerStatus_ValidDNS(t *testing.T) {
@@ -592,4 +646,100 @@ func TestSetPlayerStatus_EventNotInProgress(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error: event must be IN_PROGRESS")
 	}
+}
+
+// --- AddPlayerToActiveGroup tests ---
+
+func TestAddPlayerToActiveGroup_Success(t *testing.T) {
+	// 3 existing non-calculated players; add a 4th.
+	existingPlayers := makePlayers([]int64{10, 20, 30})
+	gr := &mockGroupRepoWithAddCapture{
+		mockGroupRepo: mockGroupRepo{
+			players: map[int64][]model.GroupPlayer{1: existingPlayers},
+		},
+		nextID: 99,
+	}
+	mr := &mockMatchRepoWithCapture{}
+	ipEr := &inProgressEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: ipEr}
+	err := svc.AddPlayerToActiveGroup(context.Background(), 1, 999)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// New player should have seed = 4 (3 existing + 1).
+	if gr.addedPlayer == nil {
+		t.Fatal("expected AddPlayer to be called")
+	}
+	if gr.addedPlayer.Seed != 4 {
+		t.Errorf("expected seed 4, got %d", gr.addedPlayer.Seed)
+	}
+	if gr.addedPlayer.IsNonCalculated {
+		t.Error("expected IsNonCalculated=false")
+	}
+	if gr.addedPlayer.PlayerStatus != model.PlayerStatusActive {
+		t.Errorf("expected status active, got %s", gr.addedPlayer.PlayerStatus)
+	}
+
+	// 3 new matches should be created (new player vs each existing).
+	if len(mr.created) != 3 {
+		t.Errorf("expected 3 new matches, got %d", len(mr.created))
+	}
+	for _, m := range mr.created {
+		if m.Status != model.MatchDraft {
+			t.Errorf("expected match status DRAFT, got %s", m.Status)
+		}
+	}
+}
+
+func TestAddPlayerToActiveGroup_BlocksOnDoneEvent(t *testing.T) {
+	gr := &mockGroupRepo{players: map[int64][]model.GroupPlayer{1: makePlayers([]int64{1})}}
+	mr := &mockMatchRepo{}
+	er := &doneEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: er}
+	err := svc.AddPlayerToActiveGroup(context.Background(), 1, 999)
+	if err == nil {
+		t.Fatal("expected error for DONE event")
+	}
+}
+
+func TestAddPlayerToActiveGroup_BlocksOnDraftEvent(t *testing.T) {
+	gr := &mockGroupRepo{players: map[int64][]model.GroupPlayer{1: makePlayers([]int64{1})}}
+	mr := &mockMatchRepo{}
+	er := &draftStatusEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: er}
+	err := svc.AddPlayerToActiveGroup(context.Background(), 1, 999)
+	if err == nil {
+		t.Fatal("expected error for DRAFT event")
+	}
+}
+
+func TestAddPlayerToActiveGroup_BlocksOnDuplicate(t *testing.T) {
+	// Player is already assigned to a group in this event.
+	existing := makePlayers([]int64{1, 2})
+	dupGr := &mockGroupRepoWithDuplicate{
+		mockGroupRepo:   mockGroupRepo{players: map[int64][]model.GroupPlayer{1: existing}},
+		existingInEvent: existing,
+	}
+	mr := &mockMatchRepo{}
+	ipEr := &inProgressEventRepo{}
+
+	svc := &groupService{groupRepo: dupGr, matchRepo: mr, eventRepo: ipEr}
+	err := svc.AddPlayerToActiveGroup(context.Background(), 1, 1) // userID=1 already in group
+	if err == nil {
+		t.Fatal("expected error: player already in event")
+	}
+}
+
+// mockGroupRepoWithDuplicate simulates a player already assigned to this event.
+type mockGroupRepoWithDuplicate struct {
+	mockGroupRepo
+	existingInEvent []model.GroupPlayer
+}
+
+func (m *mockGroupRepoWithDuplicate) ListPlayerGroupsInEvent(ctx context.Context, userID, eventID int64) ([]model.GroupPlayer, error) {
+	return m.existingInEvent, nil
 }

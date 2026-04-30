@@ -317,6 +317,9 @@ func (m *draftMockGroupSvc) RemovePlayer(ctx context.Context, groupPlayerID int6
 func (m *draftMockGroupSvc) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error {
 	return nil
 }
+func (m *draftMockGroupSvc) AddPlayerToActiveGroup(ctx context.Context, groupID, userID int64) error {
+	return nil
+}
 
 type draftMockRatingSvc struct{}
 

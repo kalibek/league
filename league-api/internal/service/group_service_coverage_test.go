@@ -218,7 +218,7 @@ func TestSeedPlayer_AlreadyInEventError(t *testing.T) {
 	mr := &mockMatchRepo{}
 	er := &mockDraftEventRepo{} // returns DRAFT events
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.SeedPlayer(context.Background(), 1, 42)
 	if err == nil {
 		t.Fatal("expected error for player already in event")

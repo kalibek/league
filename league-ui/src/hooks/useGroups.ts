@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listGroups, getGroup, createGroup, seedPlayer, removeGroupPlayer, finishGroup, reopenGroup, addPlayer, setManualPlace, setPlayerStatus } from '../api/groups'
+import { listGroups, getGroup, createGroup, seedPlayer, removeGroupPlayer, finishGroup, reopenGroup, addPlayer, setManualPlace, setPlayerStatus, addPlayerToActiveGroup } from '../api/groups'
 import type { Group, GroupDetail, PlayerStatus } from '../types'
 import { extractErrorMessage } from './utils'
 
@@ -215,4 +215,25 @@ export function useSetPlayerStatus() {
   }
 
   return { setStatus, loading, error }
+}
+
+export function useAddPlayerToActiveGroup() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const addActive = async (eventId: number, groupId: number, userId: number) => {
+    setLoading(true)
+    setError(null)
+    try {
+      await addPlayerToActiveGroup(eventId, groupId, userId)
+      return true
+    } catch (e) {
+      setError(extractErrorMessage(e))
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { addActive, loading, error }
 }

@@ -49,7 +49,7 @@ func main() {
 	eventSvc := service.NewEventService(database, eventRepo, groupRepo, matchRepo, userRepo)
 	ratingSvc := service.NewRatingService(database, userRepo, groupRepo, matchRepo, ratingRepo, eventRepo)
 	matchSvc := service.NewMatchService(database, matchRepo, groupRepo, hub)
-	groupSvc := service.NewGroupService(database, groupRepo, matchRepo, eventRepo)
+	groupSvc := service.NewGroupService(database, groupRepo, matchRepo, eventRepo, hub)
 	draftSvc := service.NewDraftService(database, leagueRepo, eventRepo, groupRepo, matchRepo, matchSvc, ratingSvc, groupSvc, hub)
 
 	// Handlers
@@ -129,6 +129,7 @@ func main() {
 		secured.POST("/events/:eid/groups/:gid/finish", groupsH.Finish)
 		secured.POST("/events/:eid/groups/:gid/reopen", groupsH.Reopen)
 		secured.POST("/events/:eid/groups/:gid/players", groupsH.AddPlayer)
+		secured.POST("/events/:eid/groups/:gid/add-player", groupsH.AddPlayerToActiveGroup)
 		secured.POST("/events/:eid/groups/:gid/seed", groupsH.SeedPlayer)
 		secured.DELETE("/events/:eid/groups/:gid/players/:gpid", groupsH.RemovePlayer)
 		secured.PUT("/events/:eid/groups/:gid/players/:pid/place", groupsH.SetManualPlace)

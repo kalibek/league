@@ -23,7 +23,7 @@ func TestGenerateRoundRobin_TwoPlayers(t *testing.T) {
 	mr := &mockMatchRepo{matches: map[int64][]model.Match{}}
 	er := &mockEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.GenerateRoundRobin(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -36,7 +36,7 @@ func TestGenerateRoundRobin_ThreePlayers(t *testing.T) {
 	mr := &mockMatchRepo{matches: map[int64][]model.Match{}}
 	er := &mockEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.GenerateRoundRobin(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -52,7 +52,7 @@ func TestGenerateRoundRobin_ExcludesNonCalculated(t *testing.T) {
 	mr := &mockMatchRepo{matches: map[int64][]model.Match{}}
 	er := &mockEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.GenerateRoundRobin(context.Background(), 1)
 	// Only 1 calculated player, so 0 matches — BulkCreate should not be called.
 	if err != nil {
@@ -65,7 +65,7 @@ func TestGenerateRoundRobin_NoPlayers(t *testing.T) {
 	mr := &mockMatchRepo{matches: map[int64][]model.Match{}}
 	er := &mockEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.GenerateRoundRobin(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("unexpected error for empty group: %v", err)
@@ -80,7 +80,7 @@ func TestGetGroupDetail_Success(t *testing.T) {
 	mr := &mockMatchRepo{matches: map[int64][]model.Match{1: {doneMatch(1, 2, 3, 1)}}}
 	er := &mockEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	grp, gotPlayers, gotMatches, err := svc.GetGroupDetail(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -104,7 +104,7 @@ func TestSetManualPlace(t *testing.T) {
 	mr := &mockMatchRepo{}
 	er := &mockEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.SetManualPlace(context.Background(), 1, 2)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -118,7 +118,7 @@ func TestAddNonCalculatedPlayer(t *testing.T) {
 	mr := &mockMatchRepo{}
 	er := &mockEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.AddNonCalculatedPlayer(context.Background(), 1, 99)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -133,7 +133,7 @@ func TestListGroups(t *testing.T) {
 	// Use the evtMockEventRepo directly — it also implements EventRepository.
 	er := &mockEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	list, err := svc.ListGroups(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -178,7 +178,7 @@ func TestCreateGroup_DraftEvent(t *testing.T) {
 	mr := &mockMatchRepo{}
 	er := &mockDraftEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	grp, err := svc.CreateGroup(context.Background(), 1, "A", 1, time.Now())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -193,7 +193,7 @@ func TestCreateGroup_NonDraftEvent(t *testing.T) {
 	mr := &mockMatchRepo{}
 	er := &mockEventRepo{} // returns an event with zero status (not EventDraft)
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	_, err := svc.CreateGroup(context.Background(), 1, "A", 1, time.Now())
 	if err == nil {
 		t.Fatal("expected error for non-DRAFT event")
@@ -207,7 +207,7 @@ func TestSeedPlayer_Success(t *testing.T) {
 	mr := &mockMatchRepo{}
 	er := &mockDraftEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.SeedPlayer(context.Background(), 1, 42)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -219,7 +219,7 @@ func TestSeedPlayer_NonDraftEvent(t *testing.T) {
 	mr := &mockMatchRepo{}
 	er := &mockEventRepo{} // returns zero-status event (not DRAFT)
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.SeedPlayer(context.Background(), 1, 42)
 	if err == nil {
 		t.Fatal("expected error for non-DRAFT event")
@@ -251,7 +251,7 @@ func TestRemovePlayer(t *testing.T) {
 	mr := &mockMatchRepo{}
 	er := &mockEventRepo{}
 
-	svc := NewGroupService(nil,gr, mr, er)
+	svc := NewGroupService(nil,gr, mr, er, nil)
 	err := svc.RemovePlayer(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

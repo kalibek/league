@@ -280,6 +280,33 @@ func (h *GroupsHandler) SetPlayerStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+// AddPlayerToActiveGroup handles POST /api/v1/secured/events/:eid/groups/:gid/add-player
+// Adds a calculated player to a group while the event is IN_PROGRESS.
+func (h *GroupsHandler) AddPlayerToActiveGroup(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("gid"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid group id"})
+		return
+	}
+	var req struct {
+		UserID int64 `json:"userId" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.groupSvc.AddPlayerToActiveGroup(c.Request.Context(), groupID, req.UserID); err != nil {
+		log.Printf("[handler] GroupsHandler.AddPlayerToActiveGroup: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.matchSvc.RecalcGroupPoints(c.Request.Context(), groupID); err != nil {
+		log.Printf("[handler] GroupsHandler.AddPlayerToActiveGroup recalc: %v", err)
+		// Non-fatal: player is added, just points may not be recalculated yet.
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 // getGamesToWin fetches gamesToWin from league config via group → event → league chain.
 func (h *GroupsHandler) getGamesToWin(ctx context.Context, groupID int64) int {
 	// This requires getting group → eventID → leagueID → config.

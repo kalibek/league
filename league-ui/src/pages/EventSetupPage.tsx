@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useEvent } from '../hooks/useEvents'
-import { useGroups, useCreateGroup, useSeedPlayer, useRemoveGroupPlayer } from '../hooks/useGroups'
+import { useGroups, useCreateGroup, useSeedPlayer, useRemoveGroupPlayer, useAddPlayerToActiveGroup } from '../hooks/useGroups'
 import { usePlayers } from '../hooks/usePlayers'
 import { Badge } from '../components/Badge/Badge'
 import { Button } from '../components/Button/Button'
@@ -26,6 +26,7 @@ export function EventSetupPage() {
   const { create: createGroup, loading: creating, error: createError } = useCreateGroup()
   const { seed, loading: seeding, error: seedError } = useSeedPlayer()
   const { remove, loading: removing } = useRemoveGroupPlayer()
+  const { addActive, loading: addingActive, error: addActiveError } = useAddPlayerToActiveGroup()
 
   // groupPlayers is fetched per group via the group detail endpoint.
   // We maintain a map of groupId → GroupPlayer[] in local state.
@@ -110,6 +111,17 @@ export function EventSetupPage() {
     if (ok) await loadGroupPlayers(groupId)
   }
 
+  const handleAddPlayerToActiveGroup = async (groupId: number) => {
+    const userId = selectedPlayer[groupId]
+    if (!userId) return
+    const ok = await addActive(eventId, groupId, userId)
+    if (ok) {
+      setSelectedPlayer((prev) => ({ ...prev, [groupId]: 0 }))
+      await loadGroupPlayers(groupId)
+      setGroupPlayers((prev) => ({ ...prev })) // trigger re-render for availablePlayers
+    }
+  }
+
   const groupsWithPlayers: GroupWithPlayers[] = groups.map((g) => ({
     ...g,
     players: groupPlayers[g.groupId] ?? [],
@@ -119,6 +131,7 @@ export function EventSetupPage() {
   if (!event) return <div className="p-8 text-red-600">{t('eventSetup.notFound')}</div>
 
   const isDraft = event.status === 'DRAFT'
+  const isInProgress = event.status === 'IN_PROGRESS'
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4">
@@ -150,9 +163,14 @@ export function EventSetupPage() {
         )}
       </div>
 
-      {!isDraft && (
+      {!isDraft && !isInProgress && (
         <div className="mb-4 rounded-md bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-800">
           {t('eventSetup.notDraftWarning')}
+        </div>
+      )}
+      {isInProgress && (
+        <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
+          {t('eventSetup.inProgressNote', 'Event is in progress. You can add players to groups below.')}
         </div>
       )}
 
@@ -276,7 +294,7 @@ export function EventSetupPage() {
                 )}
               </ul>
 
-              {/* Add player */}
+              {/* Add player — DRAFT mode: seed player */}
               {isDraft && (
                 <div className="flex gap-2 mt-2">
                   <select
@@ -310,6 +328,41 @@ export function EventSetupPage() {
                 </div>
               )}
               {seedError && <p className="text-xs text-red-600 mt-1">{seedError}</p>}
+
+              {/* Add player — IN_PROGRESS mode: add calculated player */}
+              {isInProgress && (
+                <div className="flex gap-2 mt-2">
+                  <select
+                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
+                    value={selectedPlayer[grp.groupId] ?? ''}
+                    onChange={(e) =>
+                      setSelectedPlayer((prev) => ({
+                        ...prev,
+                        [grp.groupId]: Number(e.target.value),
+                      }))
+                    }
+                    disabled={playersLoading || groupAvailable.length === 0}
+                  >
+                    <option value="">
+                      {groupAvailable.length === 0 ? t('eventSetup.noPlayersAvailable') : t('eventSetup.addPlayerPlaceholder')}
+                    </option>
+                    {groupAvailable.map((p) => (
+                      <option key={p.userId} value={p.userId}>
+                        {p.firstName} {p.lastName} ({Math.round(p.currentRating)})
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleAddPlayerToActiveGroup(grp.groupId)}
+                    disabled={!selectedPlayer[grp.groupId] || addingActive}
+                    loading={addingActive}
+                  >
+                    {t('eventSetup.add')}
+                  </Button>
+                </div>
+              )}
+              {addActiveError && <p className="text-xs text-red-600 mt-1">{addActiveError}</p>}
             </div>
           )
         })}

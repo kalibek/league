@@ -43,3 +43,6 @@ export const setPlayerStatus = (
   client.put(`/secured/events/${eventId}/groups/${groupId}/players/${groupPlayerId}/status`, {
     status,
   })
+
+export const addPlayerToActiveGroup = (eventId: number, groupId: number, userId: number) =>
+  client.post(`/secured/events/${eventId}/groups/${groupId}/add-player`, { userId })

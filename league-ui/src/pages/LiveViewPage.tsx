@@ -431,6 +431,14 @@ export function LiveViewPage() {
               {t('liveView.collapseAll')}
             </Button>
           )}
+          {canManage && event.status === 'IN_PROGRESS' && (
+            <Link
+              to={`/leagues/${leagueId}/events/${eventId}/setup`}
+              className="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              {t('liveView.managePlayers', 'Manage players')}
+            </Link>
+          )}
           {canManage && event.status === 'IN_PROGRESS' && allGroupsDone && (
             <Button variant="primary" onClick={handleFinishEvent} loading={finishingEvent}>
               {t('liveView.finishEvent')}

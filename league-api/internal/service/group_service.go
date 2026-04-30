@@ -11,6 +11,7 @@ import (
 	idb "league-api/internal/db"
 	"league-api/internal/model"
 	"league-api/internal/repository"
+	"league-api/internal/ws"
 )
 
 // GroupService handles round-robin generation and placement calculation.
@@ -27,6 +28,9 @@ type GroupService interface {
 	// SetPlayerStatus marks a player as dns or resets to active.
 	// Only allowed when the parent event is IN_PROGRESS.
 	SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error
+	// AddPlayerToActiveGroup adds a fully-calculated player to a group while the event is IN_PROGRESS.
+	// New DRAFT matches are created for the new player vs every existing non-IsNonCalculated player.
+	AddPlayerToActiveGroup(ctx context.Context, groupID, userID int64) error
 }
 
 type groupService struct {
@@ -34,6 +38,7 @@ type groupService struct {
 	groupRepo repository.GroupRepository
 	matchRepo repository.MatchRepository
 	eventRepo repository.EventRepository
+	hub       *ws.Hub
 }
 
 func NewGroupService(
@@ -41,12 +46,14 @@ func NewGroupService(
 	groupRepo repository.GroupRepository,
 	matchRepo repository.MatchRepository,
 	eventRepo repository.EventRepository,
+	hub *ws.Hub,
 ) GroupService {
 	return &groupService{
 		db:        db,
 		groupRepo: groupRepo,
 		matchRepo: matchRepo,
 		eventRepo: eventRepo,
+		hub:       hub,
 	}
 }
 
@@ -373,6 +380,94 @@ func (s *groupService) SetPlayerStatus(ctx context.Context, groupID, groupPlayer
 	if err := s.groupRepo.SetPlayerStatus(ctx, groupPlayerID, status); err != nil {
 		return fmt.Errorf("groupService.SetPlayerStatus: %w", err)
 	}
+	return nil
+}
+
+// AddPlayerToActiveGroup adds a fully-calculated player to a group while the event is IN_PROGRESS.
+// It assigns the player the bottom seed, creates N new DRAFT matches (new player vs each existing
+// non-IsNonCalculated player), and broadcasts a group_player_added event.
+func (s *groupService) AddPlayerToActiveGroup(ctx context.Context, groupID, userID int64) error {
+	grp, err := s.groupRepo.GetByID(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("groupService.AddPlayerToActiveGroup get group: %w", err)
+	}
+	ev, err := s.eventRepo.GetByID(ctx, grp.EventID)
+	if err != nil {
+		return fmt.Errorf("groupService.AddPlayerToActiveGroup get event: %w", err)
+	}
+	if ev.Status != model.EventInProgress {
+		return fmt.Errorf("cannot add player to a group when event is not IN_PROGRESS")
+	}
+
+	// Ensure the player is not already in any group in this event.
+	existing, err := s.groupRepo.ListPlayerGroupsInEvent(ctx, userID, grp.EventID)
+	if err != nil {
+		return fmt.Errorf("groupService.AddPlayerToActiveGroup check existing: %w", err)
+	}
+	if len(existing) > 0 {
+		return fmt.Errorf("player %d is already assigned to a group in this event", userID)
+	}
+
+	// Get current players to compute seed (count only non-IsNonCalculated).
+	currentPlayers, err := s.groupRepo.GetPlayers(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("groupService.AddPlayerToActiveGroup get players: %w", err)
+	}
+	calculatedCount := 0
+	for _, p := range currentPlayers {
+		if !p.IsNonCalculated {
+			calculatedCount++
+		}
+	}
+	seed := int16(calculatedCount + 1)
+
+	gp := &model.GroupPlayer{
+		GroupID:         groupID,
+		UserID:          userID,
+		Seed:            seed,
+		IsNonCalculated: false,
+		PlayerStatus:    model.PlayerStatusActive,
+	}
+	newGPID, err := s.groupRepo.AddPlayer(ctx, gp)
+	if err != nil {
+		return fmt.Errorf("groupService.AddPlayerToActiveGroup add player: %w", err)
+	}
+
+	// Build new matches: new player vs each existing non-IsNonCalculated player.
+	var newMatches []model.Match
+	for _, p := range currentPlayers {
+		if p.IsNonCalculated {
+			continue
+		}
+		p1ID := newGPID
+		p2ID := p.GroupPlayerID
+		newMatches = append(newMatches, model.Match{
+			GroupID:        groupID,
+			GroupPlayer1ID: &p1ID,
+			GroupPlayer2ID: &p2ID,
+			Status:         model.MatchDraft,
+		})
+	}
+
+	if len(newMatches) > 0 {
+		if err := s.matchRepo.BulkCreate(ctx, newMatches); err != nil {
+			return fmt.Errorf("groupService.AddPlayerToActiveGroup bulk create matches: %w", err)
+		}
+	}
+
+	// Broadcast the new player addition.
+	if s.hub != nil {
+		s.hub.BroadcastToEvent(ev.EventID, ws.Message{
+			Type:    "group_player_added",
+			GroupID: groupID,
+			Payload: map[string]any{
+				"groupId": groupID,
+				"userId":  userID,
+				"seed":    seed,
+			},
+		})
+	}
+
 	return nil
 }
 

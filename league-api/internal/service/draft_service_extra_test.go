@@ -185,6 +185,10 @@ func (s *nopGroupService) SetPlayerStatus(ctx context.Context, groupID, groupPla
 	return nil
 }
 
+func (s *nopGroupService) AddPlayerToActiveGroup(ctx context.Context, groupID, userID int64) error {
+	return nil
+}
+
 // groupWithPlayers is a helper to build a draftMockGroupRepo with players in specific groups.
 type draftGroupRepoWithPlayers struct {
 	draftMockGroupRepo
