@@ -5,7 +5,7 @@ import { formatDate } from '../hooks/utils'
 import { useEvent, useFinishEvent } from '../hooks/useEvents'
 import { useUpdateMatchScore, useSetTableNumber, useTablesInUse } from '../hooks/useMatches'
 import { useLeague } from '../hooks/useLeagues'
-import { useFinishGroup, useReopenGroup, useSetManualPlace } from '../hooks/useGroups'
+import { useFinishGroup, useReopenGroup, useSetManualPlace, useSetPlayerStatus } from '../hooks/useGroups'
 import { useEventWebSocket } from '../hooks/useWebSocket'
 import { useAuth } from '../hooks/useAuth'
 import { GroupCard } from '../components/GroupCard/GroupCard'
@@ -35,6 +35,7 @@ export function LiveViewPage() {
   const { finish: finishGroup, loading: finishing } = useFinishGroup()
   const { reopen: reopenGroup, loading: reopening } = useReopenGroup()
   const { setPlace, loading: placing } = useSetManualPlace()
+  const { setStatus: setPlayerStatus } = useSetPlayerStatus()
   const {
     finish: finishEventAction,
     loading: finishingEvent,
@@ -264,6 +265,28 @@ export function LiveViewPage() {
     }
   }
 
+  const handleSetPlayerStatus = async (groupId: number, groupPlayerId: number, currentStatus: 'active' | 'dns') => {
+    const newStatus = currentStatus === 'dns' ? 'active' : 'dns'
+    const ok = await setPlayerStatus(eventId, groupId, groupPlayerId, newStatus)
+    if (ok) {
+      setEvent((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          groups: prev.groups.map((g) => {
+            if (g.groupId !== groupId) return g
+            return {
+              ...g,
+              players: g.players.map((p) =>
+                p.groupPlayerId === groupPlayerId ? { ...p, playerStatus: newStatus } : p
+              ),
+            }
+          }),
+        }
+      })
+    }
+  }
+
   const handleReopenGroup = async (groupId: number) => {
     const ok = await reopenGroup(eventId, groupId)
     if (ok) {
@@ -454,6 +477,11 @@ export function LiveViewPage() {
                 onNoShow={
                   canManage && group.status !== 'DONE'
                     ? (gpId) => handleMarkNoShow(group.groupId, gpId)
+                    : undefined
+                }
+                onSetPlayerStatus={
+                  canManage && group.status !== 'DONE'
+                    ? (gpId, currentStatus) => handleSetPlayerStatus(group.groupId, gpId, currentStatus)
                     : undefined
                 }
                 onScoreClick={
