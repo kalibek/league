@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { updateMatchScore, setMatchTableNumber, getTablesInUse } from '../api/matches'
+import { updateMatchScore, setMatchTableNumber, getTablesInUse, resetMatchScore } from '../api/matches'
 import type { Match } from '../types'
 import { extractErrorMessage } from './utils'
 
@@ -49,6 +49,27 @@ export function useSetTableNumber() {
   }
 
   return { assign, loading, error }
+}
+
+export function useResetMatchScore() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const reset = async (groupId: number, matchId: number): Promise<boolean> => {
+    setLoading(true)
+    setError(null)
+    try {
+      await resetMatchScore(groupId, matchId)
+      return true
+    } catch (e) {
+      setError(extractErrorMessage(e))
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { reset, loading, error }
 }
 
 export function useTablesInUse(eventId: number) {

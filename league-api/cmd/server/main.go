@@ -136,6 +136,7 @@ func main() {
 		secured.PUT("/events/:eid/groups/:gid/placement", groupsH.SetManualPlacements)
 
 		secured.PUT("/groups/:gid/matches/:mid", matchesH.UpdateScore)
+		secured.DELETE("/groups/:gid/matches/:mid/score", matchesH.ResetScore)
 		secured.PUT("/groups/:gid/matches/:mid/table", matchesH.SetTableNumber)
 	}
 

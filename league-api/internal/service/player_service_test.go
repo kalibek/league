@@ -235,6 +235,8 @@ func (m *psMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNu
 	return nil
 }
 
+func (m *psMatchRepo) ResetScore(ctx context.Context, matchID int64) error { return nil }
+
 func (m *psMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }

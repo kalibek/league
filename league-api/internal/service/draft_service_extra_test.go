@@ -98,6 +98,8 @@ func (m *draftMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, 
 	return nil
 }
 
+func (m *draftMockMatchRepo) ResetScore(ctx context.Context, matchID int64) error { return nil }
+
 func (m *draftMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }
@@ -114,6 +116,8 @@ func (s *nopMatchService) RecalcGroupPoints(ctx context.Context, groupID int64) 
 func (s *nopMatchService) SetTableNumber(ctx context.Context, matchID int64, tableNumber int, eventID int64) error {
 	return nil
 }
+
+func (s *nopMatchService) ResetScore(ctx context.Context, matchID int64) error { return nil }
 
 func (s *nopMatchService) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil

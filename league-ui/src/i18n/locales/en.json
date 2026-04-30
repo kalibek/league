@@ -267,6 +267,7 @@
   "scoreEntry": {
     "wins": "{{name}} wins",
     "cancel": "Cancel",
+    "clear": "Clear",
     "walkover": "Walkover",
     "withdrew": "withdrew"
   },

@@ -15,6 +15,7 @@ import (
 // MatchService handles score entry, no-show, and placement recalculation.
 type MatchService interface {
 	UpdateScore(ctx context.Context, matchID int64, score1, score2 int16, gamesToWin int, withdraw1, withdraw2 bool) error
+	ResetScore(ctx context.Context, matchID int64) error
 	RecalcGroupPoints(ctx context.Context, groupID int64) error
 	SetTableNumber(ctx context.Context, matchID int64, tableNumber int, eventID int64) error
 	ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error)
@@ -84,6 +85,42 @@ func (s *matchService) UpdateScore(ctx context.Context, matchID int64, score1, s
 			"score2":    score2,
 			"withdraw1": withdraw1,
 			"withdraw2": withdraw2,
+		},
+	})
+
+	return nil
+}
+
+// ResetScore clears scores, table number, and resets match status to DRAFT.
+func (s *matchService) ResetScore(ctx context.Context, matchID int64) error {
+	m, err := s.matchRepo.GetByID(ctx, matchID)
+	if err != nil {
+		return fmt.Errorf("matchService.ResetScore get: %w", err)
+	}
+
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		if err := s.matchRepo.ResetScore(txCtx, matchID); err != nil {
+			return fmt.Errorf("matchService.ResetScore: %w", err)
+		}
+		if err := s.recalcGroupPoints(txCtx, m.GroupID); err != nil {
+			return fmt.Errorf("matchService.ResetScore recalc: %w", err)
+		}
+		return nil
+	}); txErr != nil {
+		return txErr
+	}
+
+	grp, err := s.groupRepo.GetByID(ctx, m.GroupID)
+	if err != nil {
+		return fmt.Errorf("matchService.ResetScore get group: %w", err)
+	}
+	s.hub.BroadcastToEvent(grp.EventID, ws.Message{
+		Type:    "match_updated",
+		GroupID: m.GroupID,
+		MatchID: matchID,
+		Payload: map[string]any{
+			"matchId": matchID,
+			"status":  string(model.MatchDraft),
 		},
 	})
 

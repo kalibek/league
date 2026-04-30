@@ -141,6 +141,8 @@ func (m *ratingMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64,
 	return nil
 }
 
+func (m *ratingMockMatchRepo) ResetScore(ctx context.Context, matchID int64) error { return nil }
+
 func (m *ratingMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }

@@ -86,6 +86,21 @@ func (h *MatchesHandler) getGamesToWin(ctx context.Context, groupID int64) int {
 	return league.Config.GamesToWin
 }
 
+// DELETE /api/v1/secured/groups/:gid/matches/:mid/score
+func (h *MatchesHandler) ResetScore(c *gin.Context) {
+	matchID, err := strconv.ParseInt(c.Param("mid"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid match id"})
+		return
+	}
+	if err := h.matchSvc.ResetScore(c.Request.Context(), matchID); err != nil {
+		log.Printf("[handler] MatchesHandler.ResetScore: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 // PUT /api/v1/groups/:gid/matches/:mid/table
 func (h *MatchesHandler) SetTableNumber(c *gin.Context) {
 	groupID, err := strconv.ParseInt(c.Param("gid"), 10, 64)

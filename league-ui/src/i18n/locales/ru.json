@@ -266,6 +266,7 @@
   "scoreEntry": {
     "wins": "{{name}} побеждает",
     "cancel": "Отмена",
+    "clear": "Очистить",
     "walkover": "Walkover",
     "withdrew": "снялся(-ась)"
   },

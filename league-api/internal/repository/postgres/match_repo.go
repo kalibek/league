@@ -148,6 +148,19 @@ func (r *matchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumb
 	return nil
 }
 
+func (r *matchRepo) ResetScore(ctx context.Context, matchID int64) error {
+	const q = `
+		UPDATE matches
+		SET score1 = NULL, score2 = NULL, withdraw1 = false, withdraw2 = false,
+		    table_number = NULL, status = 'DRAFT', last_updated = NOW()
+		WHERE match_id = $1`
+	_, err := r.db(ctx).ExecContext(ctx, q, matchID)
+	if err != nil {
+		return fmt.Errorf("matchRepo.ResetScore: %w", err)
+	}
+	return nil
+}
+
 func (r *matchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	tables := make([]int, 0)
 	const q = `

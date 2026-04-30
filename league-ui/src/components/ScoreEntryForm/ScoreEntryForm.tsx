@@ -12,15 +12,18 @@ interface ScoreEntryFormProps {
     score2: number,
     withdraw1: boolean,
     withdraw2: boolean) => void
+  onClear?: () => void
   onClose: () => void
   loading?: boolean
 }
 
 export function ScoreEntryForm({
+  match,
   gamesToWin,
   player1Name = 'Player 1',
   player2Name = 'Player 2',
   onSubmit,
+  onClear,
   onClose,
   loading = false,
 }: ScoreEntryFormProps) {
@@ -94,7 +97,14 @@ export function ScoreEntryForm({
             </div>
           </div>
         </>
-      <div className="flex justify-end">
+      <div className="flex justify-between">
+        {onClear && match.status !== 'DRAFT' ? (
+          <Button type="button" variant="danger" onClick={onClear} disabled={loading}>
+            {t('scoreEntry.clear')}
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
           {t('scoreEntry.cancel')}
         </Button>

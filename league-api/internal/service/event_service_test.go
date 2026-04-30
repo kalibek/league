@@ -152,6 +152,8 @@ func (m *evtMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, ta
 	return nil
 }
 
+func (m *evtMockMatchRepo) ResetScore(ctx context.Context, matchID int64) error { return nil }
+
 func (m *evtMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }

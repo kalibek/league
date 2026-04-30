@@ -284,6 +284,7 @@ func (m *draftMockMatchSvc) RecalcGroupPoints(ctx context.Context, groupID int64
 func (m *draftMockMatchSvc) SetTableNumber(ctx context.Context, matchID int64, tableNumber int, eventID int64) error {
 	return nil
 }
+func (m *draftMockMatchSvc) ResetScore(ctx context.Context, matchID int64) error { return nil }
 func (m *draftMockMatchSvc) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }

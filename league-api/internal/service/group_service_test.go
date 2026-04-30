@@ -245,6 +245,8 @@ func (m *mockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, table
 	return nil
 }
 
+func (m *mockMatchRepo) ResetScore(ctx context.Context, matchID int64) error { return nil }
+
 func (m *mockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	return nil, nil
 }

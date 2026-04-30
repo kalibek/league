@@ -266,6 +266,7 @@
   "scoreEntry": {
     "wins": "{{name}} жеңеді",
     "cancel": "Болдырмау",
+    "clear": "Тазалау",
     "walkover": "Walkover",
     "withdrew": "бас тартты"
   },

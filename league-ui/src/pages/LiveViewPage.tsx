@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { formatDate } from '../hooks/utils'
 import { useEvent, useFinishEvent } from '../hooks/useEvents'
-import { useUpdateMatchScore, useSetTableNumber, useTablesInUse } from '../hooks/useMatches'
+import { useUpdateMatchScore, useSetTableNumber, useTablesInUse, useResetMatchScore } from '../hooks/useMatches'
 import { useLeague } from '../hooks/useLeagues'
 import { useFinishGroup, useReopenGroup, useSetManualPlace, useSetPlayerStatus } from '../hooks/useGroups'
 import { useEventWebSocket } from '../hooks/useWebSocket'
@@ -30,6 +30,7 @@ export function LiveViewPage() {
   const { isMaintainer, isUmpire } = useAuth()
 
   const { update: updateScore, loading: scoreSaving } = useUpdateMatchScore()
+  const { reset: resetScore, loading: scoreResetting } = useResetMatchScore()
   const { assign: assignTable, loading: tableSaving } = useSetTableNumber()
   const { tablesInUse, refresh: refreshTablesInUse } = useTablesInUse(eventId)
   const { finish: finishGroup, loading: finishing } = useFinishGroup()
@@ -207,6 +208,32 @@ export function LiveViewPage() {
               matches: g.matches.map((m) =>
                 m.matchId === scoreModal.match.matchId
                   ? { ...m, score1, score2, withdraw1, withdraw2, status: 'DONE' as const }
+                  : m
+              ),
+            }
+          }),
+        }
+      })
+    }
+  }
+
+  const handleClearScore = async () => {
+    if (!scoreModal) return
+    const ok = await resetScore(scoreModal.groupId, scoreModal.match.matchId)
+    if (ok) {
+      setScoreModal(null)
+      refreshTablesInUse()
+      setEvent((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          groups: prev.groups.map((g) => {
+            if (g.groupId !== scoreModal.groupId) return g
+            return {
+              ...g,
+              matches: g.matches.map((m) =>
+                m.matchId === scoreModal.match.matchId
+                  ? { ...m, score1: null, score2: null, withdraw1: false, withdraw2: false, tableNumber: null, status: 'DRAFT' as const }
                   : m
               ),
             }
@@ -602,8 +629,9 @@ export function LiveViewPage() {
             player1Name={scoreModal.player1Name}
             player2Name={scoreModal.player2Name}
             onSubmit={handleScoreSubmit}
+            onClear={handleClearScore}
             onClose={() => setScoreModal(null)}
-            loading={scoreSaving}
+            loading={scoreSaving || scoreResetting}
           />
         )}
       </Modal>

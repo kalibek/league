@@ -79,6 +79,8 @@ func (m *matchSvcMockMatchRepo) SetTableNumber(ctx context.Context, matchID int6
 	return nil
 }
 
+func (m *matchSvcMockMatchRepo) ResetScore(ctx context.Context, matchID int64) error { return nil }
+
 func (m *matchSvcMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
 	var result []int
 	for _, match := range m.matches {
