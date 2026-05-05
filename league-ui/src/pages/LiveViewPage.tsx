@@ -466,29 +466,31 @@ export function LiveViewPage() {
               {inProgressMatches.length}
             </span>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <tbody>
-              {inProgressMatches.map((m, i) => (
-                <tr key={m.matchId} style={{ borderTop: i === 0 ? 'none' : '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '10px 14px', width: 72 }}>
-                    {m.tableNumber != null ? (
-                      <span style={{ fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 4, padding: '2px 8px', fontSize: 12 }}>
-                        T{m.tableNumber}
-                      </span>
-                    ) : (
-                      <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '10px 6px', fontWeight: 500, fontSize: 13, color: 'var(--navy)' }}>{m.p1Name}</td>
-                  <td style={{ padding: '10px 4px', fontSize: 10, fontWeight: 700, color: '#e2e8f0', textAlign: 'center', userSelect: 'none' }}>vs</td>
-                  <td style={{ padding: '10px 6px', fontWeight: 500, fontSize: 13, color: 'var(--navy)' }}>{m.p2Name}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, color: '#94a3b8' }}>
-                    {m.division} {m.groupNo}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table style={{ minWidth: 360, width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {inProgressMatches.map((m, i) => (
+                  <tr key={m.matchId} style={{ borderTop: i === 0 ? 'none' : '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '10px 14px', width: 72 }}>
+                      {m.tableNumber != null ? (
+                        <span style={{ fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 4, padding: '2px 8px', fontSize: 12 }}>
+                          T{m.tableNumber}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '10px 6px', fontWeight: 500, fontSize: 13, color: 'var(--navy)' }}>{m.p1Name}</td>
+                    <td style={{ padding: '10px 4px', fontSize: 10, fontWeight: 700, color: '#e2e8f0', textAlign: 'center', userSelect: 'none' }}>vs</td>
+                    <td style={{ padding: '10px 6px', fontWeight: 500, fontSize: 13, color: 'var(--navy)' }}>{m.p2Name}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, color: '#94a3b8' }}>
+                      {m.division} {m.groupNo}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

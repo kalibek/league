@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { GroupPlayer, Match } from '../../types'
 import { Badge } from '../Badge/Badge'
 import { Link } from 'react-router-dom'
@@ -34,6 +35,8 @@ function buildTiebreakDisplayMap(players: GroupPlayer[]): Map<number, number | n
 
 export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSetPlayerStatus }: GroupStandingsProps) {
   const { t } = useTranslation()
+  const [showMatrix, setShowMatrix] = useState(false)
+  const matrixColClass = showMatrix ? '' : 'hidden sm:table-cell'
 
   // Sort: non-DNS by seed, then DNS players at the bottom (also by seed among themselves).
   const sorted = [...players].sort((a, b) => {
@@ -47,6 +50,9 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
 
   const playerName = (p: GroupPlayer) =>
       p.user ? `${p.user.firstName} ${p.user.lastName} (${Math.round(p.user.currentRating)})` : `#${p.userId}`
+
+  const playerNameShort = (p: GroupPlayer) =>
+      p.user ? `${p.user.firstName} ${p.user.lastName}` : `#${p.userId}`
 
   // Build a lookup: `${p1Id}-${p2Id}` (canonical: smaller id first) → Match
   const matchLookup = new Map<string, Match>()
@@ -123,8 +129,9 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm text-left">
+    <div>
+      <div className="overflow-x-auto">
+      <table className={`w-full text-sm text-left ${showMatrix ? 'min-w-[580px]' : 'min-w-[320px]'}`}>
         <thead>
           <tr>
             <th style={{ ...thStyle, width: 40 }}>#</th>
@@ -132,11 +139,12 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
 
             <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.place')}</th>
             <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.ptsWL')}</th>
-            <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.tb')}</th>
-            <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.move')}</th>
+            <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>{t('groupStandings.tb')}</th>
+            <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>{t('groupStandings.move')}</th>
             {sorted.map((p, i) => (
                 <th
                     key={p.groupPlayerId}
+                    className={matrixColClass}
                     style={ {...thStyle, borderLeft: '1px solid var(--border)',textAlign: 'center' }}
                     title={playerName(p)}
                 >
@@ -173,7 +181,10 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
                         textDecoration: dns ? 'line-through' : 'none',
                       }}
                     >
-                      <Link to={`/players/${p.userId}`}>{name}</Link>
+                      <Link to={`/players/${p.userId}`} title={name} aria-label={name}>
+                        <span className="sm:hidden">{playerNameShort(p)}</span>
+                        <span className="hidden sm:inline">{playerName(p)}</span>
+                      </Link>
                     </span>
                     {p.isNonCalculated && (
                       <span style={{ fontSize: 11, color: '#94a3b8' }}>{t('groupStandings.guest')}</span>
@@ -221,10 +232,10 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
                   <span style={{ color: '#dc2626'}} >{p.isNonCalculated ? '—' : losses(p)}</span>
                   )
                 </td>
-                <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }}>
+                <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }} className={matrixColClass}>
                   {p.isNonCalculated ? '—' : (tiebreakMap.get(p.groupPlayerId) ?? '—')}
                 </td>
-                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                <td style={{ padding: '10px 12px', textAlign: 'center' }} className={matrixColClass}>
                   {p.advances && !p.isNonCalculated && (
                     <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 16 }} title="Advances">↑</span>
                   )}
@@ -237,6 +248,7 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
                     return (
                         <td
                             key={colPlayer.groupPlayerId}
+                            className={matrixColClass}
                             style={{...tdStyle, backgroundColor: '#94a3b8' }}
                         >
                           ×
@@ -252,6 +264,7 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
                   return (
                     <td
                       key={colPlayer.groupPlayerId}
+                      className={matrixColClass}
                       style={{
                         ...tdStyle,
                         backgroundColor: inProgress ? '#fef9c3' : undefined,
@@ -294,6 +307,13 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
           })}
         </tbody>
       </table>
+    </div>
+      <button
+        className="sm:hidden mt-2 text-xs text-blue-600 font-medium flex items-center gap-1 px-2 py-1 rounded border border-blue-200 bg-blue-50"
+        onClick={() => setShowMatrix(s => !s)}
+      >
+        {showMatrix ? '‹ Hide matrix' : 'Matrix ›'}
+      </button>
     </div>
   )
 }

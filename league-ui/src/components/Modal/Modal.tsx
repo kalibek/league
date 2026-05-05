@@ -29,8 +29,8 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       aria-modal="true"
     >
       <div
-        className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl"
-        style={{ padding: '24px 28px', border: '1px solid var(--border)' }}
+        className="relative w-full max-w-lg mx-4 sm:mx-auto rounded-2xl bg-white shadow-2xl p-4 sm:p-7 max-h-[90vh] overflow-y-auto"
+        style={{ border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">

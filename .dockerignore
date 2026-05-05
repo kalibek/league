@@ -1,0 +1,6 @@
+league-ui/node_modules
+league-ui/dist
+league-api/cover.out
+**/*.png
+**/*.md
+docs/

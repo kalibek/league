@@ -1,0 +1,6 @@
+apiVersion: v2
+name: league
+description: Table tennis league management app (nginx + Go API in single pod)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

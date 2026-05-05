@@ -1,0 +1,56 @@
+replicaCount: 1
+
+image:
+  repository: league
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: league.example.com
+  tls:
+    enabled: false
+    secretName: league-tls
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# All env vars the api reads. Sensitive values go in existingSecret.
+env:
+  PORT: "8080"
+  FRONTEND_URL: "http://localhost"
+
+# Name of a pre-existing Secret whose keys are injected as env vars.
+# Keys expected: DATABASE_URL, JWT_SECRET, and any OAuth secrets.
+# Create with:
+#   kubectl create secret generic league-secrets \
+#     --from-literal=DATABASE_URL='postgres://...' \
+#     --from-literal=JWT_SECRET='...' \
+#     --from-literal=GOOGLE_CLIENT_ID='...' \
+#     --from-literal=GOOGLE_CLIENT_SECRET='...'
+existingSecret: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
