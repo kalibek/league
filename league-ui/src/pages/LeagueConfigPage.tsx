@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useLeague, useUpdateConfig, useLeagueRoles, useAssignRole } from '../hooks/useLeagues'
+import { useAssignRole, useLeague, useLeagueRoles, useUpdateConfig } from '../hooks/useLeagues'
 import { usePlayers } from '../hooks/usePlayers'
 import { LeagueConfigForm } from '../components/LeagueConfigForm/LeagueConfigForm'
 import { Button } from '../components/Button/Button'
@@ -50,7 +50,10 @@ export function LeagueConfigPage() {
 
   return (
     <div className="max-w-xl mx-auto py-8 px-4">
-      <Link to={`/leagues/${leagueId}`} className="text-sm text-blue-600 hover:underline mb-4 block">
+      <Link
+        to={`/leagues/${leagueId}`}
+        className="text-sm text-blue-600 hover:underline mb-4 block"
+      >
         {t('leagueConfig.backToLeague')}
       </Link>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('leagueConfig.title')}</h1>
@@ -67,7 +70,9 @@ export function LeagueConfigPage() {
 
       {canManageRoles && (
         <div className="mt-10 border-t border-gray-200 pt-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('leagueConfig.maintainers')}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {t('leagueConfig.maintainers')}
+          </h3>
 
           {roleError && <p className="text-red-600 text-sm mb-3">{roleError}</p>}
 
@@ -95,7 +100,9 @@ export function LeagueConfigPage() {
           <div className="flex gap-2 items-center">
             <select
               value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value === '' ? '' : Number(e.target.value))}
+              onChange={(e) =>
+                setSelectedUserId(e.target.value === '' ? '' : Number(e.target.value))
+              }
               className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">{t('leagueConfig.selectPlayer')}</option>

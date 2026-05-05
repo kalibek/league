@@ -1,8 +1,14 @@
-import { useState, useMemo, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useEvent, useUpdateEventDetails } from '../hooks/useEvents'
-import { useGroups, useCreateGroup, useSeedPlayer, useRemoveGroupPlayer, useAddPlayerToActiveGroup } from '../hooks/useGroups'
+import {
+  useAddPlayerToActiveGroup,
+  useCreateGroup,
+  useGroups,
+  useRemoveGroupPlayer,
+  useSeedPlayer,
+} from '../hooks/useGroups'
 import { Badge } from '../components/Badge/Badge'
 import { Button } from '../components/Button/Button'
 import { PlayerSearchModal } from '../components/PlayerSearchModal/PlayerSearchModal'
@@ -26,7 +32,11 @@ export function EventSetupPage() {
   const { seed, loading: seeding, error: seedError } = useSeedPlayer()
   const { remove, loading: removing } = useRemoveGroupPlayer()
   const { addActive, loading: addingActive, error: addActiveError } = useAddPlayerToActiveGroup()
-  const { update: updateDetails, loading: updatingDetails, error: detailsError } = useUpdateEventDetails()
+  const {
+    update: updateDetails,
+    loading: updatingDetails,
+    error: detailsError,
+  } = useUpdateEventDetails()
 
   // groupPlayers is fetched per group via the group detail endpoint.
   // We maintain a map of groupId → GroupPlayer[] in local state.
@@ -42,6 +52,7 @@ export function EventSetupPage() {
   // Sync form when event changes
   useEffect(() => {
     if (event) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDetailsForm({
         title: event.title,
         startDate: toDateInput(event.startDate),
@@ -58,7 +69,12 @@ export function EventSetupPage() {
 
   // All userIds already assigned to any group in this event
   const assignedUserIds = useMemo(
-    () => new Set(Object.values(groupPlayers).flat().map((gp) => gp.userId)),
+    () =>
+      new Set(
+        Object.values(groupPlayers)
+          .flat()
+          .map((gp) => gp.userId)
+      ),
     [groupPlayers]
   )
 
@@ -88,7 +104,7 @@ export function EventSetupPage() {
         loadGroupPlayers(g.groupId)
       }
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groups])
 
   const handleCreateGroup = async (e: React.FormEvent) => {
@@ -142,7 +158,7 @@ export function EventSetupPage() {
       endDate: detailsForm.endDate,
     })
     if (updated) {
-      setEvent(updated)
+      setEvent((prev) => prev ? { ...prev, ...updated } : null)
       setIsEditingDetails(false)
     }
   }
@@ -188,7 +204,12 @@ export function EventSetupPage() {
                     title="Edit event details"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 012.828 0l.172.172a2 2 0 010 2.828L12 16H9v-3z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 012.828 0l.172.172a2 2 0 010 2.828L12 16H9v-3z"
+                      />
                     </svg>
                   </button>
                 )}
@@ -241,10 +262,7 @@ export function EventSetupPage() {
           )}
         </div>
         {isDraft && !isEditingDetails && (
-          <Link
-            to={`/leagues/${leagueId}`}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
+          <Link to={`/leagues/${leagueId}`} className="text-sm text-gray-500 hover:text-gray-700">
             {t('eventSetup.startFromLeague')}
           </Link>
         )}
@@ -257,7 +275,10 @@ export function EventSetupPage() {
       )}
       {isInProgress && (
         <div className="mb-4 rounded-md bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
-          {t('eventSetup.inProgressNote', 'Event is in progress. You can add players to groups below.')}
+          {t(
+            'eventSetup.inProgressNote',
+            'Event is in progress. You can add players to groups below.'
+          )}
         </div>
       )}
 
@@ -281,19 +302,25 @@ export function EventSetupPage() {
         >
           <div className="flex gap-3 flex-wrap">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{t('eventSetup.division')}</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t('eventSetup.division')}
+              </label>
               <select
                 className="rounded border border-gray-300 px-3 py-2 text-sm"
                 value={groupForm.division}
                 onChange={(e) => setGroupForm((f) => ({ ...f, division: e.target.value }))}
               >
                 {DIVISIONS.map((d) => (
-                  <option key={d} value={d}>{d}</option>
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{t('eventSetup.groupNumber')}</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {t('eventSetup.groupNumber')}
+              </label>
               <input
                 type="number"
                 min={1}
@@ -351,17 +378,10 @@ export function EventSetupPage() {
                 const rating = gp.user ? Math.round(gp.user.currentRating) : null
 
                 return (
-                  <li
-                    key={gp.groupPlayerId}
-                    className="flex items-center justify-between text-sm"
-                  >
+                  <li key={gp.groupPlayerId} className="flex items-center justify-between text-sm">
                     <span className="text-gray-700">
                       {playerName}
-                      {rating && (
-                        <span className="ml-1 text-xs text-gray-400">
-                          {rating}
-                        </span>
-                      )}
+                      {rating && <span className="ml-1 text-xs text-gray-400">{rating}</span>}
                     </span>
                     {isDraft && (
                       <button
@@ -408,32 +428,31 @@ export function EventSetupPage() {
         {t('eventSetup.playersAssigned', { assigned: assignedUserIds.size })}
       </div>
 
-      <button
-        onClick={refreshAll}
-        className="mt-2 text-xs text-blue-500 hover:underline"
-      >
+      <button onClick={refreshAll} className="mt-2 text-xs text-blue-500 hover:underline">
         {t('eventSetup.refresh')}
       </button>
 
-      {searchModalGroup !== null && (() => {
-        const selectedGroup = groupsWithPlayers.find((g) => g.groupId === searchModalGroup)
-        const groupTitle = selectedGroup
-          ? selectedGroup.division === 'Superleague'
-            ? 'Superleague'
-            : `${selectedGroup.division}${selectedGroup.groupNo}`
-          : 'Group'
+      {searchModalGroup !== null &&
+        (() => {
+          const selectedGroup = groupsWithPlayers.find((g) => g.groupId === searchModalGroup)
+          const groupTitle = selectedGroup
+            ? selectedGroup.division === 'Superleague'
+              ? 'Superleague'
+              : `${selectedGroup.division}${selectedGroup.groupNo}`
+            : 'Group'
 
-        return (
-          <PlayerSearchModal
-            open={true}
-            onClose={() => setSearchModalGroup(null)}
-            onAdd={(userId) => handleAddPlayerFromModal(searchModalGroup, userId)}
-            assignedUserIds={assignedUserIds}
-            title={`Add player to ${groupTitle}`}
-            loading={seeding || addingActive}
-          />
-        )
-      })()}
+          return (
+            <PlayerSearchModal
+              key={searchModalGroup}
+              open={true}
+              onClose={() => setSearchModalGroup(null)}
+              onAdd={(userId) => handleAddPlayerFromModal(searchModalGroup, userId)}
+              assignedUserIds={assignedUserIds}
+              title={`Add player to ${groupTitle}`}
+              loading={seeding || addingActive}
+            />
+          )
+        })()}
     </div>
   )
 }

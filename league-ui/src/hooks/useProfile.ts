@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
-  getMyProfile,
-  upsertMyProfile,
-  listCountries,
-  listCities,
-  addCity,
-  listBlades,
   addBlade,
-  listRubbers,
+  addCity,
   addRubber,
+  getMyProfile,
+  listBlades,
+  listCities,
+  listCountries,
+  listRubbers,
+  upsertMyProfile,
 } from '../api/profile'
-import type { PlayerProfileDetail, Country, City, Blade, Rubber } from '../types'
+import type { Blade, City, Country, PlayerProfileDetail, Rubber } from '../types'
 import { extractErrorMessage } from './utils'
 
 export function useMyProfile() {
@@ -22,12 +22,28 @@ export function useMyProfile() {
   useEffect(() => {
     let cancelled = false
     getMyProfile()
-      .then((res) => { if (!cancelled) { setProfile(res.data); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setProfile(res.data)
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return { profile, setProfile, loading, error, refresh }
 }
@@ -78,12 +94,24 @@ export function useCities(countryId: number | null) {
     }
     let cancelled = false
     listCities(countryId)
-      .then((res) => { if (!cancelled) { setCities(res.data); setLoading(false) } })
-      .catch(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setCities(res.data)
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [countryId, tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   const add = async (name: string): Promise<City | null> => {
     if (!countryId) return null

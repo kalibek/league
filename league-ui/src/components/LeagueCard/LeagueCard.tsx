@@ -23,11 +23,30 @@ export function LeagueCard({ league }: { league: League }) {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 style={{ fontWeight: 700, fontSize: 16, color: 'var(--navy)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <h2
+            style={{
+              fontWeight: 700,
+              fontSize: 16,
+              color: 'var(--navy)',
+              marginBottom: 4,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {league.title}
           </h2>
           {league.description && (
-            <p style={{ fontSize: 13, color: '#64748b', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>
+            <p
+              style={{
+                fontSize: 13,
+                color: '#64748b',
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: 'vertical',
+              }}
+            >
               {league.description}
             </p>
           )}
@@ -49,7 +68,9 @@ export function LeagueCard({ league }: { league: League }) {
       </div>
 
       {maintainers.length > 0 && (
-        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <div
+          style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
+        >
           <span style={{ fontSize: 11, color: '#94a3b8' }}>{t('leagues.maintainedBy')}</span>
           {maintainers.map((m) => (
             <span

@@ -18,7 +18,14 @@ export function Select({ label, options, error, id, className = '', style, ...re
       {label && (
         <label
           htmlFor={selectId}
-          style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 2 }}
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: '#64748b',
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            marginBottom: 2,
+          }}
         >
           {label}
         </label>

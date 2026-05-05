@@ -1,6 +1,6 @@
-import { Outlet, Link, useLocation, NavLink } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AuthProvider, useAuthContext } from '../context/AuthContext'
 import { useMyProfile } from '../hooks/useProfile'
 
@@ -45,9 +45,7 @@ function ProfileBannerInner() {
   return (
     <div style={{ backgroundColor: '#fff8ed', borderBottom: '1px solid #fed7aa' }}>
       <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between text-sm">
-        <span style={{ color: '#92400e' }}>
-          {t('profileBanner.message')}
-        </span>
+        <span style={{ color: '#92400e' }}>{t('profileBanner.message')}</span>
         <Link
           to="/profile/edit"
           style={{ color: '#7c2d12', fontWeight: 600, textDecoration: 'underline' }}
@@ -72,6 +70,7 @@ function NavBar() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMenuOpen(false), [location.pathname])
 
   if (loading) return null
@@ -134,10 +133,7 @@ function NavBar() {
                 >
                   {user.firstName} {user.lastName}
                 </Link>
-                <button
-                  onClick={logout}
-                  className="text-sm text-white opacity-60 hover:opacity-90"
-                >
+                <button onClick={logout} className="text-sm text-white opacity-60 hover:opacity-90">
                   {t('nav.logout')}
                 </button>
               </>
@@ -195,18 +191,10 @@ function NavBar() {
           }}
         >
           <div className="px-4 py-3 flex flex-col gap-1">
-            <NavLink
-              to="/leagues"
-              className={navLinkClass}
-              onClick={() => setMenuOpen(false)}
-            >
+            <NavLink to="/leagues" className={navLinkClass} onClick={() => setMenuOpen(false)}>
               {t('nav.leagues')}
             </NavLink>
-            <NavLink
-              to="/players"
-              className={navLinkClass}
-              onClick={() => setMenuOpen(false)}
-            >
+            <NavLink to="/players" className={navLinkClass} onClick={() => setMenuOpen(false)}>
               {t('nav.players')}
             </NavLink>
             <div className="pt-2 border-t border-white/10 mt-1 flex items-center justify-between">

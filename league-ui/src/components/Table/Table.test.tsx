@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Table, type Column } from './Table'
+import { type Column, Table } from './Table'
 
 interface Row {
   id: number
@@ -11,7 +11,13 @@ interface Row {
 
 const columns: Column<Row>[] = [
   { key: 'name', header: 'Name', render: (r) => r.name, sortable: true, sortValue: (r) => r.name },
-  { key: 'rating', header: 'Rating', render: (r) => r.rating, sortable: true, sortValue: (r) => r.rating },
+  {
+    key: 'rating',
+    header: 'Rating',
+    render: (r) => r.rating,
+    sortable: true,
+    sortValue: (r) => r.rating,
+  },
 ]
 
 const rows: Row[] = [

@@ -1,12 +1,5 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
 import type { ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { getMe, logout as logoutApi } from '../api/auth'
 import type { User, UserRole } from '../types'
 
@@ -61,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isUmpire = useCallback(
     (leagueId: number) =>
-      roles[leagueId]?.includes('umpire') || roles[leagueId]?.includes('maintainer') ? true : false,
+      roles[leagueId]?.includes('umpire') || roles[leagueId]?.includes('maintainer'),
     [roles]
   )
 

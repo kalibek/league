@@ -1,11 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { listPlayers, getPlayer, createPlayer, listPlayerEvents } from '../api/players'
-import type { User, PlayerEventSummary } from '../types'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PlayerDetail } from '../api/players'
+import { createPlayer, getPlayer, listPlayerEvents, listPlayers } from '../api/players'
+import type { PlayerEventSummary, User } from '../types'
 import { extractErrorMessage } from './utils'
 import { useDebounce } from './useDebounce'
 
-export function usePlayers(params?: { q?: string; sort?: string; limit?: number; offset?: number }) {
+export function usePlayers(params?: {
+  q?: string
+  sort?: string
+  limit?: number
+  offset?: number
+}) {
   const [players, setPlayers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -16,13 +21,29 @@ export function usePlayers(params?: { q?: string; sort?: string; limit?: number;
   useEffect(() => {
     let cancelled = false
     listPlayers({ ...params, q: debouncedQ || undefined })
-      .then((res) => { if (!cancelled) { setPlayers(res.data ?? []); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      .then((res) => {
+        if (!cancelled) {
+          setPlayers(res.data ?? [])
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQ, params?.sort, params?.limit, params?.offset, tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return { players, loading, error, refresh }
 }
@@ -35,9 +56,22 @@ export function usePlayer(id: number) {
   useEffect(() => {
     let cancelled = false
     getPlayer(id)
-      .then((res) => { if (!cancelled) { setPlayer(res.data); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setPlayer(res.data)
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
   return { player, loading, error }
@@ -86,8 +120,12 @@ export function usePlayerEvents(userId: number) {
           setLoading(false)
         }
       })
-      .catch(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+      .catch(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [userId, tick])
 
   const loadMore = useCallback(() => {
@@ -103,7 +141,10 @@ export function usePlayerEvents(userId: number) {
       .catch(() => setLoading(false))
   }, [userId])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return {
     events,

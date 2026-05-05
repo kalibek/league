@@ -1,9 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useMyProfile, useUpsertProfile, useCountries, useCities, useBlades, useRubbers } from '../hooks/useProfile'
+import {
+  useBlades,
+  useCities,
+  useCountries,
+  useMyProfile,
+  useRubbers,
+  useUpsertProfile,
+} from '../hooks/useProfile'
 import { Button } from '../components/Button/Button'
-import type { Country, City, Blade, Rubber } from '../types'
+import type { Blade, City, Country, Rubber } from '../types'
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -68,7 +75,14 @@ function AddNewInput({
       <input
         autoFocus
         type="text"
-        style={{ flex: 1, border: '1.5px solid var(--border)', borderRadius: 8, padding: '7px 10px', fontSize: 13, outline: 'none' }}
+        style={{
+          flex: 1,
+          border: '1.5px solid var(--border)',
+          borderRadius: 8,
+          padding: '7px 10px',
+          fontSize: 13,
+          outline: 'none',
+        }}
         className="focus:border-[#FF7A00]"
         placeholder={placeholder}
         value={state.value}
@@ -80,14 +94,31 @@ function AddNewInput({
       />
       <button
         type="button"
-        style={{ fontSize: 12, padding: '7px 14px', backgroundColor: 'var(--orange)', color: '#fff', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600 }}
+        style={{
+          fontSize: 12,
+          padding: '7px 14px',
+          backgroundColor: 'var(--orange)',
+          color: '#fff',
+          borderRadius: 8,
+          border: 'none',
+          cursor: 'pointer',
+          fontWeight: 600,
+        }}
         onClick={onConfirm}
       >
         {addLabel}
       </button>
       <button
         type="button"
-        style={{ fontSize: 12, padding: '7px 12px', border: '1.5px solid var(--border)', borderRadius: 8, cursor: 'pointer', backgroundColor: '#fff', color: '#64748b' }}
+        style={{
+          fontSize: 12,
+          padding: '7px 12px',
+          border: '1.5px solid var(--border)',
+          borderRadius: 8,
+          cursor: 'pointer',
+          backgroundColor: '#fff',
+          color: '#64748b',
+        }}
         onClick={onCancel}
       >
         {cancelLabel}
@@ -139,7 +170,11 @@ function SelectWithAdd<T extends { name: string }>({
       <label style={labelStyle}>{label}</label>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <select
-          style={{ ...selectStyle, opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'default' }}
+          style={{
+            ...selectStyle,
+            opacity: disabled ? 0.6 : 1,
+            cursor: disabled ? 'not-allowed' : 'default',
+          }}
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
           disabled={disabled}
@@ -154,7 +189,15 @@ function SelectWithAdd<T extends { name: string }>({
         {onAdd && !addState.show && (
           <button
             type="button"
-            style={{ fontSize: 12, color: 'var(--orange)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{
+              fontSize: 12,
+              color: 'var(--orange)',
+              fontWeight: 600,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
             onClick={() => setAddState({ show: true, value: '' })}
           >
             {addNewLabel}
@@ -246,11 +289,12 @@ export function ProfileEditPage() {
     if (result) navigate('/')
   }
 
-  if (profileLoading) return (
-    <div style={{ padding: '48px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
-      {t('profileEdit.loadingProfile')}
-    </div>
-  )
+  if (profileLoading)
+    return (
+      <div style={{ padding: '48px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
+        {t('profileEdit.loadingProfile')}
+      </div>
+    )
 
   const sectionLabel: React.CSSProperties = {
     fontSize: 10,
@@ -285,7 +329,15 @@ export function ProfileEditPage() {
 
   return (
     <div className="max-w-2xl mx-auto py-10 px-4">
-      <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.5px', marginBottom: 24 }}>
+      <h1
+        style={{
+          fontSize: 26,
+          fontWeight: 800,
+          color: 'var(--navy)',
+          letterSpacing: '-0.5px',
+          marginBottom: 24,
+        }}
+      >
         {t('profileEdit.title')}
       </h1>
 
@@ -452,7 +504,15 @@ export function ProfileEditPage() {
         />
 
         {saveError && (
-          <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+          <div
+            style={{
+              color: '#dc2626',
+              backgroundColor: '#fee2e2',
+              borderRadius: 8,
+              padding: '10px 14px',
+              fontSize: 13,
+            }}
+          >
             {saveError}
           </div>
         )}

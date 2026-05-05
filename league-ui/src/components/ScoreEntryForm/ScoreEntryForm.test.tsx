@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ScoreEntryForm } from './ScoreEntryForm'
@@ -79,7 +79,15 @@ describe('ScoreEntryForm', () => {
   })
 
   it('disables all buttons when loading is true', () => {
-    render(<ScoreEntryForm match={match} gamesToWin={3} onSubmit={vi.fn()} onClose={vi.fn()} loading={true} />)
+    render(
+      <ScoreEntryForm
+        match={match}
+        gamesToWin={3}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+        loading={true}
+      />
+    )
     const scoreButton = screen.getByRole('button', { name: '3 : 0' })
     expect(scoreButton).toBeDisabled()
   })

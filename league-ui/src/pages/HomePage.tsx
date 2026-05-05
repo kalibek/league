@@ -3,12 +3,19 @@ import { useTranslation } from 'react-i18next'
 import { useLeagues } from '../hooks/useLeagues'
 import { usePlayers } from '../hooks/usePlayers'
 import { LeagueCard } from '../components/LeagueCard/LeagueCard'
-import { Table, type Column } from '../components/Table/Table'
+import { type Column, Table } from '../components/Table/Table'
 import type { User } from '../types'
 
 function SectionHeader({ title, to, label }: { title: string; to: string; label: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+      }}
+    >
       <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.3px' }}>
         {title}
       </h2>
@@ -26,7 +33,11 @@ function SectionHeader({ title, to, label }: { title: string; to: string; label:
 export function HomePage() {
   const { t } = useTranslation()
   const { leagues, loading: leaguesLoading, error: leaguesError } = useLeagues()
-  const { players, loading: playersLoading, error: playersError } = usePlayers({ sort: 'rating', limit: 10, offset: 0 })
+  const {
+    players,
+    loading: playersLoading,
+    error: playersError,
+  } = usePlayers({ sort: 'rating', limit: 10, offset: 0 })
 
   const topLeagues = leagues.slice(0, 3)
 
@@ -72,15 +83,25 @@ export function HomePage() {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto py-10 px-4" style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
-
+    <div
+      className="max-w-4xl mx-auto py-10 px-4"
+      style={{ display: 'flex', flexDirection: 'column', gap: 48 }}
+    >
       {/* Leagues section */}
       <section>
         <SectionHeader title={t('home.leagues')} to="/leagues" label={t('home.viewAll')} />
 
         {leaguesLoading && <p style={{ color: '#94a3b8', fontSize: 14 }}>{t('home.loading')}</p>}
         {leaguesError && (
-          <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+          <div
+            style={{
+              color: '#dc2626',
+              backgroundColor: '#fee2e2',
+              borderRadius: 8,
+              padding: '10px 14px',
+              fontSize: 13,
+            }}
+          >
             {leaguesError}
           </div>
         )}
@@ -127,7 +148,15 @@ export function HomePage() {
 
         {playersLoading && <p style={{ color: '#94a3b8', fontSize: 14 }}>{t('home.loading')}</p>}
         {playersError && (
-          <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+          <div
+            style={{
+              color: '#dc2626',
+              backgroundColor: '#fee2e2',
+              borderRadius: 8,
+              padding: '10px 14px',
+              fontSize: 13,
+            }}
+          >
             {playersError}
           </div>
         )}
@@ -162,7 +191,6 @@ export function HomePage() {
           </div>
         )}
       </section>
-
     </div>
   )
 }

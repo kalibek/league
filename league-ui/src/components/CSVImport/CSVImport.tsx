@@ -58,7 +58,10 @@ export function CSVImport({ onImport, loading = false }: CSVImportProps) {
     <div className="flex flex-col gap-4">
       {/* Drop zone */}
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragOver(true)
+        }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
@@ -81,9 +84,7 @@ export function CSVImport({ onImport, loading = false }: CSVImportProps) {
         ) : (
           <>
             <p className="text-gray-500">{t('csvImport.dragDrop')}</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {t('csvImport.columns')}
-            </p>
+            <p className="text-xs text-gray-400 mt-1">{t('csvImport.columns')}</p>
           </>
         )}
       </div>
@@ -129,7 +130,10 @@ export function CSVImport({ onImport, loading = false }: CSVImportProps) {
           <p className="font-medium text-gray-800">
             {t('csvImport.importedSkipped', { imported: result.imported, skipped: result.skipped })}
             {(result.errors ?? []).length > 0 && (
-              <span className="text-red-600"> &nbsp;|&nbsp; {t('csvImport.errors', { count: result.errors.length })}</span>
+              <span className="text-red-600">
+                {' '}
+                &nbsp;|&nbsp; {t('csvImport.errors', { count: result.errors.length })}
+              </span>
             )}
           </p>
           {(result.errors ?? []).length > 0 && (

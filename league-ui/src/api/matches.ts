@@ -5,8 +5,7 @@ export const updateMatchScore = (
   groupId: number,
   matchId: number,
   data: { score1: number; score2: number }
-) =>
-  client.put<Match>(`/secured/groups/${groupId}/matches/${matchId}`, data)
+) => client.put<Match>(`/secured/groups/${groupId}/matches/${matchId}`, data)
 
 export const setMatchTableNumber = (groupId: number, matchId: number, tableNumber: number) =>
   client.put(`/secured/groups/${groupId}/matches/${matchId}/table`, { tableNumber })

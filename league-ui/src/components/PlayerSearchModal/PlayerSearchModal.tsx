@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Modal } from '../Modal/Modal'
 import { usePlayers } from '../../hooks/usePlayers'
 import type { User } from '../../types'
@@ -25,13 +25,6 @@ export function PlayerSearchModal({
   const [loadingPlayerId, setLoadingPlayerId] = useState<number | null>(null)
 
   const { players } = usePlayers({ q: query, limit: 20, sort: 'rating' })
-
-  useEffect(() => {
-    if (!open) {
-      setQuery('')
-      setSuccessMessage('')
-    }
-  }, [open])
 
   const filteredPlayers = players.filter((p) => !assignedUserIds.has(p.userId))
 
@@ -65,9 +58,7 @@ export function PlayerSearchModal({
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7A00] focus:border-[#FF7A00]"
         />
 
-        {successMessage && (
-          <p className="text-sm text-green-600">{successMessage}</p>
-        )}
+        {successMessage && <p className="text-sm text-green-600">{successMessage}</p>}
 
         <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
           {query === '' && filteredPlayers.length === 0 && (

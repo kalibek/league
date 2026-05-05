@@ -33,7 +33,6 @@ export function useEventWebSocket(
 
   useEffect(() => {
     if (!enabled) {
-      setConnected(false)
       return
     }
 

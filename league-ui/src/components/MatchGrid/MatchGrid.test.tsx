@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -16,7 +16,17 @@ const makePlayer = (id: number, firstName: string): GroupPlayer => ({
   advances: false,
   recedes: false,
   isNonCalculated: false,
-  user: { userId: id, firstName, lastName: 'X', email: `${id}@test.com`, currentRating: 1500, deviation: 200, volatility: 0.06, isAdmin: false },
+  playerStatus: 'active',
+  user: {
+    userId: id,
+    firstName,
+    lastName: 'X',
+    email: `${id}@test.com`,
+    currentRating: 1500,
+    deviation: 200,
+    volatility: 0.06,
+    isAdmin: false,
+  },
 })
 
 const doneMatch = (p1: number, p2: number, s1: number, s2: number): Match => ({
@@ -97,10 +107,7 @@ describe('MatchGrid', () => {
   })
 
   it('does not show non-calculated players', () => {
-    const players = [
-      makePlayer(1, 'Alice'),
-      { ...makePlayer(2, 'Guest'), isNonCalculated: true },
-    ]
+    const players = [makePlayer(1, 'Alice'), { ...makePlayer(2, 'Guest'), isNonCalculated: true }]
     renderGrid(players, [])
     const guestLinks = screen.queryAllByText('Guest X')
     expect(guestLinks.length).toBe(0)

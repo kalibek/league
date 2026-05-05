@@ -33,7 +33,13 @@ function buildTiebreakDisplayMap(players: GroupPlayer[]): Map<number, number | n
   return result
 }
 
-export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSetPlayerStatus }: GroupStandingsProps) {
+export function GroupStandings({
+  players,
+  matches,
+  onNoShow,
+  onScoreClick,
+  onSetPlayerStatus,
+}: GroupStandingsProps) {
   const { t } = useTranslation()
   const [showMatrix, setShowMatrix] = useState(false)
   const matrixColClass = showMatrix ? '' : 'hidden sm:table-cell'
@@ -49,10 +55,12 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
   const tiebreakMap = buildTiebreakDisplayMap(players)
 
   const playerName = (p: GroupPlayer) =>
-      p.user ? `${p.user.firstName} ${p.user.lastName} (${Math.round(p.user.currentRating)})` : `#${p.userId}`
+    p.user
+      ? `${p.user.firstName} ${p.user.lastName} (${Math.round(p.user.currentRating)})`
+      : `#${p.userId}`
 
   const playerNameShort = (p: GroupPlayer) =>
-      p.user ? `${p.user.firstName} ${p.user.lastName}` : `#${p.userId}`
+    p.user ? `${p.user.firstName} ${p.user.lastName}` : `#${p.userId}`
 
   // Build a lookup: `${p1Id}-${p2Id}` (canonical: smaller id first) → Match
   const matchLookup = new Map<string, Match>()
@@ -88,10 +96,10 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
     const m = getMatch(rowPlayer, colPlayer)
     if (!m) return false
     if (m.score1 === null || m.score2 === null) return false
-    return (m.groupPlayer1Id === rowPlayer.groupPlayerId &&
-    m.score1 > m.score2) ||
-        (m.groupPlayer2Id === rowPlayer.groupPlayerId &&
-    m.score1 < m.score2)
+    return (
+      (m.groupPlayer1Id === rowPlayer.groupPlayerId && m.score1 > m.score2) ||
+      (m.groupPlayer2Id === rowPlayer.groupPlayerId && m.score1 < m.score2)
+    )
   }
 
   const wins = (p: GroupPlayer) =>
@@ -100,8 +108,14 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
         m.status === 'DONE' &&
         !m.withdraw1 &&
         !m.withdraw2 &&
-        ((m.groupPlayer1Id === p.groupPlayerId && m.score1 !== null && m.score2 !== null && m.score1 > m.score2) ||
-          (m.groupPlayer2Id === p.groupPlayerId && m.score1 !== null && m.score2 !== null && m.score2 > m.score1))
+        ((m.groupPlayer1Id === p.groupPlayerId &&
+          m.score1 !== null &&
+          m.score2 !== null &&
+          m.score1 > m.score2) ||
+          (m.groupPlayer2Id === p.groupPlayerId &&
+            m.score1 !== null &&
+            m.score2 !== null &&
+            m.score2 > m.score1))
     ).length
 
   const losses = (p: GroupPlayer) =>
@@ -110,8 +124,14 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
         m.status === 'DONE' &&
         !m.withdraw1 &&
         !m.withdraw2 &&
-        ((m.groupPlayer1Id === p.groupPlayerId && m.score1 !== null && m.score2 !== null && m.score1 < m.score2) ||
-          (m.groupPlayer2Id === p.groupPlayerId && m.score1 !== null && m.score2 !== null && m.score2 < m.score1))
+        ((m.groupPlayer1Id === p.groupPlayerId &&
+          m.score1 !== null &&
+          m.score2 !== null &&
+          m.score1 < m.score2) ||
+          (m.groupPlayer2Id === p.groupPlayerId &&
+            m.score1 !== null &&
+            m.score2 !== null &&
+            m.score2 < m.score1))
     ).length
   const tdStyle: React.CSSProperties = {
     textAlign: 'center',
@@ -131,186 +151,221 @@ export function GroupStandings({ players, matches, onNoShow, onScoreClick, onSet
   return (
     <div>
       <div className="overflow-x-auto">
-      <table className={`w-full text-sm text-left ${showMatrix ? 'min-w-[580px]' : 'min-w-[320px]'}`}>
-        <thead>
-          <tr>
-            <th style={{ ...thStyle, width: 40 }}>#</th>
-            <th style={thStyle}>{t('groupStandings.player')}</th>
+        <table
+          className={`w-full text-sm text-left ${showMatrix ? 'min-w-[580px]' : 'min-w-[320px]'}`}
+        >
+          <thead>
+            <tr>
+              <th style={{ ...thStyle, width: 40 }}>#</th>
+              <th style={thStyle}>{t('groupStandings.player')}</th>
 
-            <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.place')}</th>
-            <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.ptsWL')}</th>
-            <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>{t('groupStandings.tb')}</th>
-            <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>{t('groupStandings.move')}</th>
-            {sorted.map((p, i) => (
+              <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.place')}</th>
+              <th style={{ ...thStyle, textAlign: 'center' }}>{t('groupStandings.ptsWL')}</th>
+              <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>
+                {t('groupStandings.tb')}
+              </th>
+              <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>
+                {t('groupStandings.move')}
+              </th>
+              {sorted.map((p, i) => (
                 <th
-                    key={p.groupPlayerId}
-                    className={matrixColClass}
-                    style={ {...thStyle, borderLeft: '1px solid var(--border)',textAlign: 'center' }}
-                    title={playerName(p)}
+                  key={p.groupPlayerId}
+                  className={matrixColClass}
+                  style={{ ...thStyle, borderLeft: '1px solid var(--border)', textAlign: 'center' }}
+                  title={playerName(p)}
                 >
-                  #{i+1}
+                  #{i + 1}
                 </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((p, i) => {
-            const dns = p.playerStatus === 'dns'
-            const name = playerName(p)
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((p, i) => {
+              const dns = p.playerStatus === 'dns'
+              const name = playerName(p)
 
-            return (
-              <tr
-                key={p.groupPlayerId}
-                style={{
-                  backgroundColor: i % 2 === 0 ? '#fff' : '#fafbfd',
-                  borderBottom: '1px solid var(--border)',
-                  opacity: dns ? 0.6 : 1,
-                }}
-              >
-                <td style={{ padding: '10px 12px', color: '#94a3b8', fontSize: 12 }}>
-                  {p.seed}
-                </td>
+              return (
+                <tr
+                  key={p.groupPlayerId}
+                  style={{
+                    backgroundColor: i % 2 === 0 ? '#fff' : '#fafbfd',
+                    borderBottom: '1px solid var(--border)',
+                    opacity: dns ? 0.6 : 1,
+                  }}
+                >
+                  <td style={{ padding: '10px 12px', color: '#94a3b8', fontSize: 12 }}>{p.seed}</td>
 
-                <td style={{ padding: '10px 12px' }}>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      style={{
-                        fontWeight: 500,
-                        color: p.isNonCalculated ? '#94a3b8' : 'var(--dark)',
-                        fontStyle: p.isNonCalculated ? 'italic' : 'normal',
-                        textDecoration: dns ? 'line-through' : 'none',
-                      }}
-                    >
-                      <Link to={`/players/${p.userId}`} title={name} aria-label={name}>
-                        <span className="sm:hidden">{playerNameShort(p)}</span>
-                        <span className="hidden sm:inline">{playerName(p)}</span>
-                      </Link>
-                    </span>
-                    {p.isNonCalculated && (
-                      <span style={{ fontSize: 11, color: '#94a3b8' }}>{t('groupStandings.guest')}</span>
-                    )}
-                    {dns && <Badge variant="DNS" />}
-                    {onNoShow && !dns && (
-                      <button
-                        onClick={() => onNoShow(p.groupPlayerId)}
-                        style={{ color: '#cbd5e1', marginLeft: 4, lineHeight: 1, fontSize: 12 }}
-                        className="hover:text-red-500 transition-colors"
-                        title={t('groupStandings.noShow', { name })}
-                        aria-label={t('groupStandings.noShow', { name })}
-                      >
-                        ✕
-                      </button>
-                    )}
-                    {onSetPlayerStatus && !p.isNonCalculated && (
-                      <button
-                        onClick={() => onSetPlayerStatus(p.groupPlayerId, p.playerStatus)}
+                  <td style={{ padding: '10px 12px' }}>
+                    <div className="flex items-center gap-1.5">
+                      <span
                         style={{
-                          color: dns ? '#16a34a' : '#cbd5e1',
-                          marginLeft: 4,
-                          lineHeight: 1,
-                          fontSize: 11,
-                          fontWeight: 700,
+                          fontWeight: 500,
+                          color: p.isNonCalculated ? '#94a3b8' : 'var(--dark)',
+                          fontStyle: p.isNonCalculated ? 'italic' : 'normal',
+                          textDecoration: dns ? 'line-through' : 'none',
                         }}
-                        className={dns ? 'hover:text-green-700 transition-colors' : 'hover:text-orange-500 transition-colors'}
-                        title={dns ? t('groupStandings.resetDNS', { name }) : t('groupStandings.markDNS', { name })}
-                        aria-label={dns ? t('groupStandings.resetDNS', { name }) : t('groupStandings.markDNS', { name })}
                       >
-                        {dns ? 'DNS' : 'DNS?'}
-                      </button>
-                    )}
-                  </div>
-                </td>
+                        <Link to={`/players/${p.userId}`} title={name} aria-label={name}>
+                          <span className="sm:hidden">{playerNameShort(p)}</span>
+                          <span className="hidden sm:inline">{playerName(p)}</span>
+                        </Link>
+                      </span>
+                      {p.isNonCalculated && (
+                        <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                          {t('groupStandings.guest')}
+                        </span>
+                      )}
+                      {dns && <Badge variant="DNS" />}
+                      {onNoShow && !dns && (
+                        <button
+                          onClick={() => onNoShow(p.groupPlayerId)}
+                          style={{ color: '#cbd5e1', marginLeft: 4, lineHeight: 1, fontSize: 12 }}
+                          className="hover:text-red-500 transition-colors"
+                          title={t('groupStandings.noShow', { name })}
+                          aria-label={t('groupStandings.noShow', { name })}
+                        >
+                          ✕
+                        </button>
+                      )}
+                      {onSetPlayerStatus && !p.isNonCalculated && (
+                        <button
+                          onClick={() => onSetPlayerStatus(p.groupPlayerId, p.playerStatus)}
+                          style={{
+                            color: dns ? '#16a34a' : '#cbd5e1',
+                            marginLeft: 4,
+                            lineHeight: 1,
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                          className={
+                            dns
+                              ? 'hover:text-green-700 transition-colors'
+                              : 'hover:text-orange-500 transition-colors'
+                          }
+                          title={
+                            dns
+                              ? t('groupStandings.resetDNS', { name })
+                              : t('groupStandings.markDNS', { name })
+                          }
+                          aria-label={
+                            dns
+                              ? t('groupStandings.resetDNS', { name })
+                              : t('groupStandings.markDNS', { name })
+                          }
+                        >
+                          {dns ? 'DNS' : 'DNS?'}
+                        </button>
+                      )}
+                    </div>
+                  </td>
 
-                <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>
-                  {p.isNonCalculated ? '—' : p.place > 0 ? p.place : '—'}
-                </td>
-                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                  {p.isNonCalculated ? '—' : p.points}
-                  (
-                  <span style={{ color: '#16a34a'}} >{p.isNonCalculated ? '—' : wins(p)}</span>
-                  -
-                  <span style={{ color: '#dc2626'}} >{p.isNonCalculated ? '—' : losses(p)}</span>
-                  )
-                </td>
-                <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }} className={matrixColClass}>
-                  {p.isNonCalculated ? '—' : (tiebreakMap.get(p.groupPlayerId) ?? '—')}
-                </td>
-                <td style={{ padding: '10px 12px', textAlign: 'center' }} className={matrixColClass}>
-                  {p.advances && !p.isNonCalculated && (
-                    <span style={{ color: '#16a34a', fontWeight: 700, fontSize: 16 }} title="Advances">↑</span>
-                  )}
-                  {p.recedes && !p.isNonCalculated && (
-                    <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 16 }} title="Recedes">↓</span>
-                  )}
-                </td>
-                {sorted.map((colPlayer) => {
-                  if (colPlayer.groupPlayerId === p.groupPlayerId) {
-                    return (
+                  <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>
+                    {p.isNonCalculated ? '—' : p.place > 0 ? p.place : '—'}
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    {p.isNonCalculated ? '—' : p.points}(
+                    <span style={{ color: '#16a34a' }}>{p.isNonCalculated ? '—' : wins(p)}</span>-
+                    <span style={{ color: '#dc2626' }}>{p.isNonCalculated ? '—' : losses(p)}</span>)
+                  </td>
+                  <td
+                    style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }}
+                    className={matrixColClass}
+                  >
+                    {p.isNonCalculated ? '—' : (tiebreakMap.get(p.groupPlayerId) ?? '—')}
+                  </td>
+                  <td
+                    style={{ padding: '10px 12px', textAlign: 'center' }}
+                    className={matrixColClass}
+                  >
+                    {p.advances && !p.isNonCalculated && (
+                      <span
+                        style={{ color: '#16a34a', fontWeight: 700, fontSize: 16 }}
+                        title="Advances"
+                      >
+                        ↑
+                      </span>
+                    )}
+                    {p.recedes && !p.isNonCalculated && (
+                      <span
+                        style={{ color: '#dc2626', fontWeight: 700, fontSize: 16 }}
+                        title="Recedes"
+                      >
+                        ↓
+                      </span>
+                    )}
+                  </td>
+                  {sorted.map((colPlayer) => {
+                    if (colPlayer.groupPlayerId === p.groupPlayerId) {
+                      return (
                         <td
-                            key={colPlayer.groupPlayerId}
-                            className={matrixColClass}
-                            style={{...tdStyle, backgroundColor: '#94a3b8' }}
+                          key={colPlayer.groupPlayerId}
+                          className={matrixColClass}
+                          style={{ ...tdStyle, backgroundColor: '#94a3b8' }}
                         >
                           ×
                         </td>
+                      )
+                    }
+                    const content = cellContent(p, colPlayer)
+                    const clickable = !!onScoreClick
+
+                    const m = getMatch(p, colPlayer)
+                    const inProgress = m?.status === 'IN_PROGRESS'
+
+                    return (
+                      <td
+                        key={colPlayer.groupPlayerId}
+                        className={matrixColClass}
+                        style={{
+                          ...tdStyle,
+                          backgroundColor: inProgress ? '#fef9c3' : undefined,
+                          color:
+                            content === '—'
+                              ? '#94a3b8'
+                              : p1wins(p, colPlayer)
+                                ? '#16a34a'
+                                : '#dc2626',
+                        }}
+                      >
+                        {inProgress && m?.tableNumber !== null && m?.tableNumber !== undefined && (
+                          <span
+                            style={{
+                              display: 'block',
+                              fontSize: 9,
+                              fontWeight: 700,
+                              color: '#92400e',
+                              lineHeight: 1,
+                              marginBottom: 2,
+                            }}
+                          >
+                            T{m.tableNumber}
+                          </span>
+                        )}
+                        {clickable && onScoreClick ? (
+                          <button
+                            onClick={() => m && onScoreClick(m)}
+                            aria-label={t('groupStandings.enterScore', {
+                              p1: playerName(p),
+                              p2: playerName(colPlayer),
+                            })}
+                          >
+                            {content}
+                          </button>
+                        ) : (
+                          <span>{content}</span>
+                        )}
+                      </td>
                     )
-                  }
-                  const content = cellContent(p, colPlayer)
-                  const clickable = !!onScoreClick
-
-                  const m = getMatch(p, colPlayer)
-                  const inProgress = m?.status === 'IN_PROGRESS'
-
-                  return (
-                    <td
-                      key={colPlayer.groupPlayerId}
-                      className={matrixColClass}
-                      style={{
-                        ...tdStyle,
-                        backgroundColor: inProgress ? '#fef9c3' : undefined,
-                        color:
-                          content === '—'
-                            ? '#94a3b8'
-                            : p1wins(p, colPlayer)
-                              ? '#16a34a'
-                              : '#dc2626',
-                      }}
-                    >
-                      {inProgress && m?.tableNumber !== null && m?.tableNumber !== undefined && (
-                        <span style={{
-                          display: 'block',
-                          fontSize: 9,
-                          fontWeight: 700,
-                          color: '#92400e',
-                          lineHeight: 1,
-                          marginBottom: 2,
-                        }}>
-                          T{m.tableNumber}
-                        </span>
-                      )}
-                      {clickable && onScoreClick ? (
-                        <button
-                          onClick={() => m && onScoreClick(m)}
-                          aria-label={t('groupStandings.enterScore', { p1: playerName(p), p2: playerName(colPlayer) })}
-                        >
-                          {content}
-                        </button>
-                      ) : (
-                        <span>{content}</span>
-                      )}
-
-                    </td>
-                  )
-                })}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
       <button
         className="sm:hidden mt-2 text-xs text-blue-600 font-medium flex items-center gap-1 px-2 py-1 rounded border border-blue-200 bg-blue-50"
-        onClick={() => setShowMatrix(s => !s)}
+        onClick={() => setShowMatrix((s) => !s)}
       >
         {showMatrix ? '‹ Hide matrix' : 'Matrix ›'}
       </button>

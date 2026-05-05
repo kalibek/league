@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 
 export interface Column<T> {
   key: string
@@ -43,14 +43,24 @@ export function Table<T>({ columns, rows, rowKey, emptyMessage = 'No data' }: Ta
   })
 
   return (
-    <div className="w-full overflow-x-auto rounded-xl shadow-sm" style={{ border: '1px solid var(--border)' }}>
+    <div
+      className="w-full overflow-x-auto rounded-xl shadow-sm"
+      style={{ border: '1px solid var(--border)' }}
+    >
       <table className="w-full text-sm text-left">
         <thead>
           <tr style={{ backgroundColor: 'var(--navy)' }}>
             {columns.map((col) => (
               <th
                 key={col.key}
-                style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600, fontSize: 11, letterSpacing: '0.06em', padding: '12px 16px', textTransform: 'uppercase' }}
+                style={{
+                  color: 'rgba(255,255,255,0.85)',
+                  fontWeight: 600,
+                  fontSize: 11,
+                  letterSpacing: '0.06em',
+                  padding: '12px 16px',
+                  textTransform: 'uppercase',
+                }}
                 className={col.sortable ? 'cursor-pointer select-none hover:text-white' : ''}
                 onClick={() => handleSort(col)}
               >
@@ -67,7 +77,12 @@ export function Table<T>({ columns, rows, rowKey, emptyMessage = 'No data' }: Ta
             <tr>
               <td
                 colSpan={columns.length}
-                style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8', backgroundColor: '#fff' }}
+                style={{
+                  padding: '32px 16px',
+                  textAlign: 'center',
+                  color: '#94a3b8',
+                  backgroundColor: '#fff',
+                }}
               >
                 {emptyMessage}
               </td>

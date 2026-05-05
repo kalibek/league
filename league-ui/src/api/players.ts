@@ -1,5 +1,11 @@
 import client from './client'
-import type { User, RatingHistory, GroupDetail, PlayerEventsPage, PlayerProfileDetail } from '../types'
+import type {
+  GroupDetail,
+  PlayerEventsPage,
+  PlayerProfileDetail,
+  RatingHistory,
+  User,
+} from '../types'
 
 export interface PlayerDetail extends User {
   ratingHistory: RatingHistory[]
@@ -7,8 +13,12 @@ export interface PlayerDetail extends User {
   profile?: PlayerProfileDetail
 }
 
-export const listPlayers = (params?: { q?: string; sort?: string; limit?: number; offset?: number }) =>
-  client.get<User[]>('/public/players', { params })
+export const listPlayers = (params?: {
+  q?: string
+  sort?: string
+  limit?: number
+  offset?: number
+}) => client.get<User[]>('/public/players', { params })
 
 export const getPlayer = (id: number) => client.get<PlayerDetail>(`/public/players/${id}`)
 
@@ -21,5 +31,8 @@ export const listPlayerEvents = (id: number, limit = 5, offset = 0) =>
 export const importCSV = (file: File) => {
   const form = new FormData()
   form.append('file', file)
-  return client.post<{ imported: number; skipped: number; errors: string[] }>('/secured/players/import', form)
+  return client.post<{ imported: number; skipped: number; errors: string[] }>(
+    '/secured/players/import',
+    form
+  )
 }

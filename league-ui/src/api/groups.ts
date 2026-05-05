@@ -27,11 +27,7 @@ export const reopenGroup = (eventId: number, groupId: number) =>
 export const addPlayer = (eventId: number, groupId: number, userId: number) =>
   client.post(`/secured/events/${eventId}/groups/${groupId}/players`, { userId })
 
-export const setManualPlace = (
-  eventId: number,
-  groupId: number,
-  orderedPlayerIds: number[]
-) =>
+export const setManualPlace = (eventId: number, groupId: number, orderedPlayerIds: number[]) =>
   client.put(`/secured/events/${eventId}/groups/${groupId}/placement`, { orderedPlayerIds })
 
 export const setPlayerStatus = (

@@ -13,12 +13,12 @@ export function LeaguesPage() {
     <div className="max-w-4xl mx-auto py-10 px-4">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.5px' }}>
+          <h1
+            style={{ fontSize: 28, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.5px' }}
+          >
             {t('leagues.title')}
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-            {t('leagues.subtitle')}
-          </p>
+          <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>{t('leagues.subtitle')}</p>
         </div>
         {isAdmin && (
           <Link
@@ -45,7 +45,16 @@ export function LeaguesPage() {
         </div>
       )}
       {error && (
-        <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '12px 16px', fontSize: 14, marginBottom: 16 }}>
+        <div
+          style={{
+            color: '#dc2626',
+            backgroundColor: '#fee2e2',
+            borderRadius: 8,
+            padding: '12px 16px',
+            fontSize: 14,
+            marginBottom: 16,
+          }}
+        >
           {error}
         </div>
       )}
@@ -59,7 +68,9 @@ export function LeaguesPage() {
       {!loading && leagues.length === 0 && (
         <div style={{ textAlign: 'center', padding: '64px 0', color: '#94a3b8' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
-          <p style={{ fontSize: 16, fontWeight: 600, color: '#64748b' }}>{t('leagues.noLeaguesYet')}</p>
+          <p style={{ fontSize: 16, fontWeight: 600, color: '#64748b' }}>
+            {t('leagues.noLeaguesYet')}
+          </p>
         </div>
       )}
     </div>

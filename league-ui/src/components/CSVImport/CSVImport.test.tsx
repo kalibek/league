@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CSVImport } from './CSVImport'
@@ -11,7 +11,9 @@ describe('CSVImport', () => {
 
   it('shows file name after selection', async () => {
     render(<CSVImport onImport={vi.fn()} />)
-    const file = new File(['first_name,last_name,email\nAlice,Smith,a@b.com'], 'players.csv', { type: 'text/csv' })
+    const file = new File(['first_name,last_name,email\nAlice,Smith,a@b.com'], 'players.csv', {
+      type: 'text/csv',
+    })
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(input, file)
     expect(screen.getByText('players.csv')).toBeInTheDocument()

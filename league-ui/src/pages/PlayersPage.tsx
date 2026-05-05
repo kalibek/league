@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { usePlayers } from '../hooks/usePlayers'
-import { Table, type Column } from '../components/Table/Table'
+import { type Column, Table } from '../components/Table/Table'
 import type { User } from '../types'
 import { useAuth } from '../hooks/useAuth'
 
@@ -19,7 +19,9 @@ export function PlayersPage() {
       key: 'rank',
       header: t('players.rank'),
       render: (p) => (
-        <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>{players.indexOf(p) + 1}</span>
+        <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>
+          {players.indexOf(p) + 1}
+        </span>
       ),
     },
     {
@@ -41,7 +43,9 @@ export function PlayersPage() {
       key: 'rating',
       header: t('players.rating'),
       render: (p) => (
-        <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>{Math.round(p.currentRating)}</span>
+        <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>
+          {Math.round(p.currentRating)}
+        </span>
       ),
       sortable: true,
       sortValue: (p) => p.currentRating,
@@ -71,7 +75,9 @@ export function PlayersPage() {
     <div className="max-w-5xl mx-auto py-10 px-4">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.5px' }}>
+          <h1
+            style={{ fontSize: 28, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.5px' }}
+          >
             {t('players.title')}
           </h1>
           <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
@@ -130,11 +136,26 @@ export function PlayersPage() {
       >
         <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
           <svg
-            style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#94a3b8', pointerEvents: 'none' }}
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 16,
+              height: 16,
+              color: '#94a3b8',
+              pointerEvents: 'none',
+            }}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
+            />
           </svg>
           <input
             type="text"
@@ -158,7 +179,17 @@ export function PlayersPage() {
           />
           {query && (
             <button
-              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#94a3b8',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
               onClick={() => setQuery('')}
               aria-label="Clear search"
             >
@@ -169,16 +200,41 @@ export function PlayersPage() {
 
         {!query && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('players.sort')}</span>
-            <button style={sortBtnStyle(sort === 'rating')} onClick={() => setSort('rating')}>{t('players.sortRating')}</button>
-            <button style={sortBtnStyle(sort === 'name')} onClick={() => setSort('name')}>{t('players.sortName')}</button>
+            <span
+              style={{
+                fontSize: 12,
+                color: '#94a3b8',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {t('players.sort')}
+            </span>
+            <button style={sortBtnStyle(sort === 'rating')} onClick={() => setSort('rating')}>
+              {t('players.sortRating')}
+            </button>
+            <button style={sortBtnStyle(sort === 'name')} onClick={() => setSort('name')}>
+              {t('players.sortName')}
+            </button>
           </div>
         )}
       </div>
 
-      {loading && <p style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>{t('players.searching')}</p>}
+      {loading && (
+        <p style={{ color: '#94a3b8', fontSize: 13, marginBottom: 8 }}>{t('players.searching')}</p>
+      )}
       {error && (
-        <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16 }}>
+        <div
+          style={{
+            color: '#dc2626',
+            backgroundColor: '#fee2e2',
+            borderRadius: 8,
+            padding: '10px 14px',
+            fontSize: 13,
+            marginBottom: 16,
+          }}
+        >
           {error}
         </div>
       )}

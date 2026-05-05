@@ -12,7 +12,13 @@ interface LeagueConfigFormProps {
   embedded?: boolean
 }
 
-export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraftWarning = false, embedded = false }: LeagueConfigFormProps) {
+export function LeagueConfigForm({
+  initial,
+  onSubmit,
+  loading = false,
+  showDraftWarning = false,
+  embedded = false,
+}: LeagueConfigFormProps) {
   const { t } = useTranslation()
   const [config, setConfig] = useState<LeagueConfig>(initial)
 
@@ -22,16 +28,8 @@ export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraft
     if (embedded) onSubmit(next)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit(config)
-  }
-
-  const Wrapper = embedded ? 'div' : 'form'
-  const wrapperProps = embedded ? {} : { onSubmit: handleSubmit }
-
-  return (
-    <Wrapper {...(wrapperProps as React.ComponentProps<typeof Wrapper>)} className="flex flex-col gap-4">
+  const fields = (
+    <>
       {showDraftWarning && (
         <div className="rounded-md bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-800">
           {t('leagueConfig.draftWarning')}
@@ -84,6 +82,16 @@ export function LeagueConfigForm({ initial, onSubmit, loading = false, showDraft
           {t('leagueConfig.saveConfiguration')}
         </Button>
       )}
-    </Wrapper>
+    </>
+  )
+
+  if (embedded) {
+    return <div className="flex flex-col gap-4">{fields}</div>
+  }
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(config) }} className="flex flex-col gap-4">
+      {fields}
+    </form>
   )
 }

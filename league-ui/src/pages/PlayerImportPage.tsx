@@ -23,9 +23,8 @@ export function PlayerImportPage() {
       </Link>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('playerImport.title')}</h1>
       <p className="text-sm text-gray-500 mb-6">
-        {t('playerImport.description')}{' '}
-        <code className="bg-gray-100 px-1 rounded">first_name</code>,{' '}
-        <code className="bg-gray-100 px-1 rounded">last_name</code>,{' '}
+        {t('playerImport.description')} <code className="bg-gray-100 px-1 rounded">first_name</code>
+        , <code className="bg-gray-100 px-1 rounded">last_name</code>,{' '}
         <code className="bg-gray-100 px-1 rounded">email</code>,{' '}
         <code className="bg-gray-100 px-1 rounded">initial_rating</code> (optional).
       </p>

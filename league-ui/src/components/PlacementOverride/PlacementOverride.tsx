@@ -10,7 +10,12 @@ interface PlacementOverrideProps {
   loading?: boolean
 }
 
-export function PlacementOverride({ players, onConfirm, onClose, loading = false }: PlacementOverrideProps) {
+export function PlacementOverride({
+  players,
+  onConfirm,
+  onClose,
+  loading = false,
+}: PlacementOverrideProps) {
   const { t } = useTranslation()
   const [ordered, setOrdered] = useState<GroupPlayer[]>([...players])
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
@@ -59,9 +64,7 @@ export function PlacementOverride({ players, onConfirm, onClose, loading = false
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-gray-600">
-        {t('placementOverride.dragInstruction')}
-      </p>
+      <p className="text-sm text-gray-600">{t('placementOverride.dragInstruction')}</p>
       <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
         {ordered.map((p, index) => (
           <li

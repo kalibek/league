@@ -1,5 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
-import { listGroups, getGroup, createGroup, seedPlayer, removeGroupPlayer, finishGroup, reopenGroup, addPlayer, setManualPlace, setPlayerStatus, addPlayerToActiveGroup } from '../api/groups'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  addPlayer,
+  addPlayerToActiveGroup,
+  createGroup,
+  finishGroup,
+  getGroup,
+  listGroups,
+  removeGroupPlayer,
+  reopenGroup,
+  seedPlayer,
+  setManualPlace,
+  setPlayerStatus,
+} from '../api/groups'
 import type { Group, GroupDetail, PlayerStatus } from '../types'
 import { extractErrorMessage } from './utils'
 
@@ -12,12 +24,28 @@ export function useGroups(eventId: number) {
   useEffect(() => {
     let cancelled = false
     listGroups(eventId)
-      .then((res) => { if (!cancelled) { setGroups(res.data ?? []); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setGroups(res.data ?? [])
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [eventId, tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return { groups, loading, error, refresh }
 }
@@ -97,12 +125,28 @@ export function useGroup(eventId: number, groupId: number) {
   useEffect(() => {
     let cancelled = false
     getGroup(eventId, groupId)
-      .then((res) => { if (!cancelled) { setGroup(res.data); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setGroup(res.data)
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [eventId, groupId, tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return { group, loading, error, refresh }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useCreateLeague } from '../hooks/useLeagues'
 import { Button } from '../components/Button/Button'
@@ -12,6 +12,7 @@ const defaultConfig: LeagueConfig = {
   numberOfRecedes: 2,
   gamesToWin: 3,
   groupSize: 6,
+  numberOfTables: 0,
 }
 
 export function CreateLeaguePage() {
@@ -32,12 +33,28 @@ export function CreateLeaguePage() {
     <div className="max-w-xl mx-auto py-10 px-4">
       <Link
         to="/leagues"
-        style={{ fontSize: 13, color: '#64748b', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 24 }}
+        style={{
+          fontSize: 13,
+          color: '#64748b',
+          textDecoration: 'none',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          marginBottom: 24,
+        }}
         className="hover:text-[#0B3C5D] transition-colors"
       >
         {t('createLeague.backToLeagues')}
       </Link>
-      <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.5px', marginBottom: 24 }}>
+      <h1
+        style={{
+          fontSize: 26,
+          fontWeight: 800,
+          color: 'var(--navy)',
+          letterSpacing: '-0.5px',
+          marginBottom: 24,
+        }}
+      >
         {t('createLeague.title')}
       </h1>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -53,18 +70,30 @@ export function CreateLeaguePage() {
           onChange={(e) => setDescription(e.target.value)}
         />
         <div>
-          <h2 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 12 }}>
+          <h2
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#64748b',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              marginBottom: 12,
+            }}
+          >
             {t('createLeague.configuration')}
           </h2>
-          <LeagueConfigForm
-            initial={config}
-            onSubmit={setConfig}
-            loading={false}
-            embedded
-          />
+          <LeagueConfigForm initial={config} onSubmit={setConfig} loading={false} embedded />
         </div>
         {error && (
-          <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+          <div
+            style={{
+              color: '#dc2626',
+              backgroundColor: '#fee2e2',
+              borderRadius: 8,
+              padding: '10px 14px',
+              fontSize: 13,
+            }}
+          >
             {error}
           </div>
         )}

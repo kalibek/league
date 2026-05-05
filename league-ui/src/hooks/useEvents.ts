@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
-  listEvents,
-  getEvent,
   createDraftEvent,
+  createNextEvent,
+  finishEvent,
+  getEvent,
+  listEvents,
+  startEvent,
   updateEventConfig,
   updateEventDetails,
-  startEvent,
-  finishEvent,
-  createNextEvent,
 } from '../api/events'
-import type { LeagueEvent, EventDetail, LeagueConfig } from '../types'
+import type { EventDetail, LeagueConfig, LeagueEvent } from '../types'
 import { extractErrorMessage } from './utils'
 
 export function useEvents(leagueId: number) {
@@ -21,12 +21,28 @@ export function useEvents(leagueId: number) {
   useEffect(() => {
     let cancelled = false
     listEvents(leagueId)
-      .then((res) => { if (!cancelled) { setEvents(res.data ?? []); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setEvents(res.data ?? [])
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [leagueId, tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return { events, loading, error, refresh }
 }
@@ -40,12 +56,28 @@ export function useEvent(leagueId: number, eventId: number) {
   useEffect(() => {
     let cancelled = false
     getEvent(leagueId, eventId)
-      .then((res) => { if (!cancelled) { setEvent(res.data); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setEvent(res.data)
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [leagueId, eventId, tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return { event, setEvent, loading, error, refresh }
 }
@@ -162,7 +194,11 @@ export function useUpdateEventDetails() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const update = async (leagueId: number, eventId: number, data: { title: string; startDate: string; endDate: string }) => {
+  const update = async (
+    leagueId: number,
+    eventId: number,
+    data: { title: string; startDate: string; endDate: string }
+  ) => {
     setLoading(true)
     setError(null)
     try {

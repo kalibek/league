@@ -1,11 +1,21 @@
-import { useState, useCallback } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { formatDate } from '../hooks/utils'
 import { useEvent, useFinishEvent } from '../hooks/useEvents'
-import { useUpdateMatchScore, useSetTableNumber, useTablesInUse, useResetMatchScore } from '../hooks/useMatches'
+import {
+  useResetMatchScore,
+  useSetTableNumber,
+  useTablesInUse,
+  useUpdateMatchScore,
+} from '../hooks/useMatches'
 import { useLeague } from '../hooks/useLeagues'
-import { useFinishGroup, useReopenGroup, useSetManualPlace, useSetPlayerStatus } from '../hooks/useGroups'
+import {
+  useFinishGroup,
+  useReopenGroup,
+  useSetManualPlace,
+  useSetPlayerStatus,
+} from '../hooks/useGroups'
 import { useEventWebSocket } from '../hooks/useWebSocket'
 import { useAuth } from '../hooks/useAuth'
 import { GroupCard } from '../components/GroupCard/GroupCard'
@@ -17,7 +27,7 @@ import { TableAssignModal } from '../components/TableAssignModal/TableAssignModa
 import { PlacementOverride } from '../components/PlacementOverride/PlacementOverride'
 import { Button } from '../components/Button/Button'
 import { Badge } from '../components/Badge/Badge'
-import type { EventDetail, GroupDetail, Match, GroupPlayer, WSMessage } from '../types'
+import type { EventDetail, GroupDetail, GroupPlayer, Match, WSMessage } from '../types'
 
 export function LiveViewPage() {
   const { t } = useTranslation()
@@ -233,7 +243,15 @@ export function LiveViewPage() {
               ...g,
               matches: g.matches.map((m) =>
                 m.matchId === scoreModal.match.matchId
-                  ? { ...m, score1: null, score2: null, withdraw1: false, withdraw2: false, tableNumber: null, status: 'DRAFT' as const }
+                  ? {
+                      ...m,
+                      score1: null,
+                      score2: null,
+                      withdraw1: false,
+                      withdraw2: false,
+                      tableNumber: null,
+                      status: 'DRAFT' as const,
+                    }
                   : m
               ),
             }
@@ -250,12 +268,12 @@ export function LiveViewPage() {
     )) {
       if (!match) continue
       let ok: Match | null = null
-      let [ score1, score2, withdraw1, withdraw2 ] = [0, 0, false, false];
+      let [score1, score2, withdraw1, withdraw2] = [0, 0, false, false]
       if (match.groupPlayer1Id === gpId) {
-          score1 =  0
-          score2 = gamesToWin
-          withdraw1 = true
-          withdraw2 = false
+        score1 = 0
+        score2 = gamesToWin
+        withdraw1 = true
+        withdraw2 = false
       }
       if (match.groupPlayer2Id === gpId) {
         score1 = gamesToWin
@@ -292,7 +310,11 @@ export function LiveViewPage() {
     }
   }
 
-  const handleSetPlayerStatus = async (groupId: number, groupPlayerId: number, currentStatus: 'active' | 'dns') => {
+  const handleSetPlayerStatus = async (
+    groupId: number,
+    groupPlayerId: number,
+    currentStatus: 'active' | 'dns'
+  ) => {
     const newStatus = currentStatus === 'dns' ? 'active' : 'dns'
     const ok = await setPlayerStatus(eventId, groupId, groupPlayerId, newStatus)
     if (ok) {
@@ -451,18 +473,37 @@ export function LiveViewPage() {
       {/* In-progress matches panel */}
       {inProgressMatches.length > 0 && (
         <div style={{ marginBottom: 24, border: '1px solid var(--border)', background: '#fff' }}>
-          <div style={{
-            padding: '6px 14px',
-            background: '#f8fafc',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-          }}>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#94a3b8' }}>
+          <div
+            style={{
+              padding: '6px 14px',
+              background: '#f8fafc',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.09em',
+                textTransform: 'uppercase',
+                color: '#94a3b8',
+              }}
+            >
               {t('liveView.inProgress')}
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 4, padding: '1px 8px' }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#fff',
+                background: '#f59e0b',
+                borderRadius: 4,
+                padding: '1px 8px',
+              }}
+            >
               {inProgressMatches.length}
             </span>
           </div>
@@ -473,17 +514,62 @@ export function LiveViewPage() {
                   <tr key={m.matchId} style={{ borderTop: i === 0 ? 'none' : '1px solid #f1f5f9' }}>
                     <td style={{ padding: '10px 14px', width: 72 }}>
                       {m.tableNumber != null ? (
-                        <span style={{ fontWeight: 700, color: '#fff', background: '#f59e0b', borderRadius: 4, padding: '2px 8px', fontSize: 12 }}>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color: '#fff',
+                            background: '#f59e0b',
+                            borderRadius: 4,
+                            padding: '2px 8px',
+                            fontSize: 12,
+                          }}
+                        >
                           T{m.tableNumber}
                         </span>
                       ) : (
                         <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>
                       )}
                     </td>
-                    <td style={{ padding: '10px 6px', fontWeight: 500, fontSize: 13, color: 'var(--navy)' }}>{m.p1Name}</td>
-                    <td style={{ padding: '10px 4px', fontSize: 10, fontWeight: 700, color: '#e2e8f0', textAlign: 'center', userSelect: 'none' }}>vs</td>
-                    <td style={{ padding: '10px 6px', fontWeight: 500, fontSize: 13, color: 'var(--navy)' }}>{m.p2Name}</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, color: '#94a3b8' }}>
+                    <td
+                      style={{
+                        padding: '10px 6px',
+                        fontWeight: 500,
+                        fontSize: 13,
+                        color: 'var(--navy)',
+                      }}
+                    >
+                      {m.p1Name}
+                    </td>
+                    <td
+                      style={{
+                        padding: '10px 4px',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: '#e2e8f0',
+                        textAlign: 'center',
+                        userSelect: 'none',
+                      }}
+                    >
+                      vs
+                    </td>
+                    <td
+                      style={{
+                        padding: '10px 6px',
+                        fontWeight: 500,
+                        fontSize: 13,
+                        color: 'var(--navy)',
+                      }}
+                    >
+                      {m.p2Name}
+                    </td>
+                    <td
+                      style={{
+                        padding: '10px 14px',
+                        textAlign: 'right',
+                        fontSize: 11,
+                        color: '#94a3b8',
+                      }}
+                    >
                       {m.division} {m.groupNo}
                     </td>
                   </tr>
@@ -518,7 +604,8 @@ export function LiveViewPage() {
                 }
                 onSetPlayerStatus={
                   canManage && group.status !== 'DONE'
-                    ? (gpId, currentStatus) => handleSetPlayerStatus(group.groupId, gpId, currentStatus)
+                    ? (gpId, currentStatus) =>
+                        handleSetPlayerStatus(group.groupId, gpId, currentStatus)
                     : undefined
                 }
                 onScoreClick={

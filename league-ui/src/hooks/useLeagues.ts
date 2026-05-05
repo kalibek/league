@@ -1,5 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
-import { listLeagues, getLeague, createLeague, updateConfig, listRoles, assignRole, removeRole } from '../api/leagues'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  assignRole,
+  createLeague,
+  getLeague,
+  listLeagues,
+  listRoles,
+  removeRole,
+  updateConfig,
+} from '../api/leagues'
 import type { League, LeagueConfig } from '../types'
 import { extractErrorMessage } from './utils'
 
@@ -21,12 +29,28 @@ export function useLeagues() {
   useEffect(() => {
     let cancelled = false
     listLeagues()
-      .then((res) => { if (!cancelled) { setLeagues(res.data ?? []); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setLeagues(res.data ?? [])
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return { leagues, loading, error, refresh }
 }
@@ -40,12 +64,28 @@ export function useLeague(id: number) {
   useEffect(() => {
     let cancelled = false
     getLeague(id)
-      .then((res) => { if (!cancelled) { setLeague(res.data); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setLeague(res.data)
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [id, tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return { league, loading, error, refresh }
 }
@@ -54,7 +94,11 @@ export function useCreateLeague() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const create = async (data: { title: string; description: string; configuration: LeagueConfig }) => {
+  const create = async (data: {
+    title: string
+    description: string
+    configuration: LeagueConfig
+  }) => {
     setLoading(true)
     setError(null)
     try {
@@ -101,12 +145,28 @@ export function useLeagueRoles(leagueId: number) {
   useEffect(() => {
     let cancelled = false
     listRoles(leagueId)
-      .then((res) => { if (!cancelled) { setRoles(res.data ?? []); setError(null); setLoading(false) } })
-      .catch((e) => { if (!cancelled) { setError(extractErrorMessage(e)); setLoading(false) } })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) {
+          setRoles(res.data ?? [])
+          setError(null)
+          setLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(extractErrorMessage(e))
+          setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
   }, [leagueId, tick])
 
-  const refresh = useCallback(() => { setLoading(true); setTick((t) => t + 1) }, [])
+  const refresh = useCallback(() => {
+    setLoading(true)
+    setTick((t) => t + 1)
+  }, [])
 
   return { roles, loading, error, refresh }
 }

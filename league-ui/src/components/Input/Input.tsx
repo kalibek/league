@@ -10,7 +10,16 @@ export function Input({ label, error, id, className = '', style, ...rest }: Inpu
   return (
     <div className="flex flex-col gap-1">
       {label && (
-        <label htmlFor={inputId} style={{ fontSize: 12, fontWeight: 600, color: '#64748b', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+        <label
+          htmlFor={inputId}
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: '#64748b',
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
+          }}
+        >
           {label}
         </label>
       )}

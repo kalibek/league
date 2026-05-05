@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
 interface ModalProps {
@@ -35,7 +35,14 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       >
         <div className="flex items-center justify-between mb-5">
           {title && (
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--navy)', letterSpacing: '-0.3px' }}>
+            <h2
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: 'var(--navy)',
+                letterSpacing: '-0.3px',
+              }}
+            >
               {title}
             </h2>
           )}
@@ -45,8 +52,19 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
             onClick={onClose}
             aria-label="Close modal"
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>

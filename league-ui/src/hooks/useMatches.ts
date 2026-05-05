@@ -1,5 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
-import { updateMatchScore, setMatchTableNumber, getTablesInUse, resetMatchScore } from '../api/matches'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  getTablesInUse,
+  resetMatchScore,
+  setMatchTableNumber,
+  updateMatchScore,
+} from '../api/matches'
 import type { Match } from '../types'
 import { extractErrorMessage } from './utils'
 
@@ -10,9 +15,7 @@ export function useUpdateMatchScore() {
   const update = async (
     groupId: number,
     matchId: number,
-    data: { score1: number; score2: number,
-      withdraw1: boolean; withdraw2: boolean,
-    }
+    data: { score1: number; score2: number; withdraw1: boolean; withdraw2: boolean }
   ): Promise<Match | null> => {
     setLoading(true)
     setError(null)
@@ -34,7 +37,11 @@ export function useSetTableNumber() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const assign = async (groupId: number, matchId: number, tableNumber: number): Promise<boolean> => {
+  const assign = async (
+    groupId: number,
+    matchId: number,
+    tableNumber: number
+  ): Promise<boolean> => {
     setLoading(true)
     setError(null)
     try {
@@ -79,9 +86,15 @@ export function useTablesInUse(eventId: number) {
   useEffect(() => {
     let cancelled = false
     getTablesInUse(eventId)
-      .then((res) => { if (!cancelled) setTablesInUse(res.data.tablesInUse ?? []) })
-      .catch(() => { if (!cancelled) setTablesInUse([]) })
-    return () => { cancelled = true }
+      .then((res) => {
+        if (!cancelled) setTablesInUse(res.data.tablesInUse ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) setTablesInUse([])
+      })
+    return () => {
+      cancelled = true
+    }
   }, [eventId, tick])
 
   const refresh = useCallback(() => setTick((t) => t + 1), [])

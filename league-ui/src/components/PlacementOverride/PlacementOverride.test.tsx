@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PlacementOverride } from './PlacementOverride'
@@ -15,7 +15,17 @@ const makePlayer = (id: number, name: string): GroupPlayer => ({
   advances: false,
   recedes: false,
   isNonCalculated: false,
-  user: { userId: id, firstName: name, lastName: 'X', email: `${id}@t.com`, currentRating: 1500, deviation: 200, volatility: 0.06, isAdmin: false },
+  playerStatus: 'active',
+  user: {
+    userId: id,
+    firstName: name,
+    lastName: 'X',
+    email: `${id}@t.com`,
+    currentRating: 1500,
+    deviation: 200,
+    volatility: 0.06,
+    isAdmin: false,
+  },
 })
 
 describe('PlacementOverride', () => {
@@ -36,7 +46,9 @@ describe('PlacementOverride', () => {
 
   it('calls onClose when cancel is clicked', async () => {
     const onClose = vi.fn()
-    render(<PlacementOverride players={[makePlayer(1, 'A')]} onConfirm={vi.fn()} onClose={onClose} />)
+    render(
+      <PlacementOverride players={[makePlayer(1, 'A')]} onConfirm={vi.fn()} onClose={onClose} />
+    )
     await userEvent.click(screen.getByRole('button', { name: /cancel/i }))
     expect(onClose).toHaveBeenCalledOnce()
   })
@@ -89,7 +101,9 @@ describe('PlacementOverride', () => {
 
   it('disables buttons when loading', () => {
     const players = [makePlayer(1, 'Alice')]
-    render(<PlacementOverride players={players} onConfirm={vi.fn()} onClose={vi.fn()} loading={true} />)
+    render(
+      <PlacementOverride players={players} onConfirm={vi.fn()} onClose={vi.fn()} loading={true} />
+    )
     expect(screen.getByRole('button', { name: /confirm placement/i })).toBeDisabled()
     expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled()
   })

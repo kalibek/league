@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useCreatePlayer } from '../hooks/usePlayers'
 import { Button } from '../components/Button/Button'
@@ -27,9 +27,25 @@ export function PlayerCreatePage() {
       </Link>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('playerCreate.title')}</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <Input label={t('playerCreate.firstName')} value={form.firstName} onChange={set('firstName')} required />
-        <Input label={t('playerCreate.lastName')} value={form.lastName} onChange={set('lastName')} required />
-        <Input label={t('playerCreate.email')} type="email" value={form.email} onChange={set('email')} required />
+        <Input
+          label={t('playerCreate.firstName')}
+          value={form.firstName}
+          onChange={set('firstName')}
+          required
+        />
+        <Input
+          label={t('playerCreate.lastName')}
+          value={form.lastName}
+          onChange={set('lastName')}
+          required
+        />
+        <Input
+          label={t('playerCreate.email')}
+          type="email"
+          value={form.email}
+          onChange={set('email')}
+          required
+        />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex gap-2">
           <Button type="button" variant="secondary" onClick={() => navigate('/players')}>
