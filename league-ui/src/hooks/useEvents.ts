@@ -4,6 +4,7 @@ import {
   getEvent,
   createDraftEvent,
   updateEventConfig,
+  updateEventDetails,
   startEvent,
   finishEvent,
   createNextEvent,
@@ -155,4 +156,25 @@ export function useCreateNextEvent() {
   }
 
   return { createNext, loading, error }
+}
+
+export function useUpdateEventDetails() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const update = async (leagueId: number, eventId: number, data: { title: string; startDate: string; endDate: string }) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await updateEventDetails(leagueId, eventId, data)
+      return res.data
+    } catch (e) {
+      setError(extractErrorMessage(e))
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { update, loading, error }
 }

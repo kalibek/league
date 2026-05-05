@@ -182,3 +182,40 @@ func (h *SimpleEventsHandler) UpdateConfig(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
+
+// PUT /api/v1/leagues/:id/events/:eid/details
+func (h *SimpleEventsHandler) UpdateDetails(c *gin.Context) {
+	eventID, err := strconv.ParseInt(c.Param("eid"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event id"})
+		return
+	}
+	var req struct {
+		Title     string `json:"title"     binding:"required"`
+		StartDate string `json:"startDate" binding:"required"`
+		EndDate   string `json:"endDate"   binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	start, err := time.Parse("2006-01-02", req.StartDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid startDate format (use YYYY-MM-DD)"})
+		return
+	}
+	end, err := time.Parse("2006-01-02", req.EndDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid endDate format (use YYYY-MM-DD)"})
+		return
+	}
+
+	event, err := h.eventSvc.UpdateEventDetails(c.Request.Context(), eventID, req.Title, start, end)
+	if err != nil {
+		log.Printf("[handler] SimpleEventsHandler.UpdateDetails: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, event)
+}

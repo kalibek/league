@@ -21,3 +21,6 @@ export const finishEvent = (leagueId: number, eventId: number) =>
 
 export const createNextEvent = (leagueId: number, eventId: number) =>
   client.post<LeagueEvent>(`/secured/leagues/${leagueId}/events/${eventId}/next`, {})
+
+export const updateEventDetails = (leagueId: number, eventId: number, data: { title: string; startDate: string; endDate: string }) =>
+  client.put<LeagueEvent>(`/secured/leagues/${leagueId}/events/${eventId}/details`, data)

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -114,4 +115,13 @@ func (r *eventRepo) ListEventsForPlayer(ctx context.Context, userID int64, limit
 		return nil, 0, fmt.Errorf("eventRepo.ListEventsForPlayer list: %w", err)
 	}
 	return events, total, nil
+}
+
+func (r *eventRepo) UpdateDetails(ctx context.Context, id int64, title string, startDate, endDate time.Time) error {
+	const q = `UPDATE league_events SET title = $1, start_date = $2, end_date = $3, last_updated = NOW() WHERE event_id = $4`
+	_, err := r.db(ctx).ExecContext(ctx, q, title, startDate, endDate, id)
+	if err != nil {
+		return fmt.Errorf("eventRepo.UpdateDetails: %w", err)
+	}
+	return nil
 }

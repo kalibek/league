@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"league-api/internal/model"
 )
@@ -45,6 +46,7 @@ type EventRepository interface {
 	Create(ctx context.Context, e *model.LeagueEvent) (int64, error)
 	UpdateStatus(ctx context.Context, id int64, status model.EventStatus) error
 	ListEventsForPlayer(ctx context.Context, userID int64, limit, offset int) ([]model.LeagueEvent, int, error)
+	UpdateDetails(ctx context.Context, id int64, title string, startDate, endDate time.Time) error
 }
 
 type GroupRepository interface {

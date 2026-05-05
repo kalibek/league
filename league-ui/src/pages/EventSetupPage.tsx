@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useEvent } from '../hooks/useEvents'
+import { useEvent, useUpdateEventDetails } from '../hooks/useEvents'
 import { useGroups, useCreateGroup, useSeedPlayer, useRemoveGroupPlayer, useAddPlayerToActiveGroup } from '../hooks/useGroups'
-import { usePlayers } from '../hooks/usePlayers'
 import { Badge } from '../components/Badge/Badge'
 import { Button } from '../components/Button/Button'
+import { PlayerSearchModal } from '../components/PlayerSearchModal/PlayerSearchModal'
 import type { Group, GroupPlayer } from '../types'
 
 const DIVISIONS = ['Superleague', 'A', 'B', 'C', 'D', 'E']
@@ -20,33 +20,46 @@ export function EventSetupPage() {
   const leagueId = Number(id)
   const eventId = Number(eid)
 
-  const { event, loading: eventLoading } = useEvent(leagueId, eventId)
+  const { event, setEvent, loading: eventLoading } = useEvent(leagueId, eventId)
   const { groups, loading: groupsLoading, refresh: refreshGroups } = useGroups(eventId)
-  const { players, loading: playersLoading } = usePlayers({ limit: 500 })
   const { create: createGroup, loading: creating, error: createError } = useCreateGroup()
   const { seed, loading: seeding, error: seedError } = useSeedPlayer()
   const { remove, loading: removing } = useRemoveGroupPlayer()
   const { addActive, loading: addingActive, error: addActiveError } = useAddPlayerToActiveGroup()
+  const { update: updateDetails, loading: updatingDetails, error: detailsError } = useUpdateEventDetails()
 
   // groupPlayers is fetched per group via the group detail endpoint.
   // We maintain a map of groupId → GroupPlayer[] in local state.
   const [groupPlayers, setGroupPlayers] = useState<Record<number, GroupPlayer[]>>({})
 
+  // Inline editing state for event details
+  const [isEditingDetails, setIsEditingDetails] = useState(false)
+  const [detailsForm, setDetailsForm] = useState({ title: '', startDate: '', endDate: '' })
+
+  // Helper to format ISO datetime → YYYY-MM-DD
+  const toDateInput = (iso: string) => iso.slice(0, 10)
+
+  // Sync form when event changes
+  useEffect(() => {
+    if (event) {
+      setDetailsForm({
+        title: event.title,
+        startDate: toDateInput(event.startDate),
+        endDate: toDateInput(event.endDate),
+      })
+    }
+  }, [event])
+
   const [showAddGroup, setShowAddGroup] = useState(false)
   const [groupForm, setGroupForm] = useState({ division: 'A', groupNo: 1, scheduled: '' })
 
-  // Per-group: which player is selected in the dropdown
-  const [selectedPlayer, setSelectedPlayer] = useState<Record<number, number>>({})
+  // Which group has search modal open (null if none)
+  const [searchModalGroup, setSearchModalGroup] = useState<number | null>(null)
 
   // All userIds already assigned to any group in this event
   const assignedUserIds = useMemo(
     () => new Set(Object.values(groupPlayers).flat().map((gp) => gp.userId)),
     [groupPlayers]
-  )
-
-  const availablePlayers = useMemo(
-    () => players.filter((p) => !assignedUserIds.has(p.userId)),
-    [players, assignedUserIds]
   )
 
   // Load players for a group via the group detail endpoint
@@ -95,37 +108,55 @@ export function EventSetupPage() {
     }
   }
 
-  const handleSeedPlayer = async (groupId: number) => {
-    const userId = selectedPlayer[groupId]
-    if (!userId) return
-    const ok = await seed(eventId, groupId, userId)
-    if (ok) {
-      setSelectedPlayer((prev) => ({ ...prev, [groupId]: 0 }))
-      await loadGroupPlayers(groupId)
-      setGroupPlayers((prev) => ({ ...prev })) // trigger re-render for availablePlayers
-    }
-  }
-
   const handleRemovePlayer = async (groupId: number, groupPlayerId: number) => {
     const ok = await remove(eventId, groupId, groupPlayerId)
     if (ok) await loadGroupPlayers(groupId)
   }
 
-  const handleAddPlayerToActiveGroup = async (groupId: number) => {
-    const userId = selectedPlayer[groupId]
-    if (!userId) return
-    const ok = await addActive(eventId, groupId, userId)
-    if (ok) {
-      setSelectedPlayer((prev) => ({ ...prev, [groupId]: 0 }))
-      await loadGroupPlayers(groupId)
-      setGroupPlayers((prev) => ({ ...prev })) // trigger re-render for availablePlayers
+  const handleAddPlayerFromModal = async (groupId: number, userId: number): Promise<boolean> => {
+    const isDraft = event?.status === 'DRAFT'
+    const isInProgress = event?.status === 'IN_PROGRESS'
+
+    let ok = false
+    if (isDraft) {
+      ok = await seed(eventId, groupId, userId)
+    } else if (isInProgress) {
+      ok = await addActive(eventId, groupId, userId)
     }
+
+    if (ok) {
+      await loadGroupPlayers(groupId)
+    }
+    return ok
   }
 
   const groupsWithPlayers: GroupWithPlayers[] = groups.map((g) => ({
     ...g,
     players: groupPlayers[g.groupId] ?? [],
   }))
+
+  const handleSaveDetails = async () => {
+    const updated = await updateDetails(leagueId, eventId, {
+      title: detailsForm.title,
+      startDate: detailsForm.startDate,
+      endDate: detailsForm.endDate,
+    })
+    if (updated) {
+      setEvent(updated)
+      setIsEditingDetails(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    if (event) {
+      setDetailsForm({
+        title: event.title,
+        startDate: toDateInput(event.startDate),
+        endDate: toDateInput(event.endDate),
+      })
+    }
+    setIsEditingDetails(false)
+  }
 
   if (eventLoading) return <div className="p-8 text-gray-400">{t('eventSetup.loading')}</div>
   if (!event) return <div className="p-8 text-red-600">{t('eventSetup.notFound')}</div>
@@ -144,16 +175,72 @@ export function EventSetupPage() {
 
       {/* Event header */}
       <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
-            <Badge variant={event.status} />
-          </div>
-          <p className="text-sm text-gray-400">
-            {event.startDate} — {event.endDate}
-          </p>
+        <div className="flex-1">
+          {!isEditingDetails ? (
+            <>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
+                <Badge variant={event.status} />
+                {isInProgress && (
+                  <button
+                    onClick={() => setIsEditingDetails(true)}
+                    className="text-gray-400 hover:text-gray-600 p-1"
+                    title="Edit event details"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 012.828 0l.172.172a2 2 0 010 2.828L12 16H9v-3z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <p className="text-sm text-gray-400">
+                {event.startDate} — {event.endDate}
+              </p>
+            </>
+          ) : (
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
+                <input
+                  type="text"
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  value={detailsForm.title}
+                  onChange={(e) => setDetailsForm((f) => ({ ...f, title: e.target.value }))}
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                    value={detailsForm.startDate}
+                    onChange={(e) => setDetailsForm((f) => ({ ...f, startDate: e.target.value }))}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                    value={detailsForm.endDate}
+                    onChange={(e) => setDetailsForm((f) => ({ ...f, endDate: e.target.value }))}
+                  />
+                </div>
+              </div>
+              {detailsError && <p className="text-xs text-red-600">{detailsError}</p>}
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="secondary" onClick={handleCancelEdit}>
+                  {t('eventSetup.cancel')}
+                </Button>
+                <Button type="button" onClick={handleSaveDetails} loading={updatingDetails}>
+                  {t('eventSetup.save', 'Save')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-        {isDraft && (
+        {isDraft && !isEditingDetails && (
           <Link
             to={`/leagues/${leagueId}`}
             className="text-sm text-gray-500 hover:text-gray-700"
@@ -244,128 +331,71 @@ export function EventSetupPage() {
 
       {/* Group cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {groupsWithPlayers.map((grp) => {
-          const playerMap = Object.fromEntries(players.map((p) => [p.userId, p]))
-          const groupAvailable = availablePlayers
-
-          return (
-            <div key={grp.groupId} className="rounded-lg border border-gray-200 bg-white p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-800">
-                  {grp.division === 'Superleague' ? 'Superleague' : `${grp.division}${grp.groupNo}`}
-                </h3>
-                <span className="text-xs text-gray-400">
-                  {t('eventSetup.players', { count: grp.players.length })}
-                </span>
-              </div>
-
-              {/* Player list */}
-              <ul className="space-y-1 mb-3 min-h-[2rem]">
-                {grp.players.map((gp) => {
-                  const user = playerMap[gp.userId]
-                  return (
-                    <li
-                      key={gp.groupPlayerId}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <span className="text-gray-700">
-                        {user ? `${user.firstName} ${user.lastName}` : t('eventSetup.player', { id: gp.userId })}
-                        {user && (
-                          <span className="ml-1 text-xs text-gray-400">
-                            {Math.round(user.currentRating)}
-                          </span>
-                        )}
-                      </span>
-                      {isDraft && (
-                        <button
-                          onClick={() => handleRemovePlayer(grp.groupId, gp.groupPlayerId)}
-                          disabled={removing}
-                          className="text-gray-300 hover:text-red-500 text-xs px-1"
-                          title={t('groupStandings.noShow', { name: user ? `${user.firstName} ${user.lastName}` : String(gp.userId) })}
-                        >
-                          ×
-                        </button>
-                      )}
-                    </li>
-                  )
-                })}
-                {grp.players.length === 0 && (
-                  <li className="text-xs text-gray-400 italic">{t('eventSetup.noPlayersYet')}</li>
-                )}
-              </ul>
-
-              {/* Add player — DRAFT mode: seed player */}
-              {isDraft && (
-                <div className="flex gap-2 mt-2">
-                  <select
-                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
-                    value={selectedPlayer[grp.groupId] ?? ''}
-                    onChange={(e) =>
-                      setSelectedPlayer((prev) => ({
-                        ...prev,
-                        [grp.groupId]: Number(e.target.value),
-                      }))
-                    }
-                    disabled={playersLoading || groupAvailable.length === 0}
-                  >
-                    <option value="">
-                      {groupAvailable.length === 0 ? t('eventSetup.noPlayersAvailable') : t('eventSetup.addPlayerPlaceholder')}
-                    </option>
-                    {groupAvailable.map((p) => (
-                      <option key={p.userId} value={p.userId}>
-                        {p.firstName} {p.lastName} ({Math.round(p.currentRating)})
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleSeedPlayer(grp.groupId)}
-                    disabled={!selectedPlayer[grp.groupId] || seeding}
-                    loading={seeding}
-                  >
-                    {t('eventSetup.add')}
-                  </Button>
-                </div>
-              )}
-              {seedError && <p className="text-xs text-red-600 mt-1">{seedError}</p>}
-
-              {/* Add player — IN_PROGRESS mode: add calculated player */}
-              {isInProgress && (
-                <div className="flex gap-2 mt-2">
-                  <select
-                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
-                    value={selectedPlayer[grp.groupId] ?? ''}
-                    onChange={(e) =>
-                      setSelectedPlayer((prev) => ({
-                        ...prev,
-                        [grp.groupId]: Number(e.target.value),
-                      }))
-                    }
-                    disabled={playersLoading || groupAvailable.length === 0}
-                  >
-                    <option value="">
-                      {groupAvailable.length === 0 ? t('eventSetup.noPlayersAvailable') : t('eventSetup.addPlayerPlaceholder')}
-                    </option>
-                    {groupAvailable.map((p) => (
-                      <option key={p.userId} value={p.userId}>
-                        {p.firstName} {p.lastName} ({Math.round(p.currentRating)})
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleAddPlayerToActiveGroup(grp.groupId)}
-                    disabled={!selectedPlayer[grp.groupId] || addingActive}
-                    loading={addingActive}
-                  >
-                    {t('eventSetup.add')}
-                  </Button>
-                </div>
-              )}
-              {addActiveError && <p className="text-xs text-red-600 mt-1">{addActiveError}</p>}
+        {groupsWithPlayers.map((grp) => (
+          <div key={grp.groupId} className="rounded-lg border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-800">
+                {grp.division === 'Superleague' ? 'Superleague' : `${grp.division}${grp.groupNo}`}
+              </h3>
+              <span className="text-xs text-gray-400">
+                {t('eventSetup.players', { count: grp.players.length })}
+              </span>
             </div>
-          )
-        })}
+
+            {/* Player list */}
+            <ul className="space-y-1 mb-3 min-h-[2rem]">
+              {grp.players.map((gp) => {
+                const playerName = gp.user
+                  ? `${gp.user.firstName} ${gp.user.lastName}`
+                  : t('eventSetup.player', { id: gp.userId })
+                const rating = gp.user ? Math.round(gp.user.currentRating) : null
+
+                return (
+                  <li
+                    key={gp.groupPlayerId}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <span className="text-gray-700">
+                      {playerName}
+                      {rating && (
+                        <span className="ml-1 text-xs text-gray-400">
+                          {rating}
+                        </span>
+                      )}
+                    </span>
+                    {isDraft && (
+                      <button
+                        onClick={() => handleRemovePlayer(grp.groupId, gp.groupPlayerId)}
+                        disabled={removing}
+                        className="text-gray-300 hover:text-red-500 text-xs px-1"
+                        title={t('groupStandings.noShow', { name: playerName })}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
+              {grp.players.length === 0 && (
+                <li className="text-xs text-gray-400 italic">{t('eventSetup.noPlayersYet')}</li>
+              )}
+            </ul>
+
+            {/* Add player button */}
+            {(isDraft || isInProgress) && (
+              <Button
+                variant="secondary"
+                onClick={() => setSearchModalGroup(grp.groupId)}
+                className="w-full"
+              >
+                {t('eventSetup.add')} Player
+              </Button>
+            )}
+
+            {seedError && <p className="text-xs text-red-600 mt-1">{seedError}</p>}
+            {addActiveError && <p className="text-xs text-red-600 mt-1">{addActiveError}</p>}
+          </div>
+        ))}
       </div>
 
       {!groupsLoading && groups.length === 0 && (
@@ -375,7 +405,7 @@ export function EventSetupPage() {
       )}
 
       <div className="mt-4 text-xs text-gray-400">
-        {t('eventSetup.playersAssigned', { assigned: assignedUserIds.size, total: players.length })}
+        {t('eventSetup.playersAssigned', { assigned: assignedUserIds.size })}
       </div>
 
       <button
@@ -384,6 +414,26 @@ export function EventSetupPage() {
       >
         {t('eventSetup.refresh')}
       </button>
+
+      {searchModalGroup !== null && (() => {
+        const selectedGroup = groupsWithPlayers.find((g) => g.groupId === searchModalGroup)
+        const groupTitle = selectedGroup
+          ? selectedGroup.division === 'Superleague'
+            ? 'Superleague'
+            : `${selectedGroup.division}${selectedGroup.groupNo}`
+          : 'Group'
+
+        return (
+          <PlayerSearchModal
+            open={true}
+            onClose={() => setSearchModalGroup(null)}
+            onAdd={(userId) => handleAddPlayerFromModal(searchModalGroup, userId)}
+            assignedUserIds={assignedUserIds}
+            title={`Add player to ${groupTitle}`}
+            loading={seeding || addingActive}
+          />
+        )
+      })()}
     </div>
   )
 }

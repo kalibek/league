@@ -19,6 +19,7 @@ type EventService interface {
 	ListEvents(ctx context.Context, leagueID int64) ([]model.LeagueEvent, error)
 	GetEvent(ctx context.Context, eventID int64) (*model.LeagueEvent, error)
 	GetEventDetail(ctx context.Context, eventID int64) (*model.EventDetail, error)
+	UpdateEventDetails(ctx context.Context, eventID int64, title string, startDate, endDate time.Time) (*model.LeagueEvent, error)
 }
 
 type eventService struct {
@@ -162,4 +163,18 @@ func (s *eventService) GetEventDetail(ctx context.Context, eventID int64) (*mode
 		details = append(details, model.GroupDetail{Group: g, Players: players, Matches: matches})
 	}
 	return &model.EventDetail{LeagueEvent: *ev, Groups: details}, nil
+}
+
+func (s *eventService) UpdateEventDetails(ctx context.Context, eventID int64, title string, startDate, endDate time.Time) (*model.LeagueEvent, error) {
+	ev, err := s.eventRepo.GetByID(ctx, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("eventService.UpdateEventDetails get: %w", err)
+	}
+	if ev.Status != model.EventInProgress {
+		return nil, fmt.Errorf("event %d is not in IN_PROGRESS status (current: %s)", eventID, ev.Status)
+	}
+	if err := s.eventRepo.UpdateDetails(ctx, eventID, title, startDate, endDate); err != nil {
+		return nil, fmt.Errorf("eventService.UpdateEventDetails: %w", err)
+	}
+	return s.eventRepo.GetByID(ctx, eventID)
 }
