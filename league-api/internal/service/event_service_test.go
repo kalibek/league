@@ -31,7 +31,9 @@ func (m *evtMockEventRepo) ListByLeague(ctx context.Context, leagueID int64) ([]
 	return m.byLeague[leagueID], nil
 }
 
-func (m *evtMockEventRepo) ListDone(ctx context.Context) ([]model.LeagueEvent, error) { return nil, nil }
+func (m *evtMockEventRepo) ListDone(ctx context.Context) ([]model.LeagueEvent, error) {
+	return nil, nil
+}
 
 func (m *evtMockEventRepo) Create(ctx context.Context, e *model.LeagueEvent) (int64, error) {
 	if m.createErr != nil {
@@ -59,10 +61,14 @@ func (m *evtMockEventRepo) ListEventsForPlayer(ctx context.Context, userID int64
 	return nil, 0, nil
 }
 
+func (m *evtMockEventRepo) UpdateDetails(ctx context.Context, id int64, title string, startDate, endDate time.Time) error {
+	return nil
+}
+
 type evtMockGroupRepo struct {
-	groups  map[int64][]model.Group
-	players map[int64][]model.GroupPlayer
-	created []model.Group
+	groups      map[int64][]model.Group
+	players     map[int64][]model.GroupPlayer
+	created     []model.Group
 	statusCalls map[int64]model.GroupStatus
 }
 
@@ -117,17 +123,25 @@ func (m *evtMockGroupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID in
 	return nil
 }
 
+func (m *evtMockGroupRepo) Delete(ctx context.Context, id int64) error {
+	return nil
+}
+
 type evtMockMatchRepo struct {
 	bulkCalls int
 }
 
-func (m *evtMockMatchRepo) GetByID(ctx context.Context, id int64) (*model.Match, error) { return nil, nil }
+func (m *evtMockMatchRepo) GetByID(ctx context.Context, id int64) (*model.Match, error) {
+	return nil, nil
+}
 
 func (m *evtMockMatchRepo) ListByGroup(ctx context.Context, groupID int64) ([]model.Match, error) {
 	return nil, nil
 }
 
-func (m *evtMockMatchRepo) Create(ctx context.Context, match *model.Match) (int64, error) { return 1, nil }
+func (m *evtMockMatchRepo) Create(ctx context.Context, match *model.Match) (int64, error) {
+	return 1, nil
+}
 
 func (m *evtMockMatchRepo) UpdateScore(ctx context.Context, id int64, score1, score2 int16, withdraw1, withdraw2 bool) error {
 	return nil
@@ -155,6 +169,10 @@ func (m *evtMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, ta
 func (m *evtMockMatchRepo) ResetScore(ctx context.Context, matchID int64) error { return nil }
 
 func (m *evtMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
+	return nil, nil
+}
+
+func (m *evtMockMatchRepo) DeleteByGroupPlayer(ctx context.Context, groupID, groupPlayerID int64) ([]int64, error) {
 	return nil, nil
 }
 
@@ -204,7 +222,7 @@ func TestCreateDraftEvent_Success(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(nil,er, gr, mr, ur)
+	svc := NewEventService(nil, er, gr, mr, ur)
 
 	start := time.Now()
 	end := start.Add(30 * 24 * time.Hour)
@@ -228,7 +246,7 @@ func TestCreateDraftEvent_AlreadyActiveEvent(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(nil,er, gr, mr, ur)
+	svc := NewEventService(nil, er, gr, mr, ur)
 
 	_, err := svc.CreateDraftEvent(context.Background(), 1, "Test Event", time.Now(), time.Now().Add(24*time.Hour))
 	if err == nil {
@@ -246,7 +264,7 @@ func TestCreateDraftEvent_InProgressBlocks(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(nil,er, gr, mr, ur)
+	svc := NewEventService(nil, er, gr, mr, ur)
 
 	_, err := svc.CreateDraftEvent(context.Background(), 1, "Test Event", time.Now(), time.Now().Add(24*time.Hour))
 	if err == nil {
@@ -278,7 +296,7 @@ func TestStartEvent_Success(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(nil,er, gr, mr, ur)
+	svc := NewEventService(nil, er, gr, mr, ur)
 
 	err := svc.StartEvent(context.Background(), 5)
 	if err != nil {
@@ -303,7 +321,7 @@ func TestStartEvent_NotDraft(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(nil,er, gr, mr, ur)
+	svc := NewEventService(nil, er, gr, mr, ur)
 
 	err := svc.StartEvent(context.Background(), 5)
 	if err == nil {
@@ -328,7 +346,7 @@ func TestStartEvent_NoPlayers_NoMatches(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(nil,er, gr, mr, ur)
+	svc := NewEventService(nil, er, gr, mr, ur)
 
 	err := svc.StartEvent(context.Background(), 5)
 	if err != nil {
@@ -363,7 +381,7 @@ func TestStartEvent_NonCalculatedExcluded(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(nil,er, gr, mr, ur)
+	svc := NewEventService(nil, er, gr, mr, ur)
 
 	err := svc.StartEvent(context.Background(), 5)
 	if err != nil {
@@ -386,7 +404,7 @@ func TestListEvents(t *testing.T) {
 		events:   map[int64]*model.LeagueEvent{},
 		byLeague: map[int64][]model.LeagueEvent{10: evts},
 	}
-	svc := NewEventService(nil,er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+	svc := NewEventService(nil, er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
 
 	list, err := svc.ListEvents(context.Background(), 10)
 	if err != nil {
@@ -400,7 +418,7 @@ func TestListEvents(t *testing.T) {
 func TestGetEvent_Found(t *testing.T) {
 	ev := &model.LeagueEvent{EventID: 7, Status: model.EventDraft}
 	er := &evtMockEventRepo{events: map[int64]*model.LeagueEvent{7: ev}}
-	svc := NewEventService(nil,er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+	svc := NewEventService(nil, er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
 
 	got, err := svc.GetEvent(context.Background(), 7)
 	if err != nil {
@@ -413,7 +431,7 @@ func TestGetEvent_Found(t *testing.T) {
 
 func TestGetEvent_NotFound(t *testing.T) {
 	er := &evtMockEventRepo{events: map[int64]*model.LeagueEvent{}}
-	svc := NewEventService(nil,er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+	svc := NewEventService(nil, er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
 
 	_, err := svc.GetEvent(context.Background(), 99)
 	if err == nil {
@@ -439,7 +457,7 @@ func TestGetEventDetail_WithGroups(t *testing.T) {
 	mr := &evtMockMatchRepo{}
 	ur := &evtMockUserRepo{}
 
-	svc := NewEventService(nil,er, gr, mr, ur)
+	svc := NewEventService(nil, er, gr, mr, ur)
 
 	detail, err := svc.GetEventDetail(context.Background(), 5)
 	if err != nil {

@@ -3,6 +3,7 @@ import {
   addPlayer,
   addPlayerToActiveGroup,
   createGroup,
+  deleteGroup,
   finishGroup,
   getGroup,
   listGroups,
@@ -12,7 +13,7 @@ import {
   setManualPlace,
   setPlayerStatus,
 } from '../api/groups'
-import type { Group, GroupDetail, PlayerStatus } from '../types'
+import type { Group, GroupDetail, Match, PlayerStatus } from '../types'
 import { extractErrorMessage } from './utils'
 
 export function useGroups(eventId: number) {
@@ -244,15 +245,15 @@ export function useSetPlayerStatus() {
     groupId: number,
     groupPlayerId: number,
     status: PlayerStatus
-  ) => {
+  ): Promise<{ deletedMatchIds: number[] | null; newMatches: Match[] | null } | null> => {
     setLoading(true)
     setError(null)
     try {
-      await setPlayerStatus(eventId, groupId, groupPlayerId, status)
-      return true
+      const res = await setPlayerStatus(eventId, groupId, groupPlayerId, status)
+      return res.data
     } catch (e) {
       setError(extractErrorMessage(e))
-      return false
+      return null
     } finally {
       setLoading(false)
     }
@@ -280,4 +281,25 @@ export function useAddPlayerToActiveGroup() {
   }
 
   return { addActive, loading, error }
+}
+
+export function useDeleteGroup() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const remove = async (eventId: number, groupId: number) => {
+    setLoading(true)
+    setError(null)
+    try {
+      await deleteGroup(eventId, groupId)
+      return true
+    } catch (e) {
+      setError(extractErrorMessage(e))
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { remove, loading, error }
 }

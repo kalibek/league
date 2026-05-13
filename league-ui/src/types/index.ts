@@ -112,6 +112,8 @@ export type WSMessageType =
   | 'event_finished'
   | 'manual_placement_required'
   | 'table_assigned'
+  | 'player_dns'
+  | 'player_active'
 
 export interface WSMessage {
   type: WSMessageType

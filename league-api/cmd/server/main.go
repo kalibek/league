@@ -127,6 +127,7 @@ func main() {
 		secured.PUT("/leagues/:id/events/:eid/details", eventsH.UpdateDetails)
 
 		secured.POST("/events/:eid/groups", groupsH.Create)
+		secured.DELETE("/events/:eid/groups/:gid", groupsH.Delete)
 		secured.POST("/events/:eid/groups/:gid/finish", groupsH.Finish)
 		secured.POST("/events/:eid/groups/:gid/reopen", groupsH.Reopen)
 		secured.POST("/events/:eid/groups/:gid/players", groupsH.AddPlayer)

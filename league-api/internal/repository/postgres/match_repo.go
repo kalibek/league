@@ -173,3 +173,16 @@ func (r *matchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([
 	}
 	return tables, nil
 }
+
+func (r *matchRepo) DeleteByGroupPlayer(ctx context.Context, groupID, groupPlayerID int64) ([]int64, error) {
+	const q = `
+		DELETE FROM matches
+		WHERE group_id = $1 AND (group_player1_id = $2 OR group_player2_id = $2)
+		RETURNING match_id`
+	deletedIDs := make([]int64, 0)
+	err := r.db(ctx).SelectContext(ctx, &deletedIDs, q, groupID, groupPlayerID)
+	if err != nil {
+		return nil, fmt.Errorf("matchRepo.DeleteByGroupPlayer: %w", err)
+	}
+	return deletedIDs, nil
+}

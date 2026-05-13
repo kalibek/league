@@ -278,18 +278,6 @@ describe('GroupStandings', () => {
     expect(rows[2]).toHaveTextContent('DNS')
   })
 
-  it('calls onNoShow when no-show button is clicked', async () => {
-    const onNoShow = vi.fn()
-    const player = basePlayer({ groupPlayerId: 5 })
-    render(
-      <MemoryRouter>
-        <GroupStandings players={[player]} matches={[]} onNoShow={onNoShow} />
-      </MemoryRouter>
-    )
-    const btn = screen.getByTitle(/mark/i)
-    await userEvent.click(btn)
-    expect(onNoShow).toHaveBeenCalledWith(5)
-  })
 
   it('shows match score in cell for done match (no walkover)', () => {
     const p1 = basePlayer({ groupPlayerId: 1, seed: 1 })

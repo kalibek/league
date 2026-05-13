@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"league-api/internal/model"
 )
@@ -12,10 +13,10 @@ import (
 // --- player service mocks ---
 
 type psUserRepo struct {
-	users       map[int64]*model.User
-	byEmail     map[string]*model.User
-	createErr   error
-	nextID      int64
+	users     map[int64]*model.User
+	byEmail   map[string]*model.User
+	createErr error
+	nextID    int64
 }
 
 func newPSUserRepo() *psUserRepo {
@@ -76,15 +77,17 @@ func (m *psUserRepo) UpdateRating(ctx context.Context, userID int64, rating, dev
 
 func (m *psUserRepo) ResetAllRatings(ctx context.Context) error { return nil }
 
-func (m *psUserRepo) SetPasswordHash(ctx context.Context, userID int64, hash string) error { return nil }
+func (m *psUserRepo) SetPasswordHash(ctx context.Context, userID int64, hash string) error {
+	return nil
+}
 
 func (m *psUserRepo) UpdateName(ctx context.Context, userID int64, firstName, lastName string) error {
 	return nil
 }
 
 type psRatingRepo struct {
-	history map[int64][]model.RatingHistory // userID → history
-	eventDelta map[int64]map[int64]float64  // userID → eventID → delta
+	history    map[int64][]model.RatingHistory // userID → history
+	eventDelta map[int64]map[int64]float64     // userID → eventID → delta
 }
 
 func (m *psRatingRepo) InsertHistory(ctx context.Context, rh *model.RatingHistory) error {
@@ -141,11 +144,15 @@ func (m *psEventRepo) ListEventsForPlayer(ctx context.Context, userID int64, lim
 	return m.events, m.total, nil
 }
 
+func (m *psEventRepo) UpdateDetails(ctx context.Context, id int64, title string, startDate, endDate time.Time) error {
+	return nil
+}
+
 type psGroupRepo struct {
-	groups         map[int64][]model.GroupPlayer // groupID → players
-	groupsByEvent  map[int64][]model.GroupPlayer // userID,eventID key (not used here — simplified)
-	groupDetail    map[int64]*model.Group
-	groupMatches   map[int64][]model.Match
+	groups        map[int64][]model.GroupPlayer // groupID → players
+	groupsByEvent map[int64][]model.GroupPlayer // userID,eventID key (not used here — simplified)
+	groupDetail   map[int64]*model.Group
+	groupMatches  map[int64][]model.Match
 }
 
 func newPSGroupRepo() *psGroupRepo {
@@ -203,6 +210,10 @@ func (m *psGroupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID int64, 
 	return nil
 }
 
+func (m *psGroupRepo) Delete(ctx context.Context, id int64) error {
+	return nil
+}
+
 type psMatchRepo struct {
 	matches map[int64][]model.Match // groupID → matches
 }
@@ -238,6 +249,10 @@ func (m *psMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNu
 func (m *psMatchRepo) ResetScore(ctx context.Context, matchID int64) error { return nil }
 
 func (m *psMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
+	return nil, nil
+}
+
+func (m *psMatchRepo) DeleteByGroupPlayer(ctx context.Context, groupID, groupPlayerID int64) ([]int64, error) {
 	return nil, nil
 }
 

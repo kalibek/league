@@ -42,3 +42,6 @@ export const setPlayerStatus = (
 
 export const addPlayerToActiveGroup = (eventId: number, groupId: number, userId: number) =>
   client.post(`/secured/events/${eventId}/groups/${groupId}/add-player`, { userId })
+
+export const deleteGroup = (eventId: number, groupId: number) =>
+  client.delete(`/secured/events/${eventId}/groups/${groupId}`)

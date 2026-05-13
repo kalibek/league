@@ -3,14 +3,15 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"league-api/internal/model"
 )
 
 // --- helpers ---
 
-func int16p(v int16) *int16  { return &v }
-func int64p(v int64) *int64  { return &v }
+func int16p(v int16) *int16 { return &v }
+func int64p(v int64) *int64 { return &v }
 
 func makePlayers(ids []int64) []model.GroupPlayer {
 	players := make([]model.GroupPlayer, len(ids))
@@ -202,6 +203,10 @@ func (m *mockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []in
 	return users, nil
 }
 
+func (m *mockGroupRepo) Delete(ctx context.Context, id int64) error {
+	return nil
+}
+
 // mockMatchRepo also satisfies repository.MatchRepository.
 type mockMatchRepo struct {
 	matches map[int64][]model.Match
@@ -238,6 +243,25 @@ func (m *mockMatchRepo) BulkCreate(ctx context.Context, matches []model.Match) e
 	return nil
 }
 
+func (m *mockMatchRepo) DeleteByGroupPlayer(ctx context.Context, groupID, groupPlayerID int64) ([]int64, error) {
+	// Find and delete all matches involving this player
+	if m.matches == nil {
+		return nil, nil
+	}
+	var deletedIDs []int64
+	groupMatches := m.matches[groupID]
+	var remaining []model.Match
+	for _, match := range groupMatches {
+		if (match.GroupPlayer1ID != nil && *match.GroupPlayer1ID == groupPlayerID) ||
+			(match.GroupPlayer2ID != nil && *match.GroupPlayer2ID == groupPlayerID) {
+			deletedIDs = append(deletedIDs, match.MatchID)
+		} else {
+			remaining = append(remaining, match)
+		}
+	}
+	m.matches[groupID] = remaining
+	return deletedIDs, nil
+}
 
 func (m *mockMatchRepo) ResetGroupMatches(ctx context.Context, groupID int64) error { return nil }
 
@@ -275,6 +299,10 @@ func (m *mockEventRepo) ListEventsForPlayer(ctx context.Context, userID int64, l
 
 func (m *mockEventRepo) ListDone(ctx context.Context) ([]model.LeagueEvent, error) {
 	return nil, nil
+}
+
+func (m *mockEventRepo) UpdateDetails(ctx context.Context, id int64, title string, startDate, endDate time.Time) error {
+	return nil
 }
 
 func TestCalculatePlacements_ClearWinner(t *testing.T) {
@@ -582,9 +610,12 @@ func TestSetPlayerStatus_ValidDNS(t *testing.T) {
 	ipEr := &inProgressEventRepo{}
 
 	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: ipEr}
-	err := svc.SetPlayerStatus(context.Background(), 1, 1, model.PlayerStatusDNS)
+	result, err := svc.SetPlayerStatus(context.Background(), 1, 1, model.PlayerStatusDNS)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -609,9 +640,12 @@ func TestSetPlayerStatus_CallsRepo(t *testing.T) {
 	ipEr := &inProgressEventRepo{}
 
 	svc := &groupService{groupRepo: gr, matchRepo: &mockMatchRepo{}, eventRepo: ipEr}
-	err := svc.SetPlayerStatus(context.Background(), 1, 42, model.PlayerStatusDNS)
+	result, err := svc.SetPlayerStatus(context.Background(), 1, 42, model.PlayerStatusDNS)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 	if !gr.setStatusCalled {
 		t.Error("expected SetPlayerStatus to be called on repo")
@@ -628,7 +662,7 @@ func TestSetPlayerStatus_InvalidStatus(t *testing.T) {
 	ipEr := &inProgressEventRepo{}
 
 	svc := &groupService{groupRepo: gr, matchRepo: &mockMatchRepo{}, eventRepo: ipEr}
-	err := svc.SetPlayerStatus(context.Background(), 1, 1, model.PlayerStatus("invalid"))
+	_, err := svc.SetPlayerStatus(context.Background(), 1, 1, model.PlayerStatus("invalid"))
 	if err == nil {
 		t.Fatal("expected error for invalid status")
 	}
@@ -642,7 +676,7 @@ func TestSetPlayerStatus_EventNotInProgress(t *testing.T) {
 	er := &mockEventRepo{}
 
 	svc := &groupService{groupRepo: gr, matchRepo: &mockMatchRepo{}, eventRepo: er}
-	err := svc.SetPlayerStatus(context.Background(), 1, 1, model.PlayerStatusDNS)
+	_, err := svc.SetPlayerStatus(context.Background(), 1, 1, model.PlayerStatusDNS)
 	if err == nil {
 		t.Fatal("expected error: event must be IN_PROGRESS")
 	}
@@ -742,4 +776,159 @@ type mockGroupRepoWithDuplicate struct {
 
 func (m *mockGroupRepoWithDuplicate) ListPlayerGroupsInEvent(ctx context.Context, userID, eventID int64) ([]model.GroupPlayer, error) {
 	return m.existingInEvent, nil
+}
+
+// --- SetPlayerStatus tests ---
+
+// mockGroupRepoForActive allows updating players and is used for SetPlayerStatus active test.
+type mockGroupRepoForActive struct {
+	mockGroupRepo
+}
+
+func (m *mockGroupRepoForActive) SetPlayerStatus(ctx context.Context, groupPlayerID int64, status model.PlayerStatus) error {
+	for i := range m.players[1] {
+		if m.players[1][i].GroupPlayerID == groupPlayerID {
+			m.players[1][i].PlayerStatus = status
+			return nil
+		}
+	}
+	return nil
+}
+
+// mockMatchRepoForActive tracks created matches for SetPlayerStatus active test.
+type mockMatchRepoForActive struct {
+	mockMatchRepo
+	createdMatches []model.Match
+}
+
+func (m *mockMatchRepoForActive) Create(ctx context.Context, match *model.Match) (int64, error) {
+	matchID := int64(len(m.createdMatches) + 200)
+	match.MatchID = matchID
+	m.createdMatches = append(m.createdMatches, *match)
+	return matchID, nil
+}
+
+func TestSetPlayerStatus_MarkDNS(t *testing.T) {
+	// Setup: player 1 has 2 matches (with players 2 and 3)
+	p1, p2, p3 := int64(10), int64(11), int64(12)
+	players := []model.GroupPlayer{
+		{GroupPlayerID: p1, GroupID: 1, UserID: p1, Seed: 1, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: p2, GroupID: 1, UserID: p2, Seed: 2, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: p3, GroupID: 1, UserID: p3, Seed: 3, PlayerStatus: model.PlayerStatusActive},
+	}
+	matches := []model.Match{
+		{MatchID: 100, GroupID: 1, GroupPlayer1ID: &p1, GroupPlayer2ID: &p2, Status: model.MatchDraft},
+		{MatchID: 101, GroupID: 1, GroupPlayer1ID: &p1, GroupPlayer2ID: &p3, Status: model.MatchDraft},
+		{MatchID: 102, GroupID: 1, GroupPlayer1ID: &p2, GroupPlayer2ID: &p3, Status: model.MatchDraft},
+	}
+
+	gr := &mockGroupRepo{
+		players: map[int64][]model.GroupPlayer{1: players},
+	}
+	mr := &mockMatchRepo{matches: map[int64][]model.Match{1: matches}}
+	er := &inProgressEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: er}
+	result, err := svc.SetPlayerStatus(context.Background(), 1, p1, model.PlayerStatusDNS)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if len(result.DeletedMatchIDs) != 2 {
+		t.Errorf("expected 2 deleted match IDs, got %d: %v", len(result.DeletedMatchIDs), result.DeletedMatchIDs)
+	}
+	if len(result.NewMatches) != 0 {
+		t.Errorf("expected no new matches, got %d", len(result.NewMatches))
+	}
+
+	// Verify remaining matches in mock
+	remaining := mr.matches[1]
+	if len(remaining) != 1 {
+		t.Errorf("expected 1 remaining match, got %d", len(remaining))
+	}
+	if len(remaining) > 0 && remaining[0].MatchID != 102 {
+		t.Errorf("expected match 102 to remain, got %d", remaining[0].MatchID)
+	}
+}
+
+func TestSetPlayerStatus_MarkActive(t *testing.T) {
+	// Setup: player 1 is DNS, players 2 and 3 are active (non-calculated)
+	p1, p2, p3 := int64(10), int64(11), int64(12)
+	players := []model.GroupPlayer{
+		{GroupPlayerID: p1, GroupID: 1, UserID: p1, Seed: 1, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: p2, GroupID: 1, UserID: p2, Seed: 2, PlayerStatus: model.PlayerStatusActive, IsNonCalculated: false},
+		{GroupPlayerID: p3, GroupID: 1, UserID: p3, Seed: 3, PlayerStatus: model.PlayerStatusActive, IsNonCalculated: false},
+	}
+
+	grForActive := &mockGroupRepoForActive{
+		mockGroupRepo: mockGroupRepo{
+			players: map[int64][]model.GroupPlayer{1: players},
+		},
+	}
+
+	mrForActive := &mockMatchRepoForActive{
+		mockMatchRepo: mockMatchRepo{
+			matches: map[int64][]model.Match{1: {}},
+		},
+	}
+
+	er := &inProgressEventRepo{}
+
+	svc := &groupService{groupRepo: grForActive, matchRepo: mrForActive, eventRepo: er}
+	result, err := svc.SetPlayerStatus(context.Background(), 1, p1, model.PlayerStatusActive)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if len(result.DeletedMatchIDs) != 0 {
+		t.Errorf("expected no deleted match IDs, got %d", len(result.DeletedMatchIDs))
+	}
+	if len(result.NewMatches) != 2 {
+		t.Errorf("expected 2 new matches, got %d", len(result.NewMatches))
+	}
+
+	// Verify the new matches are against both other players
+	for _, m := range result.NewMatches {
+		if m.GroupPlayer1ID == nil || *m.GroupPlayer1ID != p1 {
+			t.Errorf("player 1 should be GroupPlayer1ID in all matches")
+		}
+		if m.Status != model.MatchDraft {
+			t.Errorf("new matches should be DRAFT status, got %s", m.Status)
+		}
+	}
+}
+
+func TestSetPlayerStatus_MarkDNS_NoMatches(t *testing.T) {
+	// Setup: player with no matches
+	p1, p2 := int64(10), int64(11)
+	players := []model.GroupPlayer{
+		{GroupPlayerID: p1, GroupID: 1, UserID: p1, Seed: 1, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: p2, GroupID: 1, UserID: p2, Seed: 2, PlayerStatus: model.PlayerStatusActive},
+	}
+	matches := []model.Match{} // No matches yet
+
+	gr := &mockGroupRepo{
+		players: map[int64][]model.GroupPlayer{1: players},
+	}
+	mr := &mockMatchRepo{matches: map[int64][]model.Match{1: matches}}
+	er := &inProgressEventRepo{}
+
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: er}
+	result, err := svc.SetPlayerStatus(context.Background(), 1, p1, model.PlayerStatusDNS)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if len(result.DeletedMatchIDs) != 0 {
+		t.Errorf("expected empty deleted match IDs, got %v", result.DeletedMatchIDs)
+	}
 }

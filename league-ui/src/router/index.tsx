@@ -12,6 +12,7 @@ import { LeagueConfigPage } from '../pages/LeagueConfigPage'
 import { CreateLeaguePage } from '../pages/CreateLeaguePage'
 import { LiveViewPage } from '../pages/LiveViewPage'
 import { EventSetupPage } from '../pages/EventSetupPage'
+import { GroupViewPage } from '../pages/GroupViewPage'
 import { ProfileEditPage } from '../pages/ProfileEditPage'
 
 export const router = createBrowserRouter([
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: 'leagues/:id/config', element: <LeagueConfigPage /> },
       { path: 'leagues/:id/events/:eid', element: <LiveViewPage /> },
       { path: 'leagues/:id/events/:eid/setup', element: <EventSetupPage /> },
+      { path: 'leagues/:id/events/:eid/groups/:gid', element: <GroupViewPage /> },
       { path: 'profile/edit', element: <ProfileEditPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

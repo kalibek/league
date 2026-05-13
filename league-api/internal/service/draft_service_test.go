@@ -13,7 +13,7 @@ import (
 // --- configurable mocks for draftService tests ---
 
 type draftMockGroupRepo struct {
-	groups      map[int64][]model.Group  // eventID → groups
+	groups      map[int64][]model.Group // eventID → groups
 	groupByID   map[int64]*model.Group
 	statusCalls []model.GroupStatus
 	players     map[int64][]model.GroupPlayer // groupID → players
@@ -30,7 +30,9 @@ func (m *draftMockGroupRepo) ListByEvent(ctx context.Context, eventID int64) ([]
 	return m.groups[eventID], nil
 }
 
-func (m *draftMockGroupRepo) Create(ctx context.Context, g *model.Group) (int64, error) { return 1, nil }
+func (m *draftMockGroupRepo) Create(ctx context.Context, g *model.Group) (int64, error) {
+	return 1, nil
+}
 
 func (m *draftMockGroupRepo) UpdateStatus(ctx context.Context, id int64, status model.GroupStatus) error {
 	m.statusCalls = append(m.statusCalls, status)
@@ -45,7 +47,9 @@ func (m *draftMockGroupRepo) AddPlayer(ctx context.Context, gp *model.GroupPlaye
 	return 1, nil
 }
 
-func (m *draftMockGroupRepo) UpdatePlayer(ctx context.Context, gp *model.GroupPlayer) error { return nil }
+func (m *draftMockGroupRepo) UpdatePlayer(ctx context.Context, gp *model.GroupPlayer) error {
+	return nil
+}
 
 func (m *draftMockGroupRepo) RemovePlayer(ctx context.Context, groupPlayerID int64) error { return nil }
 
@@ -89,6 +93,11 @@ func (m *draftMockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids
 	return users, nil
 }
 
+func (m *draftMockGroupRepo) Delete(ctx context.Context, id int64) error {
+	delete(m.groupByID, id)
+	return nil
+}
+
 type draftMockEventRepo struct {
 	events      map[int64]*model.LeagueEvent
 	statusCalls []model.EventStatus
@@ -125,6 +134,10 @@ func (m *draftMockEventRepo) ListEventsForPlayer(ctx context.Context, userID int
 
 func (m *draftMockEventRepo) ListDone(ctx context.Context) ([]model.LeagueEvent, error) {
 	return nil, nil
+}
+
+func (m *draftMockEventRepo) UpdateDetails(ctx context.Context, id int64, title string, startDate, endDate time.Time) error {
+	return nil
 }
 
 // --- helpers ---
@@ -314,8 +327,11 @@ func (m *draftMockGroupSvc) CreateGroup(ctx context.Context, eventID int64, divi
 }
 func (m *draftMockGroupSvc) SeedPlayer(ctx context.Context, groupID, userID int64) error { return nil }
 func (m *draftMockGroupSvc) RemovePlayer(ctx context.Context, groupPlayerID int64) error { return nil }
-func (m *draftMockGroupSvc) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error {
+func (m *draftMockGroupSvc) DeleteGroup(ctx context.Context, eventID, groupID int64) error {
 	return nil
+}
+func (m *draftMockGroupSvc) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) (*PlayerStatusResult, error) {
+	return nil, nil
 }
 func (m *draftMockGroupSvc) AddPlayerToActiveGroup(ctx context.Context, groupID, userID int64) error {
 	return nil
@@ -431,4 +447,3 @@ func TestFinishGroup_NonDNSUnfinishedMatchBlocks(t *testing.T) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
-

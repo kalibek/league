@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sort"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ func (m *draftMockLeagueRepo) GetByID(ctx context.Context, id int64) (*model.Lea
 	return nil, errors.New("not found")
 }
 
-func (m *draftMockLeagueRepo) List(ctx context.Context) ([]model.League, error)   { return nil, nil }
+func (m *draftMockLeagueRepo) List(ctx context.Context) ([]model.League, error) { return nil, nil }
 
 func (m *draftMockLeagueRepo) ListWithStats(ctx context.Context) ([]model.LeagueWithStats, error) {
 	return nil, nil
@@ -63,7 +64,7 @@ func (m *draftMockLeagueRepo) ListLeagueRoles(ctx context.Context, leagueID int6
 }
 
 type draftMockMatchRepo struct {
-	matches  map[int64][]model.Match // groupID → matches
+	matches map[int64][]model.Match // groupID → matches
 }
 
 func (m *draftMockMatchRepo) GetByID(ctx context.Context, id int64) (*model.Match, error) {
@@ -101,6 +102,10 @@ func (m *draftMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, 
 func (m *draftMockMatchRepo) ResetScore(ctx context.Context, matchID int64) error { return nil }
 
 func (m *draftMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error) {
+	return nil, nil
+}
+
+func (m *draftMockMatchRepo) DeleteByGroupPlayer(ctx context.Context, groupID, groupPlayerID int64) ([]int64, error) {
 	return nil, nil
 }
 
@@ -181,8 +186,10 @@ func (s *nopGroupService) SeedPlayer(ctx context.Context, groupID, userID int64)
 
 func (s *nopGroupService) RemovePlayer(ctx context.Context, groupPlayerID int64) error { return nil }
 
-func (s *nopGroupService) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error {
-	return nil
+func (s *nopGroupService) DeleteGroup(ctx context.Context, eventID, groupID int64) error { return nil }
+
+func (s *nopGroupService) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) (*PlayerStatusResult, error) {
+	return nil, nil
 }
 
 func (s *nopGroupService) AddPlayerToActiveGroup(ctx context.Context, groupID, userID int64) error {
@@ -597,6 +604,10 @@ func (m *fullEventRepo) ListEventsForPlayer(ctx context.Context, userID int64, l
 	return nil, 0, nil
 }
 
+func (m *fullEventRepo) UpdateDetails(ctx context.Context, id int64, title string, startDate, endDate time.Time) error {
+	return nil
+}
+
 func TestCreateDraft_Success_SingleGroup(t *testing.T) {
 	finishedEvent := &model.LeagueEvent{EventID: 1, LeagueID: 1, Status: model.EventDone}
 
@@ -667,26 +678,33 @@ func TestRecreateDraft_DraftEvent(t *testing.T) {
 	}
 }
 
-// --- orderedDivisions tests ---
+// --- divisionGroupSortKey order tests ---
 
-func TestOrderedDivisions(t *testing.T) {
-	divGroups := map[string][]model.Group{
-		"B":           {{GroupID: 1}},
-		"Superleague": {{GroupID: 2}},
-		"A":           {{GroupID: 3}},
-		"C":           {{GroupID: 4}},
+func TestGroupLinearChainOrder(t *testing.T) {
+	groups := []model.Group{
+		{Division: "B", GroupNo: 1},
+		{Division: "S", GroupNo: 1},
+		{Division: "A", GroupNo: 3},
+		{Division: "C", GroupNo: 1},
+		{Division: "A", GroupNo: 1},
+		{Division: "A", GroupNo: 2},
 	}
 
-	ordered := orderedDivisions(divGroups)
+	sort.Slice(groups, func(i, j int) bool {
+		return divisionGroupSortKey(groups[i].Division, groups[i].GroupNo) <
+			divisionGroupSortKey(groups[j].Division, groups[j].GroupNo)
+	})
 
-	// Verify order: Superleague, A, B, C.
-	expected := []string{"Superleague", "A", "B", "C"}
-	if len(ordered) != len(expected) {
-		t.Fatalf("expected %d divisions, got %d", len(expected), len(ordered))
+	// Expected: S1, A1, A2, A3, B1, C1.
+	expected := []struct {
+		div string
+		no  int
+	}{
+		{"S", 1}, {"A", 1}, {"A", 2}, {"A", 3}, {"B", 1}, {"C", 1},
 	}
-	for i, div := range expected {
-		if ordered[i] != div {
-			t.Errorf("position %d: expected %s, got %s", i, div, ordered[i])
+	for i, e := range expected {
+		if groups[i].Division != e.div || groups[i].GroupNo != e.no {
+			t.Errorf("position %d: want %s%d, got %s%d", i, e.div, e.no, groups[i].Division, groups[i].GroupNo)
 		}
 	}
 }

@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"league-api/internal/model"
 )
 
 // ratingMockUserRepo is a user repo for rating service tests with error injection.
 type ratingMockUserRepo struct {
-	users         map[int64]*model.User
-	updateErr     error
-	resetErr      error
+	users     map[int64]*model.User
+	updateErr error
+	resetErr  error
 }
 
 func (m *ratingMockUserRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
@@ -54,8 +55,8 @@ func (m *ratingMockUserRepo) UpdateName(ctx context.Context, userID int64, first
 
 // ratingMockGroupRepo supports GetPlayers and ListByEvent for rating service tests.
 type ratingMockGroupRepo struct {
-	players   map[int64][]model.GroupPlayer // groupID → players
-	groups    map[int64][]model.Group       // eventID → groups
+	players map[int64][]model.GroupPlayer // groupID → players
+	groups  map[int64][]model.Group       // eventID → groups
 }
 
 func (m *ratingMockGroupRepo) GetByID(ctx context.Context, id int64) (*model.Group, error) {
@@ -66,7 +67,9 @@ func (m *ratingMockGroupRepo) ListByEvent(ctx context.Context, eventID int64) ([
 	return m.groups[eventID], nil
 }
 
-func (m *ratingMockGroupRepo) Create(ctx context.Context, g *model.Group) (int64, error) { return 1, nil }
+func (m *ratingMockGroupRepo) Create(ctx context.Context, g *model.Group) (int64, error) {
+	return 1, nil
+}
 
 func (m *ratingMockGroupRepo) UpdateStatus(ctx context.Context, id int64, status model.GroupStatus) error {
 	return nil
@@ -88,7 +91,9 @@ func (m *ratingMockGroupRepo) UpdatePlayer(ctx context.Context, gp *model.GroupP
 	return nil
 }
 
-func (m *ratingMockGroupRepo) RemovePlayer(ctx context.Context, groupPlayerID int64) error { return nil }
+func (m *ratingMockGroupRepo) RemovePlayer(ctx context.Context, groupPlayerID int64) error {
+	return nil
+}
 
 func (m *ratingMockGroupRepo) ResetGroupPlayers(ctx context.Context, groupID int64) error {
 	return nil
@@ -104,6 +109,10 @@ func (m *ratingMockGroupRepo) SetPlayerStatus(ctx context.Context, groupPlayerID
 
 func (m *ratingMockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error) {
 	return nil, nil
+}
+
+func (m *ratingMockGroupRepo) Delete(ctx context.Context, id int64) error {
+	return nil
 }
 
 // ratingMockMatchRepo supports ListByGroup.
@@ -147,6 +156,10 @@ func (m *ratingMockMatchRepo) ListInProgressByEvent(ctx context.Context, eventID
 	return nil, nil
 }
 
+func (m *ratingMockMatchRepo) DeleteByGroupPlayer(ctx context.Context, groupID, groupPlayerID int64) ([]int64, error) {
+	return nil, nil
+}
+
 // ratingMockRatingRepo supports InsertHistory, DeleteByGroup, DeleteAll.
 type ratingMockRatingRepo struct {
 	insertErr    error
@@ -180,8 +193,8 @@ func (m *ratingMockRatingRepo) GetEventDeltaForUser(ctx context.Context, userID,
 
 // ratingMockEventRepo returns a list of done events.
 type ratingMockEventRepo struct {
-	events    []model.LeagueEvent
-	listErr   error
+	events  []model.LeagueEvent
+	listErr error
 }
 
 func (m *ratingMockEventRepo) GetByID(ctx context.Context, id int64) (*model.LeagueEvent, error) {
@@ -211,6 +224,10 @@ func (m *ratingMockEventRepo) UpdateStatus(ctx context.Context, id int64, status
 
 func (m *ratingMockEventRepo) ListEventsForPlayer(ctx context.Context, userID int64, limit, offset int) ([]model.LeagueEvent, int, error) {
 	return nil, 0, nil
+}
+
+func (m *ratingMockEventRepo) UpdateDetails(ctx context.Context, id int64, title string, startDate, endDate time.Time) error {
+	return nil
 }
 
 // buildRatingSvc is a helper to construct a ratingService for tests.

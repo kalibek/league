@@ -371,10 +371,17 @@ func (s *draftService) CreateDraft(ctx context.Context, leagueID, finishedEventI
 		}
 	}
 
+	// Sort groups into the canonical linear chain: S → A1 → A2 → … → B1 → B2 → …
+	// This must match the UI's groupSortKey so promotion/relegation is applied correctly.
+	sort.Slice(groups, func(i, j int) bool {
+		return divisionGroupSortKey(groups[i].Division, groups[i].GroupNo) <
+			divisionGroupSortKey(groups[j].Division, groups[j].GroupNo)
+	})
+
 	// Pre-compute the new player lists for each group (reads only, outside the transaction).
 	type groupSeed struct {
-		group      model.Group
-		playerIDs  []int64
+		group     model.Group
+		playerIDs []int64
 	}
 	groupSeeds := make([]groupSeed, 0, len(groups))
 	for i, g := range groups {
@@ -517,29 +524,14 @@ func (s *draftService) RecreateDraft(ctx context.Context, eventID int64, newConf
 	return nil
 }
 
-// orderedDivisions returns divisions sorted from highest to lowest (Superleague > A > B > C ...).
-func orderedDivisions(divGroups map[string][]model.Group) []string {
-	var divs []string
-	for d := range divGroups {
-		divs = append(divs, d)
+// divisionGroupSortKey mirrors the UI's groupSortKey: S is rank 0, then A=1, B=2, … by
+// single-letter alphabetical order, with group_no as the tiebreaker within each division.
+func divisionGroupSortKey(div string, groupNo int) int {
+	if div == "S" {
+		return groupNo
 	}
-	sort.Slice(divs, func(i, j int) bool {
-		return divisionRank(divs[i]) < divisionRank(divs[j])
-	})
-	return divs
-}
-
-func divisionRank(div string) int {
-	switch div {
-	case "Superleague":
-		return 0
-	case "A":
-		return 1
-	case "B":
-		return 2
-	case "C":
-		return 3
-	default:
-		return 10
+	if len(div) == 1 && div[0] >= 'A' && div[0] <= 'Z' {
+		return (int(div[0]-'A')+1)*1000 + groupNo
 	}
+	return 99000 + groupNo
 }

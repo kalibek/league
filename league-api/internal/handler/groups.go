@@ -272,12 +272,13 @@ func (h *GroupsHandler) SetPlayerStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.groupSvc.SetPlayerStatus(c.Request.Context(), groupID, groupPlayerID, model.PlayerStatus(req.Status)); err != nil {
+	result, err := h.groupSvc.SetPlayerStatus(c.Request.Context(), groupID, groupPlayerID, model.PlayerStatus(req.Status))
+	if err != nil {
 		log.Printf("[handler] GroupsHandler.SetPlayerStatus: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
+	c.JSON(http.StatusOK, result)
 }
 
 // AddPlayerToActiveGroup handles POST /api/v1/secured/events/:eid/groups/:gid/add-player
@@ -303,6 +304,26 @@ func (h *GroupsHandler) AddPlayerToActiveGroup(c *gin.Context) {
 	if err := h.matchSvc.RecalcGroupPoints(c.Request.Context(), groupID); err != nil {
 		log.Printf("[handler] GroupsHandler.AddPlayerToActiveGroup recalc: %v", err)
 		// Non-fatal: player is added, just points may not be recalculated yet.
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// DELETE /api/v1/secured/events/:eid/groups/:gid
+func (h *GroupsHandler) Delete(c *gin.Context) {
+	eventID, err := strconv.ParseInt(c.Param("eid"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event id"})
+		return
+	}
+	groupID, err := strconv.ParseInt(c.Param("gid"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid group id"})
+		return
+	}
+	if err := h.groupSvc.DeleteGroup(c.Request.Context(), eventID, groupID); err != nil {
+		log.Printf("[handler] GroupsHandler.Delete: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

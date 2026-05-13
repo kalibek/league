@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next'
 interface GroupStandingsProps {
   players: GroupPlayer[]
   matches: Match[]
-  onNoShow?: (groupPlayerId: number) => void
   onScoreClick?: (match: Match) => void
   /** Called when admin clicks the DNS toggle button (mark or unmark DNS). */
   onSetPlayerStatus?: (groupPlayerId: number, currentStatus: 'active' | 'dns') => void
@@ -33,10 +32,40 @@ function buildTiebreakDisplayMap(players: GroupPlayer[]): Map<number, number | n
   return result
 }
 
+// Distinct background colors for each tiebreak sub-group.
+const TIE_COLORS = [
+  'rgba(99,  179, 237, 0.20)', // blue
+  'rgba(246, 173, 85,  0.25)', // amber
+  'rgba(104, 211, 145, 0.25)', // green
+  'rgba(183, 148, 246, 0.25)', // purple
+  'rgba(252, 129, 129, 0.25)', // red
+]
+
+// Returns groupPlayerId → colorIndex for players in tied groups (2+ with same points).
+// Groups are ordered by points descending so the highest-points tie gets the first color.
+// Players with a unique points total are not in the map.
+function buildTieColorMap(players: GroupPlayer[]): Map<number, number> {
+  const calcPlayers = players.filter((p) => !p.isNonCalculated && p.playerStatus !== 'dns')
+  const byPoints = new Map<number, GroupPlayer[]>()
+  for (const p of calcPlayers) {
+    const grp = byPoints.get(p.points) ?? []
+    grp.push(p)
+    byPoints.set(p.points, grp)
+  }
+  const tiedGroups = [...byPoints.entries()]
+    .filter(([, grp]) => grp.length >= 2)
+    .sort(([a], [b]) => b - a)
+
+  const result = new Map<number, number>()
+  tiedGroups.forEach(([, grp], colorIdx) => {
+    for (const p of grp) result.set(p.groupPlayerId, colorIdx)
+  })
+  return result
+}
+
 export function GroupStandings({
   players,
   matches,
-  onNoShow,
   onScoreClick,
   onSetPlayerStatus,
 }: GroupStandingsProps) {
@@ -53,6 +82,7 @@ export function GroupStandings({
   })
 
   const tiebreakMap = buildTiebreakDisplayMap(players)
+  const tieColorMap = buildTieColorMap(players)
 
   const playerName = (p: GroupPlayer) =>
     p.user
@@ -167,16 +197,25 @@ export function GroupStandings({
               <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>
                 {t('groupStandings.move')}
               </th>
-              {sorted.map((p, i) => (
-                <th
-                  key={p.groupPlayerId}
-                  className={matrixColClass}
-                  style={{ ...thStyle, borderLeft: '1px solid var(--border)', textAlign: 'center' }}
-                  title={playerName(p)}
-                >
-                  #{i + 1}
-                </th>
-              ))}
+              {sorted.map((p, i) => {
+                const colorIdx = tieColorMap.get(p.groupPlayerId)
+                return (
+                  <th
+                    key={p.groupPlayerId}
+                    className={matrixColClass}
+                    style={{
+                      ...thStyle,
+                      borderLeft: '1px solid var(--border)',
+                      textAlign: 'center',
+                      backgroundColor:
+                        colorIdx !== undefined ? TIE_COLORS[colorIdx % TIE_COLORS.length] : thStyle.backgroundColor,
+                    }}
+                    title={playerName(p)}
+                  >
+                    #{i + 1}
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>
@@ -216,17 +255,6 @@ export function GroupStandings({
                         </span>
                       )}
                       {dns && <Badge variant="DNS" />}
-                      {onNoShow && !dns && (
-                        <button
-                          onClick={() => onNoShow(p.groupPlayerId)}
-                          style={{ color: '#cbd5e1', marginLeft: 4, lineHeight: 1, fontSize: 12 }}
-                          className="hover:text-red-500 transition-colors"
-                          title={t('groupStandings.noShow', { name })}
-                          aria-label={t('groupStandings.noShow', { name })}
-                        >
-                          ✕
-                        </button>
-                      )}
                       {onSetPlayerStatus && !p.isNonCalculated && (
                         <button
                           onClick={() => onSetPlayerStatus(p.groupPlayerId, p.playerStatus)}
@@ -312,13 +340,21 @@ export function GroupStandings({
                     const m = getMatch(p, colPlayer)
                     const inProgress = m?.status === 'IN_PROGRESS'
 
+                    const rowColorIdx = tieColorMap.get(p.groupPlayerId)
+                    const colColorIdx = tieColorMap.get(colPlayer.groupPlayerId)
+                    const sameTieGroup =
+                      rowColorIdx !== undefined && rowColorIdx === colColorIdx
+                    const cellTieBg = sameTieGroup
+                      ? TIE_COLORS[rowColorIdx % TIE_COLORS.length]
+                      : undefined
+
                     return (
                       <td
                         key={colPlayer.groupPlayerId}
                         className={matrixColClass}
                         style={{
                           ...tdStyle,
-                          backgroundColor: inProgress ? '#fef9c3' : undefined,
+                          backgroundColor: inProgress ? '#fef9c3' : cellTieBg,
                           color:
                             content === '—'
                               ? '#94a3b8'

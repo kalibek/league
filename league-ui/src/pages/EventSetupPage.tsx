@@ -5,6 +5,7 @@ import { useEvent, useUpdateEventDetails } from '../hooks/useEvents'
 import {
   useAddPlayerToActiveGroup,
   useCreateGroup,
+  useDeleteGroup,
   useGroups,
   useRemoveGroupPlayer,
   useSeedPlayer,
@@ -13,8 +14,9 @@ import { Badge } from '../components/Badge/Badge'
 import { Button } from '../components/Button/Button'
 import { PlayerSearchModal } from '../components/PlayerSearchModal/PlayerSearchModal'
 import type { Group, GroupPlayer } from '../types'
+import { groupTitle, groupSortKey } from '../utils/group'
 
-const DIVISIONS = ['Superleague', 'A', 'B', 'C', 'D', 'E']
+const DIVISIONS = ['S', 'A', 'B', 'C', 'D', 'E', 'F']
 
 interface GroupWithPlayers extends Group {
   players: GroupPlayer[]
@@ -32,6 +34,7 @@ export function EventSetupPage() {
   const { seed, loading: seeding, error: seedError } = useSeedPlayer()
   const { remove, loading: removing } = useRemoveGroupPlayer()
   const { addActive, loading: addingActive, error: addActiveError } = useAddPlayerToActiveGroup()
+  const { remove: deleteGroup, loading: deletingGroup } = useDeleteGroup()
   const {
     update: updateDetails,
     loading: updatingDetails,
@@ -129,6 +132,18 @@ export function EventSetupPage() {
     if (ok) await loadGroupPlayers(groupId)
   }
 
+  const handleDeleteGroup = async (groupId: number) => {
+    const ok = await deleteGroup(eventId, groupId)
+    if (ok) {
+      refreshGroups()
+      setGroupPlayers((prev) => {
+        const next = { ...prev }
+        delete next[groupId]
+        return next
+      })
+    }
+  }
+
   const handleAddPlayerFromModal = async (groupId: number, userId: number): Promise<boolean> => {
     const isDraft = event?.status === 'DRAFT'
     const isInProgress = event?.status === 'IN_PROGRESS'
@@ -146,10 +161,9 @@ export function EventSetupPage() {
     return ok
   }
 
-  const groupsWithPlayers: GroupWithPlayers[] = groups.map((g) => ({
-    ...g,
-    players: groupPlayers[g.groupId] ?? [],
-  }))
+  const groupsWithPlayers: GroupWithPlayers[] = groups
+    .map((g) => ({ ...g, players: groupPlayers[g.groupId] ?? [] }))
+    .sort((a, b) => groupSortKey(a.division, a.groupNo) - groupSortKey(b.division, b.groupNo))
 
   const handleSaveDetails = async () => {
     const updated = await updateDetails(leagueId, eventId, {
@@ -312,7 +326,7 @@ export function EventSetupPage() {
               >
                 {DIVISIONS.map((d) => (
                   <option key={d} value={d}>
-                    {d}
+                    {d === 'S' ? 'Superleague' : d}
                   </option>
                 ))}
               </select>
@@ -323,7 +337,7 @@ export function EventSetupPage() {
               </label>
               <input
                 type="number"
-                min={1}
+                min={0}
                 className="rounded border border-gray-300 px-3 py-2 text-sm w-24"
                 value={groupForm.groupNo}
                 onChange={(e) => setGroupForm((f) => ({ ...f, groupNo: Number(e.target.value) }))}
@@ -362,11 +376,26 @@ export function EventSetupPage() {
           <div key={grp.groupId} className="rounded-lg border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-gray-800">
-                {grp.division === 'Superleague' ? 'Superleague' : `${grp.division}${grp.groupNo}`}
+                {groupTitle(grp.division, grp.groupNo)}
               </h3>
-              <span className="text-xs text-gray-400">
-                {t('eventSetup.players', { count: grp.players.length })}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">
+                  {t('eventSetup.players', { count: grp.players.length })}
+                </span>
+                {grp.players.length === 0 && (isDraft || isInProgress) && (
+                  <button
+                    onClick={() => handleDeleteGroup(grp.groupId)}
+                    disabled={deletingGroup}
+                    className="text-gray-300 hover:text-red-500 transition-colors"
+                    title="Delete empty group"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Player list */}
@@ -435,10 +464,8 @@ export function EventSetupPage() {
       {searchModalGroup !== null &&
         (() => {
           const selectedGroup = groupsWithPlayers.find((g) => g.groupId === searchModalGroup)
-          const groupTitle = selectedGroup
-            ? selectedGroup.division === 'Superleague'
-              ? 'Superleague'
-              : `${selectedGroup.division}${selectedGroup.groupNo}`
+          const modalTitle = selectedGroup
+            ? groupTitle(selectedGroup.division, selectedGroup.groupNo)
             : 'Group'
 
           return (
@@ -448,7 +475,7 @@ export function EventSetupPage() {
               onClose={() => setSearchModalGroup(null)}
               onAdd={(userId) => handleAddPlayerFromModal(searchModalGroup, userId)}
               assignedUserIds={assignedUserIds}
-              title={`Add player to ${groupTitle}`}
+              title={`Add player to ${modalTitle}`}
               loading={seeding || addingActive}
             />
           )

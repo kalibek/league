@@ -67,9 +67,13 @@ func (m *matchSvcMockMatchRepo) UpdateStatus(ctx context.Context, id int64, stat
 	return nil
 }
 
-func (m *matchSvcMockMatchRepo) BulkCreate(ctx context.Context, matches []model.Match) error { return nil }
+func (m *matchSvcMockMatchRepo) BulkCreate(ctx context.Context, matches []model.Match) error {
+	return nil
+}
 
-func (m *matchSvcMockMatchRepo) ResetGroupMatches(ctx context.Context, groupID int64) error { return nil }
+func (m *matchSvcMockMatchRepo) ResetGroupMatches(ctx context.Context, groupID int64) error {
+	return nil
+}
 
 func (m *matchSvcMockMatchRepo) SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error {
 	if match, ok := m.matches[matchID]; ok {
@@ -91,6 +95,10 @@ func (m *matchSvcMockMatchRepo) ListInProgressByEvent(ctx context.Context, event
 	return result, nil
 }
 
+func (m *matchSvcMockMatchRepo) DeleteByGroupPlayer(ctx context.Context, groupID, groupPlayerID int64) ([]int64, error) {
+	return nil, nil
+}
+
 type matchSvcMockGroupRepo struct {
 	groups  map[int64]*model.Group
 	players map[int64][]model.GroupPlayer
@@ -108,7 +116,9 @@ func (m *matchSvcMockGroupRepo) ListByEvent(ctx context.Context, eventID int64) 
 	return nil, nil
 }
 
-func (m *matchSvcMockGroupRepo) Create(ctx context.Context, g *model.Group) (int64, error) { return 1, nil }
+func (m *matchSvcMockGroupRepo) Create(ctx context.Context, g *model.Group) (int64, error) {
+	return 1, nil
+}
 
 func (m *matchSvcMockGroupRepo) UpdateStatus(ctx context.Context, id int64, status model.GroupStatus) error {
 	return nil
@@ -155,9 +165,13 @@ func (m *matchSvcMockGroupRepo) UpdatePlayer(ctx context.Context, gp *model.Grou
 	return nil
 }
 
-func (m *matchSvcMockGroupRepo) RemovePlayer(ctx context.Context, groupPlayerID int64) error { return nil }
+func (m *matchSvcMockGroupRepo) RemovePlayer(ctx context.Context, groupPlayerID int64) error {
+	return nil
+}
 
-func (m *matchSvcMockGroupRepo) ResetGroupPlayers(ctx context.Context, groupID int64) error { return nil }
+func (m *matchSvcMockGroupRepo) ResetGroupPlayers(ctx context.Context, groupID int64) error {
+	return nil
+}
 
 func (m *matchSvcMockGroupRepo) ListPlayerGroupsInEvent(ctx context.Context, userID, eventID int64) ([]model.GroupPlayer, error) {
 	return nil, nil
@@ -173,6 +187,11 @@ func (m *matchSvcMockGroupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, 
 		users = append(users, model.User{UserID: id})
 	}
 	return users, nil
+}
+
+func (m *matchSvcMockGroupRepo) Delete(ctx context.Context, id int64) error {
+	delete(m.groups, id)
+	return nil
 }
 
 // buildMatch creates a DRAFT match between two group players in a group.

@@ -63,6 +63,7 @@ type GroupRepository interface {
 	ResetGroupPlayers(ctx context.Context, groupID int64) error
 	ListPlayerGroupsInEvent(ctx context.Context, userID, eventID int64) ([]model.GroupPlayer, error)
 	ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error)
+	Delete(ctx context.Context, id int64) error
 }
 
 type MatchRepository interface {
@@ -76,6 +77,7 @@ type MatchRepository interface {
 	SetTableNumber(ctx context.Context, matchID int64, tableNumber int) error
 	ResetScore(ctx context.Context, matchID int64) error
 	ListInProgressByEvent(ctx context.Context, eventID int64) ([]int, error)
+	DeleteByGroupPlayer(ctx context.Context, groupID, groupPlayerID int64) ([]int64, error)
 }
 
 type ProfileRepository interface {

@@ -14,7 +14,7 @@ type mockLeagueRepo struct {
 	leagues     map[int64]*model.League
 	stats       []model.LeagueWithStats
 	maintainers map[int64][]model.LeagueMaintainer
-	roles       map[int64][]model.UserRole       // leagueID → roles
+	roles       map[int64][]model.UserRole           // leagueID → roles
 	userRoles   map[int64]map[int64][]model.UserRole // userID → leagueID → roles
 	createErr   error
 	updateErr   error
@@ -132,7 +132,9 @@ func (m *mockUserRepoForLeague) GetByEmail(ctx context.Context, email string) (*
 	return nil, nil
 }
 
-func (m *mockUserRepoForLeague) Create(ctx context.Context, u *model.User) (int64, error) { return 1, nil }
+func (m *mockUserRepoForLeague) Create(ctx context.Context, u *model.User) (int64, error) {
+	return 1, nil
+}
 
 func (m *mockUserRepoForLeague) List(ctx context.Context, limit, offset int, sortBy string) ([]model.User, error) {
 	return nil, nil
@@ -161,7 +163,7 @@ func (m *mockUserRepoForLeague) UpdateName(ctx context.Context, userID int64, fi
 func TestCreateLeague_Success(t *testing.T) {
 	lr := newMockLeagueRepo()
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	league, err := svc.CreateLeague(context.Background(), 1, "Test League", "desc", model.LeagueConfig{GamesToWin: 3})
 	if err != nil {
@@ -181,7 +183,7 @@ func TestCreateLeague_CreateError(t *testing.T) {
 	lr := newMockLeagueRepo()
 	lr.createErr = errors.New("db error")
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	_, err := svc.CreateLeague(context.Background(), 1, "Test League", "desc", model.LeagueConfig{})
 	if err == nil {
@@ -193,7 +195,7 @@ func TestCreateLeague_AssignRoleError(t *testing.T) {
 	lr := newMockLeagueRepo()
 	lr.assignErr = errors.New("assign error")
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	_, err := svc.CreateLeague(context.Background(), 1, "Test League", "desc", model.LeagueConfig{})
 	if err == nil {
@@ -205,7 +207,7 @@ func TestGetLeague(t *testing.T) {
 	lr := newMockLeagueRepo()
 	lr.leagues[5] = &model.League{LeagueID: 5, Title: "My League"}
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	league, err := svc.GetLeague(context.Background(), 5)
 	if err != nil {
@@ -221,7 +223,7 @@ func TestListLeagues(t *testing.T) {
 	lr.leagues[1] = &model.League{LeagueID: 1}
 	lr.leagues[2] = &model.League{LeagueID: 2}
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	leagues, err := svc.ListLeagues(context.Background())
 	if err != nil {
@@ -240,7 +242,7 @@ func TestListLeagueSummaries(t *testing.T) {
 	}
 	lr.maintainers[1] = []model.LeagueMaintainer{{UserID: 1, FirstName: "Alice"}}
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	summaries, err := svc.ListLeagueSummaries(context.Background())
 	if err != nil {
@@ -258,7 +260,7 @@ func TestUpdateConfig(t *testing.T) {
 	lr := newMockLeagueRepo()
 	lr.leagues[1] = &model.League{LeagueID: 1}
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	cfg := model.LeagueConfig{GamesToWin: 5, NumberOfAdvances: 2}
 	err := svc.UpdateConfig(context.Background(), 1, cfg)
@@ -283,7 +285,7 @@ func TestAssignRole_ValidRoles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			lr := newMockLeagueRepo()
 			ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-			svc := NewLeagueService(nil,lr, ur)
+			svc := NewLeagueService(nil, lr, ur)
 			err := svc.AssignRole(context.Background(), 1, 42, tc.roleName)
 			if err != nil {
 				t.Fatalf("unexpected error for role %s: %v", tc.roleName, err)
@@ -295,7 +297,7 @@ func TestAssignRole_ValidRoles(t *testing.T) {
 func TestAssignRole_UnknownRole(t *testing.T) {
 	lr := newMockLeagueRepo()
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	err := svc.AssignRole(context.Background(), 1, 42, "superuser")
 	if err == nil {
@@ -306,7 +308,7 @@ func TestAssignRole_UnknownRole(t *testing.T) {
 func TestRemoveRole_ValidRole(t *testing.T) {
 	lr := newMockLeagueRepo()
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	err := svc.RemoveRole(context.Background(), 1, 42, "player")
 	if err != nil {
@@ -317,7 +319,7 @@ func TestRemoveRole_ValidRole(t *testing.T) {
 func TestRemoveRole_UnknownRole(t *testing.T) {
 	lr := newMockLeagueRepo()
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	err := svc.RemoveRole(context.Background(), 1, 42, "unknown")
 	if err == nil {
@@ -332,7 +334,7 @@ func TestIsMaintainer_True(t *testing.T) {
 		1: {{UserID: 42, LeagueID: 1, RoleID: 3}},
 	}
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	if !svc.IsMaintainer(context.Background(), 1, 42) {
 		t.Error("expected user 42 to be a maintainer of league 1")
@@ -342,7 +344,7 @@ func TestIsMaintainer_True(t *testing.T) {
 func TestIsMaintainer_False(t *testing.T) {
 	lr := newMockLeagueRepo()
 	ur := &mockUserRepoForLeague{users: map[int64]*model.User{}}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	if svc.IsMaintainer(context.Background(), 1, 99) {
 		t.Error("expected user 99 to not be a maintainer")
@@ -361,7 +363,7 @@ func TestListLeagueRoles(t *testing.T) {
 			2: {UserID: 2, FirstName: "Bob", LastName: "B", Email: "b@b.com"},
 		},
 	}
-	svc := NewLeagueService(nil,lr, ur)
+	svc := NewLeagueService(nil, lr, ur)
 
 	roles, err := svc.ListLeagueRoles(context.Background(), 1)
 	if err != nil {
@@ -420,21 +422,24 @@ func TestRoleIDToName_AllValid(t *testing.T) {
 	}
 }
 
-func TestDivisionRank(t *testing.T) {
-	tests := []struct {
-		div  string
-		want int
+func TestDivisionGroupSortKey(t *testing.T) {
+	// Verify the canonical order: S < A1 < A2 < B1 < B2 < unknown.
+	keys := []struct {
+		div     string
+		groupNo int
 	}{
-		{"Superleague", 0},
+		{"S", 1},
 		{"A", 1},
+		{"A", 2},
+		{"B", 1},
 		{"B", 2},
-		{"C", 3},
-		{"D", 10},
+		{"Z", 1},
 	}
-	for _, tc := range tests {
-		got := divisionRank(tc.div)
-		if got != tc.want {
-			t.Errorf("divisionRank(%s) = %d, want %d", tc.div, got, tc.want)
+	for i := 1; i < len(keys); i++ {
+		prev := keys[i-1]
+		cur := keys[i]
+		if divisionGroupSortKey(prev.div, prev.groupNo) >= divisionGroupSortKey(cur.div, cur.groupNo) {
+			t.Errorf("expected sortKey(%s,%d) < sortKey(%s,%d)", prev.div, prev.groupNo, cur.div, cur.groupNo)
 		}
 	}
 }

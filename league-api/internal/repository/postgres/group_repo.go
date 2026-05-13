@@ -38,7 +38,7 @@ func (r *groupRepo) GetByID(ctx context.Context, id int64) (*model.Group, error)
 func (r *groupRepo) ListByEvent(ctx context.Context, eventID int64) ([]model.Group, error) {
 	groups := make([]model.Group, 0)
 	err := r.db(ctx).SelectContext(ctx, &groups,
-		`SELECT * FROM groups WHERE event_id = $1 ORDER BY division, group_no`,
+		`SELECT * FROM groups WHERE event_id = $1 ORDER BY CASE WHEN division = 'S' THEN 0 ELSE 1 END, division, group_no`,
 		eventID,
 	)
 	if err != nil {
@@ -211,4 +211,12 @@ func (r *groupRepo) ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64)
 		return nil, fmt.Errorf("groupRepo.ListUsersByIdsByRatingDesc select query: %w", err)
 	}
 	return users, nil
+}
+
+func (r *groupRepo) Delete(ctx context.Context, id int64) error {
+	_, err := r.db(ctx).ExecContext(ctx, `DELETE FROM groups WHERE group_id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("groupRepo.Delete: %w", err)
+	}
+	return nil
 }

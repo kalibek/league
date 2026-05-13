@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { GroupStatus } from '../../types'
 import { Badge } from '../Badge/Badge'
 import { useTranslation } from 'react-i18next'
@@ -11,6 +12,7 @@ interface GroupCardProps {
   collapsible?: boolean
   defaultCollapsed?: boolean
   collapseSignal?: number
+  groupViewUrl?: string
 }
 
 export function GroupCard({
@@ -21,6 +23,7 @@ export function GroupCard({
   collapsible = false,
   defaultCollapsed = false,
   collapseSignal = 0,
+  groupViewUrl,
 }: GroupCardProps) {
   const { t } = useTranslation()
   const [seenSignal, setSeenSignal] = useState(collapseSignal)
@@ -32,7 +35,7 @@ export function GroupCard({
   }
 
   const title =
-    division === 'Superleague'
+    division === 'S' || division === 'Superleague'
       ? 'Superleague'
       : t('groupCard.divisionGroup', { division, no: groupNo })
 
@@ -71,6 +74,46 @@ export function GroupCard({
         >
           {title}
         </h3>
+        {groupViewUrl && (
+          <Link
+            to={groupViewUrl}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 20,
+              height: 20,
+              flexShrink: 0,
+              transition: 'opacity 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              ;(e.currentTarget as HTMLElement).style.opacity = '1'
+            }}
+            onMouseLeave={(e) => {
+              ;(e.currentTarget as HTMLElement).style.opacity = '0.6'
+            }}
+            title="View group details"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              style={{
+                color: 'rgba(255,255,255,0.6)',
+              }}
+            >
+              <path
+                d="M2 10L10 2M10 2H5M10 2V7"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+        )}
         <Badge variant={status} />
       </div>
       {!collapsed && <div className="p-4 bg-white">{children}</div>}

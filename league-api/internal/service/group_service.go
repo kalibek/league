@@ -14,6 +14,12 @@ import (
 	"league-api/internal/ws"
 )
 
+// PlayerStatusResult holds the result of a SetPlayerStatus operation.
+type PlayerStatusResult struct {
+	DeletedMatchIDs []int64       `json:"deletedMatchIds,omitempty"`
+	NewMatches      []model.Match `json:"newMatches,omitempty"`
+}
+
 // GroupService handles round-robin generation and placement calculation.
 type GroupService interface {
 	GenerateRoundRobin(ctx context.Context, groupID int64) error
@@ -25,9 +31,11 @@ type GroupService interface {
 	CreateGroup(ctx context.Context, eventID int64, division string, groupNo int, scheduled time.Time) (*model.Group, error)
 	SeedPlayer(ctx context.Context, groupID, userID int64) error
 	RemovePlayer(ctx context.Context, groupPlayerID int64) error
+	DeleteGroup(ctx context.Context, eventID, groupID int64) error
 	// SetPlayerStatus marks a player as dns or resets to active.
+	// Returns (*PlayerStatusResult, nil) with deleted match IDs or new matches.
 	// Only allowed when the parent event is IN_PROGRESS.
-	SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error
+	SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) (*PlayerStatusResult, error)
 	// AddPlayerToActiveGroup adds a fully-calculated player to a group while the event is IN_PROGRESS.
 	// New DRAFT matches are created for the new player vs every existing non-IsNonCalculated player.
 	AddPlayerToActiveGroup(ctx context.Context, groupID, userID int64) error
@@ -69,6 +77,23 @@ func (s *groupService) GetGroupDetail(ctx context.Context, groupID int64) (*mode
 	matches, err := s.matchRepo.ListByGroup(ctx, groupID)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("groupService.GetGroupDetail matches: %w", err)
+	}
+	// Enrich players with user data.
+	if len(players) > 0 {
+		ids := make([]int64, len(players))
+		for i, p := range players {
+			ids[i] = p.UserID
+		}
+		users, err := s.groupRepo.ListUsersByIdsByRatingDesc(ctx, ids)
+		if err == nil {
+			userMap := make(map[int64]*model.User, len(users))
+			for i := range users {
+				userMap[users[i].UserID] = &users[i]
+			}
+			for i := range players {
+				players[i].User = userMap[players[i].UserID]
+			}
+		}
 	}
 	return grp, players, matches, nil
 }
@@ -291,7 +316,6 @@ func (s *groupService) AddNonCalculatedPlayer(ctx context.Context, groupID, user
 	return err
 }
 
-
 func (s *groupService) ListGroups(ctx context.Context, eventID int64) ([]model.Group, error) {
 	return s.groupRepo.ListByEvent(ctx, eventID)
 }
@@ -316,6 +340,31 @@ func (s *groupService) CreateGroup(ctx context.Context, eventID int64, division 
 		return nil, fmt.Errorf("groupService.CreateGroup: %w", err)
 	}
 	return s.groupRepo.GetByID(ctx, id)
+}
+
+func (s *groupService) DeleteGroup(ctx context.Context, eventID, groupID int64) error {
+	ev, err := s.eventRepo.GetByID(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("groupService.DeleteGroup event: %w", err)
+	}
+	if ev.Status != model.EventDraft && ev.Status != model.EventInProgress {
+		return fmt.Errorf("cannot delete group: event must be DRAFT or IN_PROGRESS")
+	}
+	grp, err := s.groupRepo.GetByID(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("groupService.DeleteGroup group: %w", err)
+	}
+	if grp.EventID != eventID {
+		return fmt.Errorf("group does not belong to event")
+	}
+	players, err := s.groupRepo.GetPlayers(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("groupService.DeleteGroup players: %w", err)
+	}
+	if len(players) > 0 {
+		return fmt.Errorf("cannot delete group with players")
+	}
+	return s.groupRepo.Delete(ctx, groupID)
 }
 
 func (s *groupService) SeedPlayer(ctx context.Context, groupID, userID int64) error {
@@ -359,28 +408,119 @@ func (s *groupService) RemovePlayer(ctx context.Context, groupPlayerID int64) er
 }
 
 // SetPlayerStatus marks a group player as dns or resets to active.
+// On DNS: deletes all player's matches, broadcasts player_dns.
+// On active: creates round-robin matches vs non-DNS/non-calculated players, broadcasts player_active.
 // Only allowed when the parent event is IN_PROGRESS.
-func (s *groupService) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) error {
+func (s *groupService) SetPlayerStatus(ctx context.Context, groupID, groupPlayerID int64, status model.PlayerStatus) (*PlayerStatusResult, error) {
 	if status != model.PlayerStatusActive && status != model.PlayerStatusDNS {
-		return fmt.Errorf("invalid player status %q: must be 'active' or 'dns'", status)
+		return nil, fmt.Errorf("invalid player status %q: must be 'active' or 'dns'", status)
 	}
 
 	grp, err := s.groupRepo.GetByID(ctx, groupID)
 	if err != nil {
-		return fmt.Errorf("groupService.SetPlayerStatus get group: %w", err)
+		return nil, fmt.Errorf("groupService.SetPlayerStatus get group: %w", err)
 	}
 	ev, err := s.eventRepo.GetByID(ctx, grp.EventID)
 	if err != nil {
-		return fmt.Errorf("groupService.SetPlayerStatus get event: %w", err)
+		return nil, fmt.Errorf("groupService.SetPlayerStatus get event: %w", err)
 	}
 	if ev.Status != model.EventInProgress {
-		return fmt.Errorf("player status can only be changed while event is IN_PROGRESS")
+		return nil, fmt.Errorf("player status can only be changed while event is IN_PROGRESS")
 	}
 
-	if err := s.groupRepo.SetPlayerStatus(ctx, groupPlayerID, status); err != nil {
-		return fmt.Errorf("groupService.SetPlayerStatus: %w", err)
+	result := &PlayerStatusResult{}
+
+	// Run in a single transaction
+	err = idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		if status == model.PlayerStatusDNS {
+			// Delete all matches for this player
+			deletedIDs, err := s.matchRepo.DeleteByGroupPlayer(txCtx, groupID, groupPlayerID)
+			if err != nil {
+				return fmt.Errorf("delete matches: %w", err)
+			}
+			result.DeletedMatchIDs = deletedIDs
+
+			// Update player status to DNS
+			if err := s.groupRepo.SetPlayerStatus(txCtx, groupPlayerID, status); err != nil {
+				return fmt.Errorf("set player status: %w", err)
+			}
+
+			// Broadcast after tx
+			if s.hub != nil {
+				s.hub.BroadcastToEvent(ev.EventID, ws.Message{
+					Type:    "player_dns",
+					GroupID: groupID,
+					Payload: map[string]any{
+						"groupPlayerId":   groupPlayerID,
+						"deletedMatchIds": deletedIDs,
+					},
+				})
+			}
+		} else {
+			// status == PlayerStatusActive
+			// Update player status to active
+			if err := s.groupRepo.SetPlayerStatus(txCtx, groupPlayerID, status); err != nil {
+				return fmt.Errorf("set player status: %w", err)
+			}
+
+			// Get all current players in the group
+			allPlayers, err := s.groupRepo.GetPlayers(txCtx, groupID)
+			if err != nil {
+				return fmt.Errorf("get players: %w", err)
+			}
+
+			// Create new DRAFT matches: this player vs each non-DNS, non-IsNonCalculated player (excluding self)
+			var newMatches []model.Match
+			for _, p := range allPlayers {
+				if p.GroupPlayerID == groupPlayerID {
+					continue // skip self
+				}
+				if p.PlayerStatus == model.PlayerStatusDNS {
+					continue // skip DNS players
+				}
+				if p.IsNonCalculated {
+					continue // skip non-calculated players
+				}
+
+				// Create match: current player (active) vs existing player
+				match := model.Match{
+					GroupID:        groupID,
+					GroupPlayer1ID: &groupPlayerID,
+					GroupPlayer2ID: &p.GroupPlayerID,
+					Status:         model.MatchDraft,
+				}
+
+				// Insert and get the match ID
+				matchID, err := s.matchRepo.Create(txCtx, &match)
+				if err != nil {
+					return fmt.Errorf("create match: %w", err)
+				}
+				match.MatchID = matchID
+				newMatches = append(newMatches, match)
+			}
+
+			result.NewMatches = newMatches
+
+			// Broadcast after tx
+			if s.hub != nil {
+				s.hub.BroadcastToEvent(ev.EventID, ws.Message{
+					Type:    "player_active",
+					GroupID: groupID,
+					Payload: map[string]any{
+						"groupPlayerId": groupPlayerID,
+						"newMatches":    newMatches,
+					},
+				})
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("groupService.SetPlayerStatus: %w", err)
 	}
-	return nil
+
+	return result, nil
 }
 
 // AddPlayerToActiveGroup adds a fully-calculated player to a group while the event is IN_PROGRESS.

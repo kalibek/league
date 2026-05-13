@@ -28,6 +28,7 @@ import { PlacementOverride } from '../components/PlacementOverride/PlacementOver
 import { Button } from '../components/Button/Button'
 import { Badge } from '../components/Badge/Badge'
 import type { EventDetail, GroupDetail, GroupPlayer, Match, WSMessage } from '../types'
+import { groupTitle, groupSortKey } from '../utils/group'
 
 export function LiveViewPage() {
   const { t } = useTranslation()
@@ -68,7 +69,23 @@ export function LiveViewPage() {
     groupId: number
     eventId: number
   } | null>(null)
+  const [dnsConfirm, setDnsConfirm] = useState<{
+    groupId: number
+    groupPlayerId: number
+    playerName: string
+    scoredMatchCount: number
+  } | null>(null)
   const [collapseSignal, setCollapseSignal] = useState(0)
+  const [collapsedDivisions, setCollapsedDivisions] = useState<Set<string>>(new Set())
+
+  const toggleDivision = (div: string) => {
+    setCollapsedDivisions((prev) => {
+      const next = new Set(prev)
+      if (next.has(div)) next.delete(div)
+      else next.add(div)
+      return next
+    })
+  }
 
   const gamesToWin = league?.configuration?.gamesToWin ?? 3
   const numberOfTables = league?.configuration?.numberOfTables ?? 0
@@ -151,6 +168,40 @@ export function LiveViewPage() {
             if (tiedPlayers.length > 0) {
               setPlacementModal({ players: tiedPlayers, groupId: grp.groupId, eventId })
             }
+          }
+        }
+
+        if (msg.type === 'player_dns') {
+          const payload = msg.payload as { groupPlayerId: number; deletedMatchIds: number[] }
+          return {
+            ...prev,
+            groups: prev.groups.map((g) => {
+              if (g.groupId !== msg.groupId) return g
+              return {
+                ...g,
+                players: g.players.map((p) =>
+                  p.groupPlayerId === payload.groupPlayerId ? { ...p, playerStatus: 'dns' as const } : p
+                ),
+                matches: g.matches.filter((m) => !payload.deletedMatchIds.includes(m.matchId)),
+              }
+            }),
+          }
+        }
+
+        if (msg.type === 'player_active') {
+          const payload = msg.payload as { groupPlayerId: number; newMatches: Match[] }
+          return {
+            ...prev,
+            groups: prev.groups.map((g) => {
+              if (g.groupId !== msg.groupId) return g
+              return {
+                ...g,
+                players: g.players.map((p) =>
+                  p.groupPlayerId === payload.groupPlayerId ? { ...p, playerStatus: 'active' as const } : p
+                ),
+                matches: [...g.matches, ...payload.newMatches],
+              }
+            }),
           }
         }
 
@@ -261,53 +312,47 @@ export function LiveViewPage() {
     }
   }
 
-  const handleMarkNoShow = async (groupId: number, gpId: number) => {
-    const groupMatches = event?.groups.find((g) => g.groupId === groupId)?.matches ?? []
-    for (const match of groupMatches.filter(
-      (m) => m.groupPlayer1Id === gpId || m.groupPlayer2Id === gpId
-    )) {
-      if (!match) continue
-      let ok: Match | null = null
-      let [score1, score2, withdraw1, withdraw2] = [0, 0, false, false]
-      if (match.groupPlayer1Id === gpId) {
-        score1 = 0
-        score2 = gamesToWin
-        withdraw1 = true
-        withdraw2 = false
-      }
-      if (match.groupPlayer2Id === gpId) {
-        score1 = gamesToWin
-        score2 = 0
-        withdraw1 = false
-        withdraw2 = true
-      }
-      ok = await updateScore(groupId, match.matchId, {
-        score1,
-        score2,
-        withdraw1,
-        withdraw2,
-      })
-      if (ok) {
-        // Optimistically update local state.
-        setEvent((prev) => {
-          if (!prev) return prev
-          return {
-            ...prev,
-            groups: prev.groups.map((g) => {
-              if (g.groupId !== groupId) return g
-              return {
-                ...g,
-                matches: g.matches.map((m) =>
-                  m.matchId === match.matchId
-                    ? { ...m, score1, score2, withdraw1, withdraw2, status: 'DONE' as const }
-                    : m
-                ),
-              }
-            }),
+  const executeDnsToggle = async (
+    groupId: number,
+    groupPlayerId: number,
+    currentStatus: 'active' | 'dns'
+  ) => {
+    const newStatus = currentStatus === 'dns' ? 'active' : 'dns'
+    const result = await setPlayerStatus(eventId, groupId, groupPlayerId, newStatus)
+    if (result === null) return
+
+    setEvent((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        groups: prev.groups.map((g) => {
+          if (g.groupId !== groupId) return g
+          if (newStatus === 'dns') {
+            return {
+              ...g,
+              players: g.players.map((p) =>
+                p.groupPlayerId === groupPlayerId ? { ...p, playerStatus: 'dns' } : p
+              ),
+              matches: g.matches.filter(
+                (m) =>
+                  !(
+                    (m.groupPlayer1Id === groupPlayerId || m.groupPlayer2Id === groupPlayerId) &&
+                    result.deletedMatchIds?.includes(m.matchId)
+                  )
+              ),
+            }
+          } else {
+            return {
+              ...g,
+              players: g.players.map((p) =>
+                p.groupPlayerId === groupPlayerId ? { ...p, playerStatus: 'active' } : p
+              ),
+              matches: [...g.matches, ...(result.newMatches ?? [])],
+            }
           }
-        })
+        }),
       }
-    }
+    })
   }
 
   const handleSetPlayerStatus = async (
@@ -316,24 +361,32 @@ export function LiveViewPage() {
     currentStatus: 'active' | 'dns'
   ) => {
     const newStatus = currentStatus === 'dns' ? 'active' : 'dns'
-    const ok = await setPlayerStatus(eventId, groupId, groupPlayerId, newStatus)
-    if (ok) {
-      setEvent((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          groups: prev.groups.map((g) => {
-            if (g.groupId !== groupId) return g
-            return {
-              ...g,
-              players: g.players.map((p) =>
-                p.groupPlayerId === groupPlayerId ? { ...p, playerStatus: newStatus } : p
-              ),
-            }
-          }),
+
+    if (newStatus === 'dns') {
+      const group = event?.groups.find((g) => g.groupId === groupId)
+      if (group) {
+        const player = group.players.find((p) => p.groupPlayerId === groupPlayerId)
+        const scoredMatches = group.matches.filter(
+          (m) =>
+            (m.groupPlayer1Id === groupPlayerId || m.groupPlayer2Id === groupPlayerId) &&
+            m.status === 'DONE'
+        )
+
+        if (scoredMatches.length > 0 && player) {
+          setDnsConfirm({
+            groupId,
+            groupPlayerId,
+            playerName: player.user
+              ? `${player.user.firstName} ${player.user.lastName}`
+              : `#${player.userId}`,
+            scoredMatchCount: scoredMatches.length,
+          })
+          return
         }
-      })
+      }
     }
+
+    await executeDnsToggle(groupId, groupPlayerId, currentStatus)
   }
 
   const handleReopenGroup = async (groupId: number) => {
@@ -570,7 +623,7 @@ export function LiveViewPage() {
                         color: '#94a3b8',
                       }}
                     >
-                      {m.division} {m.groupNo}
+                      {groupTitle(m.division, m.groupNo)}
                     </td>
                   </tr>
                 ))}
@@ -582,135 +635,241 @@ export function LiveViewPage() {
 
       {/* Groups grid */}
       <div>
-        {event.groups.map((group: GroupDetail) => (
-          <GroupCard
-            key={group.groupId}
-            division={group.division}
-            groupNo={group.groupNo}
-            status={group.status}
-            collapsible={canManage || canUmpire}
-            defaultCollapsed={canManage || canUmpire}
-            collapseSignal={collapseSignal}
-          >
-            {/* Standings */}
-            <div className="mb-4">
-              <GroupStandings
-                players={group.players}
-                matches={group.matches}
-                onNoShow={
-                  canManage && group.status !== 'DONE'
-                    ? (gpId) => handleMarkNoShow(group.groupId, gpId)
-                    : undefined
-                }
-                onSetPlayerStatus={
-                  canManage && group.status !== 'DONE'
-                    ? (gpId, currentStatus) =>
-                        handleSetPlayerStatus(group.groupId, gpId, currentStatus)
-                    : undefined
-                }
-                onScoreClick={
-                  canUmpire && group.status !== 'DONE'
-                    ? (m) => {
-                        if (m.status === 'DRAFT' && numberOfTables > 0) {
-                          setTableModal({ match: m, groupId: group.groupId })
-                          return
-                        }
-                        const p1 = group.players.find((p) => p.groupPlayerId === m.groupPlayer1Id)
-                        const p2 = group.players.find((p) => p.groupPlayerId === m.groupPlayer2Id)
-                        const p1Name = p1?.user
-                          ? `${p1.user.firstName} ${p1.user.lastName}`
-                          : `#${p1?.userId}`
-                        const p2Name = p2?.user
-                          ? `${p2.user.firstName} ${p2.user.lastName}`
-                          : `#${p2?.userId}`
-                        setScoreModal({
-                          match: m,
-                          groupId: group.groupId,
-                          player1Name: p1Name,
-                          player2Name: p2Name,
-                        })
-                      }
-                    : undefined
-                }
-              />
-            </div>
-
-            {/* Match grid */}
-            {canManage || canUmpire ? (
-              <>
-                <div className="mb-4">
-                  <p className="text-xs uppercase text-gray-400 font-medium mb-2">
-                    {t('liveView.matchResults')}
-                  </p>
-                  <MatchGrid
-                    players={group.players}
-                    matches={group.matches}
-                    onScoreClick={
-                      canUmpire && group.status !== 'DONE'
-                        ? (m) => {
-                            if (m.status === 'DRAFT' && numberOfTables > 0) {
-                              setTableModal({ match: m, groupId: group.groupId })
-                              return
+        {(() => {
+          const sorted = [...event.groups].sort(
+            (a, b) => groupSortKey(a.division, a.groupNo) - groupSortKey(b.division, b.groupNo)
+          )
+          // Collect divisions in order of first appearance
+          const divisionOrder: string[] = []
+          const byDivision: Record<string, GroupDetail[]> = {}
+          for (const g of sorted) {
+            if (!byDivision[g.division]) {
+              divisionOrder.push(g.division)
+              byDivision[g.division] = []
+            }
+            byDivision[g.division].push(g)
+          }
+          return divisionOrder.map((div) => {
+            const divGroups = byDivision[div]
+            const isCollapsed = collapsedDivisions.has(div)
+            const divLabel = div === 'S' ? 'Superleague' : `Division ${div}`
+            return (
+              <div key={div} style={{ marginBottom: 16 }}>
+                {/* Division header — visually distinct from group cards */}
+                <button
+                  onClick={() => toggleDivision(div)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '9px 14px 9px 0',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderBottom: isCollapsed ? '2px solid #f59e0b' : '2px solid #f59e0b',
+                    cursor: 'pointer',
+                    marginBottom: isCollapsed ? 0 : 8,
+                    userSelect: 'none',
+                  }}
+                >
+                  {/* Amber accent block */}
+                  <span style={{
+                    display: 'inline-block',
+                    width: 4,
+                    height: 28,
+                    backgroundColor: '#f59e0b',
+                    borderRadius: 2,
+                    flexShrink: 0,
+                    marginLeft: 0,
+                  }} />
+                  {/* Chevron SVG — clearly distinct from GroupCard's ▾ */}
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 13 13"
+                    fill="none"
+                    style={{
+                      transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <path
+                      d="M2 4.5l4.5 4.5 4.5-4.5"
+                      stroke="#f59e0b"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  {/* Division label — uppercase tracked, amber */}
+                  <span style={{
+                    color: '#f59e0b',
+                    fontWeight: 700,
+                    fontSize: 11,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    flex: 1,
+                    textAlign: 'left',
+                  }}>
+                    {divLabel}
+                  </span>
+                  {/* Group count pill */}
+                  <span style={{
+                    backgroundColor: 'rgba(245,158,11,0.12)',
+                    color: '#d97706',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: '2px 9px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(245,158,11,0.28)',
+                    letterSpacing: '0.01em',
+                  }}>
+                    {divGroups.length} {divGroups.length === 1 ? 'group' : 'groups'}
+                  </span>
+                </button>
+                {/* Groups within division — indented with faint amber connector */}
+                {!isCollapsed && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    paddingBottom: 4,
+                    paddingLeft: 12,
+                    borderLeft: '2px solid rgba(245,158,11,0.2)',
+                    marginLeft: 2,
+                  }}>
+                    {divGroups.map((group: GroupDetail) => (
+                      <GroupCard
+                        key={group.groupId}
+                        division={group.division}
+                        groupNo={group.groupNo}
+                        status={group.status}
+                        collapsible={canManage || canUmpire}
+                        defaultCollapsed={canManage || canUmpire}
+                        collapseSignal={collapseSignal}
+                        groupViewUrl={`/leagues/${leagueId}/events/${eventId}/groups/${group.groupId}`}
+                      >
+                        {/* Standings */}
+                        <div className="mb-4">
+                          <GroupStandings
+                            players={group.players}
+                            matches={group.matches}
+                            onSetPlayerStatus={
+                              canManage && group.status !== 'DONE'
+                                ? (gpId, currentStatus) =>
+                                    handleSetPlayerStatus(group.groupId, gpId, currentStatus)
+                                : undefined
                             }
-                            const p1 = group.players.find(
-                              (p) => p.groupPlayerId === m.groupPlayer1Id
-                            )
-                            const p2 = group.players.find(
-                              (p) => p.groupPlayerId === m.groupPlayer2Id
-                            )
-                            const p1Name = p1?.user
-                              ? `${p1.user.firstName} ${p1.user.lastName}`
-                              : `#${p1?.userId}`
-                            const p2Name = p2?.user
-                              ? `${p2.user.firstName} ${p2.user.lastName}`
-                              : `#${p2?.userId}`
-                            setScoreModal({
-                              match: m,
-                              groupId: group.groupId,
-                              player1Name: p1Name,
-                              player2Name: p2Name,
-                            })
-                          }
-                        : undefined
-                    }
-                  />
-                </div>
+                            onScoreClick={
+                              canUmpire && group.status !== 'DONE'
+                                ? (m) => {
+                                    if (m.status === 'DRAFT' && numberOfTables > 0) {
+                                      setTableModal({ match: m, groupId: group.groupId })
+                                      return
+                                    }
+                                    const p1 = group.players.find((p) => p.groupPlayerId === m.groupPlayer1Id)
+                                    const p2 = group.players.find((p) => p.groupPlayerId === m.groupPlayer2Id)
+                                    const p1Name = p1?.user
+                                      ? `${p1.user.firstName} ${p1.user.lastName}`
+                                      : `#${p1?.userId}`
+                                    const p2Name = p2?.user
+                                      ? `${p2.user.firstName} ${p2.user.lastName}`
+                                      : `#${p2?.userId}`
+                                    setScoreModal({
+                                      match: m,
+                                      groupId: group.groupId,
+                                      player1Name: p1Name,
+                                      player2Name: p2Name,
+                                    })
+                                  }
+                                : undefined
+                            }
+                          />
+                        </div>
 
-                {/* Actions: show only if canManage or canUmpire */}
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {canManage && group.status === 'DONE' && event.status !== 'DONE' && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => handleReopenGroup(group.groupId)}
-                      loading={reopening}
-                    >
-                      {t('liveView.reopenGroup')}
-                    </Button>
-                  )}
-                  {canUmpire &&
-                    group.status !== 'DONE' &&
-                    (() => {
-                      const allScored =
-                        group.matches.length > 0 && group.matches.every((m) => m.status === 'DONE')
-                      return (
-                        <Button
-                          variant="primary"
-                          onClick={() => handleFinishGroup(group.groupId)}
-                          loading={finishing}
-                          disabled={!allScored}
-                          title={!allScored ? t('liveView.enterAllScoresFirst') : undefined}
-                        >
-                          {t('liveView.finishGroup')}
-                        </Button>
-                      )
-                    })()}
-                </div>
-              </>
-            ) : (
-              ''
-            )}
-          </GroupCard>
-        ))}
+                        {/* Match grid */}
+                        {canManage || canUmpire ? (
+                          <>
+                            <div className="mb-4">
+                              <p className="text-xs uppercase text-gray-400 font-medium mb-2">
+                                {t('liveView.matchResults')}
+                              </p>
+                              <MatchGrid
+                                players={group.players}
+                                matches={group.matches}
+                                onScoreClick={
+                                  canUmpire && group.status !== 'DONE'
+                                    ? (m) => {
+                                        if (m.status === 'DRAFT' && numberOfTables > 0) {
+                                          setTableModal({ match: m, groupId: group.groupId })
+                                          return
+                                        }
+                                        const p1 = group.players.find(
+                                          (p) => p.groupPlayerId === m.groupPlayer1Id
+                                        )
+                                        const p2 = group.players.find(
+                                          (p) => p.groupPlayerId === m.groupPlayer2Id
+                                        )
+                                        const p1Name = p1?.user
+                                          ? `${p1.user.firstName} ${p1.user.lastName}`
+                                          : `#${p1?.userId}`
+                                        const p2Name = p2?.user
+                                          ? `${p2.user.firstName} ${p2.user.lastName}`
+                                          : `#${p2?.userId}`
+                                        setScoreModal({
+                                          match: m,
+                                          groupId: group.groupId,
+                                          player1Name: p1Name,
+                                          player2Name: p2Name,
+                                        })
+                                      }
+                                    : undefined
+                                }
+                              />
+                            </div>
+
+                            {/* Actions: show only if canManage or canUmpire */}
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {canManage && group.status === 'DONE' && event.status !== 'DONE' && (
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => handleReopenGroup(group.groupId)}
+                                  loading={reopening}
+                                >
+                                  {t('liveView.reopenGroup')}
+                                </Button>
+                              )}
+                              {canUmpire &&
+                                group.status !== 'DONE' &&
+                                (() => {
+                                  const allScored =
+                                    group.matches.length > 0 && group.matches.every((m) => m.status === 'DONE')
+                                  return (
+                                    <Button
+                                      variant="primary"
+                                      onClick={() => handleFinishGroup(group.groupId)}
+                                      loading={finishing}
+                                      disabled={!allScored}
+                                      title={!allScored ? t('liveView.enterAllScoresFirst') : undefined}
+                                    >
+                                      {t('liveView.finishGroup')}
+                                    </Button>
+                                  )
+                                })()}
+                            </div>
+                          </>
+                        ) : (
+                          ''
+                        )}
+                      </GroupCard>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })
+        })()}
       </div>
 
       {/* Score entry modal */}
@@ -769,6 +928,75 @@ export function LiveViewPage() {
           </div>
         )}
       </Modal>
+
+      {/* DNS confirmation dialog */}
+      {dnsConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '8px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '90%',
+            }}
+          >
+            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '12px', color: '#1f2937' }}>
+              Mark player as DNS?
+            </h2>
+            <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '20px' }}>
+              {dnsConfirm.playerName} has {dnsConfirm.scoredMatchCount} scored match
+              {dnsConfirm.scoredMatchCount !== 1 ? 'es' : ''}. Marking DNS will delete{' '}
+              {dnsConfirm.scoredMatchCount === 1 ? 'it' : 'them'}.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDnsConfirm(null)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  backgroundColor: '#f9fafb',
+                  color: '#374151',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await executeDnsToggle(dnsConfirm.groupId, dnsConfirm.groupPlayerId, 'active')
+                  setDnsConfirm(null)
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  backgroundColor: '#dc2626',
+                  color: '#fff',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                Confirm DNS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
