@@ -44,16 +44,16 @@ func main() {
 	// Services
 	authSvc := service.NewAuthService(database, cfg, userRepo, oauthRepo)
 	profileSvc := service.NewProfileService(database, profileRepo, userRepo)
-	playerSvc := service.NewPlayerService(userRepo, ratingRepo, eventRepo, groupRepo, matchRepo, profileSvc)
 	leagueSvc := service.NewLeagueService(database, leagueRepo, userRepo)
 	eventSvc := service.NewEventService(database, eventRepo, groupRepo, matchRepo, userRepo)
 	ratingSvc := service.NewRatingService(database, userRepo, groupRepo, matchRepo, ratingRepo, eventRepo)
+	playerSvc := service.NewPlayerService(userRepo, ratingRepo, eventRepo, groupRepo, matchRepo, profileSvc, ratingSvc)
 	matchSvc := service.NewMatchService(database, matchRepo, groupRepo, hub)
 	groupSvc := service.NewGroupService(database, groupRepo, matchRepo, eventRepo, hub)
 	draftSvc := service.NewDraftService(database, leagueRepo, eventRepo, groupRepo, matchRepo, matchSvc, ratingSvc, groupSvc, hub)
 
 	// Handlers
-	adminH := handler.NewAdminHandler(ratingSvc)
+	adminH := handler.NewAdminHandler(ratingSvc, playerSvc)
 	authH := handler.NewAuthHandler(authSvc, cfg.FrontendURL)
 	playersH := handler.NewPlayersHandler(playerSvc)
 	profileH := handler.NewProfileHandler(profileSvc)
@@ -147,6 +147,8 @@ func main() {
 	admin := r.Group("/api/v1/admin", authMiddleware, middleware.RequireAdmin())
 	{
 		admin.POST("/ratings/recalculate", adminH.RecalculateRatings)
+		admin.GET("/players/duplicates", adminH.GetDuplicates)
+		admin.POST("/players/merge", adminH.MergePlayers)
 	}
 
 	// WebSocket

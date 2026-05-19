@@ -4,7 +4,9 @@
     "leagues": "Leagues",
     "players": "Players",
     "signIn": "Sign In",
-    "logout": "Logout"
+    "logout": "Logout",
+    "toggleMenu": "Toggle menu",
+    "mergeDuplicates": "Merge Duplicates"
   },
   "profileBanner": {
     "message": "Your profile is incomplete. Fill in your details to get the most out of the platform.",
@@ -59,7 +61,10 @@
     "rank": "#",
     "player": "Player",
     "rating": "Rating",
-    "rd": "RD"
+    "rd": "RD",
+    "perPage": "Per page",
+    "page": "Page",
+    "of": "of"
   },
   "playerProfile": {
     "backToPlayers": "← Back to Players",
@@ -146,11 +151,13 @@
   },
   "liveView": {
     "backToLeague": "← Back to League",
+    "backToEvent": "← Back to event",
     "loading": "Loading event...",
     "collapseAll": "Collapse All",
     "finishEvent": "Finish Event",
     "managePlayers": "Manage players",
     "matchResults": "Match Results",
+    "standings": "Standings",
     "reopenGroup": "Reopen Group",
     "finishGroup": "Finish Group",
     "enterScoreTitle": "Enter Score",
@@ -161,7 +168,19 @@
     "assignTableTitle": "Assign Table",
     "allTablesOccupied": "All tables are currently occupied",
     "table": "Table",
-    "assign": "Assign"
+    "assign": "Assign",
+    "liveConnected": "Live: connected",
+    "liveReconnecting": "Live: reconnecting…",
+    "dnsConfirmTitle": "Mark player as DNS?",
+    "dnsConfirmBody_one": "{{name}} has {{count}} scored match. Marking DNS will delete it.",
+    "dnsConfirmBody_other": "{{name}} has {{count}} scored matches. Marking DNS will delete them.",
+    "confirmDns": "Confirm DNS",
+    "editDetails": "Edit details",
+    "saveDetails": "Save",
+    "cancelEdit": "Cancel",
+    "eventTitle": "Event title",
+    "startDate": "Start date",
+    "endDate": "End date"
   },
   "eventSetup": {
     "backToLeague": "← Back to League",
@@ -175,6 +194,7 @@
     "groupNumber": "Group #",
     "scheduledDateTime": "Scheduled date/time",
     "cancel": "Cancel",
+    "save": "Save",
     "createGroup": "Create Group",
     "loadingGroups": "Loading groups...",
     "noGroupsYet": "No groups yet.",
@@ -188,7 +208,15 @@
     "startFromLeague": "Start event from league page",
     "player": "Player #{{id}}",
     "players_one": "{{count}} player",
-    "players_other": "{{count}} players"
+    "players_other": "{{count}} players",
+    "editEventDetails": "Edit event details",
+    "titleLabel": "Title",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "deleteGroup": "Delete empty group",
+    "addPlayerButton": "Add Player",
+    "group": "Group",
+    "addPlayerTo": "Add player to {{group}}"
   },
   "profileEdit": {
     "title": "Edit Profile",
@@ -254,6 +282,7 @@
     "place": "Place",
     "ptsWL": "Pts (W-L)",
     "tb": "TB",
+    "wl": "W/L",
     "move": "Move",
     "guest": "(guest)",
     "noShow": "Mark {{name}} as no-show",
@@ -288,15 +317,62 @@
     "errors": "Errors: {{count}}"
   },
   "groupCard": {
-    "divisionGroup": "Division {{division}} — Group {{no}}"
+    "divisionGroup": "Division {{division}} — Group {{no}}",
+    "superleague": "Superleague",
+    "viewDetails": "View group details",
+    "divisionLabel": "Division {{div}}",
+    "groups_one": "{{count}} group",
+    "groups_other": "{{count}} groups"
   },
   "common": {
     "loading": "Loading…",
     "error": "Error"
   },
+  "playerSearch": {
+    "placeholder": "Type to search players",
+    "typeToSearch": "Type to search players",
+    "noPlayersFound": "No players found",
+    "playerAdded": "{{name}} has been added",
+    "adding": "Adding…",
+    "add": "Add"
+  },
   "language": {
     "en": "English",
     "ru": "Русский",
     "kk": "Қазақша"
+  },
+  "mergePlayers": {
+    "title": "Merge Duplicate Players",
+    "tabDetected": "Detected Duplicates",
+    "tabManual": "Manual Merge",
+    "loading": "Scanning for duplicates…",
+    "noDuplicates": "No duplicates detected.",
+    "target": "Target (canonical)",
+    "source": "Source (will be merged)",
+    "mergeSelected": "Merge",
+    "merging": "Merging…",
+    "mergeSuccess": "Merged successfully. Ratings recalculated from event #{{event}}.",
+    "mergeDone": "Merged successfully.",
+    "mergeError": "Merge failed: {{error}}",
+    "targetIdLabel": "Target player ID",
+    "sourceIdsLabel": "Source IDs (comma-separated)",
+    "preview": "Preview",
+    "loadPreview": "Load",
+    "id": "ID",
+    "name": "Name",
+    "email": "Email",
+    "rating": "Rating",
+    "created": "Created",
+    "conflictGroups": "Conflict groups (DNS): {{ids}}"
+  },
+  "info": {
+    "sectionTitle": "Learn More",
+    "backToHome": "← Back to Home",
+    "loading": "Loading...",
+    "notFound": "Page not found.",
+    "about": { "title": "About Us", "desc": "What is this platform and who it's for." },
+    "rating": { "title": "How Ratings Work", "desc": "Glicko2 algorithm explained simply." },
+    "movements": { "title": "League Movements", "desc": "How players advance and recede between groups." },
+    "createLeague": { "title": "Create a League", "desc": "Step-by-step guide to running your league." }
   }
 }

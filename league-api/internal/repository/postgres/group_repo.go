@@ -147,8 +147,7 @@ func (r *groupRepo) RemovePlayer(ctx context.Context, groupPlayerID int64) error
 func (r *groupRepo) ResetGroupPlayers(ctx context.Context, groupID int64) error {
 	const q = `
 		UPDATE group_players
-		SET place = 0, points = 0, tiebreak_points = 0,
-		    advances = FALSE, recedes = FALSE, last_updated = NOW()
+		SET place = 0, advances = FALSE, recedes = FALSE, last_updated = NOW()
 		WHERE group_id = $1`
 	_, err := r.db(ctx).ExecContext(ctx, q, groupID)
 	if err != nil {
@@ -174,11 +173,12 @@ func (r *groupRepo) ListPlayerGroupsInEvent(ctx context.Context, userID, eventID
 func (r *groupRepo) UpdatePlayer(ctx context.Context, gp *model.GroupPlayer) error {
 	const q = `
 		UPDATE group_players
-		SET place = $1, points = $2, tiebreak_points = $3, advances = $4, recedes = $5, last_updated = NOW()
-		WHERE group_player_id = $6`
+		SET place = $1, points = $2, tiebreak_points = $3, advances = $4, recedes = $5,
+		    win_loss_ratio = $6, last_updated = NOW()
+		WHERE group_player_id = $7`
 	_, err := r.db(ctx).ExecContext(ctx, q,
 		gp.Place, gp.Points, gp.TiebreakPoints, gp.Advances, gp.Recedes,
-		gp.GroupPlayerID,
+		gp.WinLossRatio, gp.GroupPlayerID,
 	)
 	if err != nil {
 		return fmt.Errorf("groupRepo.UpdatePlayer: %w", err)
@@ -217,6 +217,65 @@ func (r *groupRepo) Delete(ctx context.Context, id int64) error {
 	_, err := r.db(ctx).ExecContext(ctx, `DELETE FROM groups WHERE group_id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("groupRepo.Delete: %w", err)
+	}
+	return nil
+}
+
+func (r *groupRepo) FindConflictingGroupIDs(ctx context.Context, sourceID, targetID int64) ([]int64, error) {
+	ids := make([]int64, 0)
+	err := r.db(ctx).SelectContext(ctx, &ids, `
+		SELECT gp1.group_id
+		FROM group_players gp1
+		JOIN group_players gp2 ON gp2.group_id = gp1.group_id AND gp2.user_id = $2
+		WHERE gp1.user_id = $1`,
+		sourceID, targetID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("groupRepo.FindConflictingGroupIDs: %w", err)
+	}
+	return ids, nil
+}
+
+func (r *groupRepo) SetPlayerStatusByUser(ctx context.Context, groupID, userID int64, status model.PlayerStatus) error {
+	const q = `
+		UPDATE group_players
+		SET player_status = $1, last_updated = NOW()
+		WHERE group_id = $2 AND user_id = $3`
+	_, err := r.db(ctx).ExecContext(ctx, q, string(status), groupID, userID)
+	if err != nil {
+		return fmt.Errorf("groupRepo.SetPlayerStatusByUser: %w", err)
+	}
+	return nil
+}
+
+func (r *groupRepo) UpdateGroupPlayerUserID(ctx context.Context, sourceID, targetID int64, excludeGroupIDs []int64) error {
+	if len(excludeGroupIDs) == 0 {
+		const q = `UPDATE group_players SET user_id = $1, last_updated = NOW() WHERE user_id = $2`
+		_, err := r.db(ctx).ExecContext(ctx, q, targetID, sourceID)
+		if err != nil {
+			return fmt.Errorf("groupRepo.UpdateGroupPlayerUserID: %w", err)
+		}
+		return nil
+	}
+	q, args, err := sqlx.In(
+		`UPDATE group_players SET user_id = ?, last_updated = NOW() WHERE user_id = ? AND group_id NOT IN (?)`,
+		targetID, sourceID, excludeGroupIDs,
+	)
+	if err != nil {
+		return fmt.Errorf("groupRepo.UpdateGroupPlayerUserID in query: %w", err)
+	}
+	q = r.pool.Rebind(q)
+	_, err = r.db(ctx).ExecContext(ctx, q, args...)
+	if err != nil {
+		return fmt.Errorf("groupRepo.UpdateGroupPlayerUserID: %w", err)
+	}
+	return nil
+}
+
+func (r *groupRepo) DeletePlayerProfileByUser(ctx context.Context, userID int64) error {
+	_, err := r.db(ctx).ExecContext(ctx, `DELETE FROM player_profiles WHERE user_id = $1`, userID)
+	if err != nil {
+		return fmt.Errorf("groupRepo.DeletePlayerProfileByUser: %w", err)
 	}
 	return nil
 }

@@ -93,7 +93,7 @@ export function GroupCard({
             onMouseLeave={(e) => {
               ;(e.currentTarget as HTMLElement).style.opacity = '0.6'
             }}
-            title="View group details"
+            title={t('groupCard.viewDetails')}
           >
             <svg
               width="12"

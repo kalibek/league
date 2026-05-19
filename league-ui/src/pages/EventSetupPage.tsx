@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useEvent, useUpdateEventDetails } from '../hooks/useEvents'
+import { getGroup } from '../api/groups'
 import {
   useAddPlayerToActiveGroup,
   useCreateGroup,
@@ -83,7 +84,6 @@ export function EventSetupPage() {
 
   // Load players for a group via the group detail endpoint
   const loadGroupPlayers = async (groupId: number) => {
-    const { getGroup } = await import('../api/groups')
     try {
       const res = await getGroup(eventId, groupId)
       setGroupPlayers((prev) => ({ ...prev, [groupId]: res.data.players ?? [] }))
@@ -215,7 +215,7 @@ export function EventSetupPage() {
                   <button
                     onClick={() => setIsEditingDetails(true)}
                     className="text-gray-400 hover:text-gray-600 p-1"
-                    title="Edit event details"
+                    title={t('eventSetup.editEventDetails')}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -235,7 +235,7 @@ export function EventSetupPage() {
           ) : (
             <div className="space-y-3 mb-4">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Title</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t('eventSetup.titleLabel')}</label>
                 <input
                   type="text"
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -245,7 +245,7 @@ export function EventSetupPage() {
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('eventSetup.startDate')}</label>
                   <input
                     type="date"
                     className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -254,7 +254,7 @@ export function EventSetupPage() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t('eventSetup.endDate')}</label>
                   <input
                     type="date"
                     className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -326,7 +326,7 @@ export function EventSetupPage() {
               >
                 {DIVISIONS.map((d) => (
                   <option key={d} value={d}>
-                    {d === 'S' ? 'Superleague' : d}
+                    {d === 'S' ? t('groupCard.superleague') : d}
                   </option>
                 ))}
               </select>
@@ -387,7 +387,7 @@ export function EventSetupPage() {
                     onClick={() => handleDeleteGroup(grp.groupId)}
                     disabled={deletingGroup}
                     className="text-gray-300 hover:text-red-500 transition-colors"
-                    title="Delete empty group"
+                    title={t('eventSetup.deleteGroup')}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -437,7 +437,7 @@ export function EventSetupPage() {
                 onClick={() => setSearchModalGroup(grp.groupId)}
                 className="w-full"
               >
-                {t('eventSetup.add')} Player
+                {t('eventSetup.addPlayerButton')}
               </Button>
             )}
 
@@ -466,7 +466,7 @@ export function EventSetupPage() {
           const selectedGroup = groupsWithPlayers.find((g) => g.groupId === searchModalGroup)
           const modalTitle = selectedGroup
             ? groupTitle(selectedGroup.division, selectedGroup.groupNo)
-            : 'Group'
+            : t('eventSetup.group')
 
           return (
             <PlayerSearchModal
@@ -475,7 +475,7 @@ export function EventSetupPage() {
               onClose={() => setSearchModalGroup(null)}
               onAdd={(userId) => handleAddPlayerFromModal(searchModalGroup, userId)}
               assignedUserIds={assignedUserIds}
-              title={`Add player to ${modalTitle}`}
+              title={t('eventSetup.addPlayerTo', { group: modalTitle })}
               loading={seeding || addingActive}
             />
           )

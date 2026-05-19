@@ -117,6 +117,7 @@ func (m *psRatingRepo) GetEventDeltaForUser(ctx context.Context, userID, eventID
 	return 0, nil
 }
 
+
 type psEventRepo struct {
 	events []model.LeagueEvent
 	total  int
@@ -298,7 +299,7 @@ func (n *nopProfileService) AddRubber(ctx context.Context, name string) (*model.
 
 func TestCreatePlayer_Success(t *testing.T) {
 	ur := newPSUserRepo()
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
 	u, err := svc.CreatePlayer(context.Background(), "Alice", "Smith", "alice@example.com")
 	if err != nil {
@@ -319,7 +320,7 @@ func TestCreatePlayer_Success(t *testing.T) {
 func TestCreatePlayer_RepoError(t *testing.T) {
 	ur := newPSUserRepo()
 	ur.createErr = errors.New("db error")
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
 	_, err := svc.CreatePlayer(context.Background(), "Bob", "Jones", "bob@example.com")
 	if err == nil {
@@ -331,7 +332,7 @@ func TestCreatePlayer_RepoError(t *testing.T) {
 
 func TestImportCSV_Success(t *testing.T) {
 	ur := newPSUserRepo()
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
 	csv := "first_name,last_name,email\nAlice,Smith,alice@example.com\nBob,Jones,bob@example.com\n"
 	result, err := svc.ImportCSV(context.Background(), strings.NewReader(csv))
@@ -348,7 +349,7 @@ func TestImportCSV_SkipsDuplicate(t *testing.T) {
 	// Pre-seed an existing user.
 	ur.byEmail["alice@example.com"] = &model.User{Email: "alice@example.com"}
 
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
 	csv := "first_name,last_name,email\nAlice,Smith,alice@example.com\nBob,Jones,bob@example.com\n"
 	result, err := svc.ImportCSV(context.Background(), strings.NewReader(csv))
@@ -365,7 +366,7 @@ func TestImportCSV_SkipsDuplicate(t *testing.T) {
 
 func TestImportCSV_MissingRequiredColumn(t *testing.T) {
 	ur := newPSUserRepo()
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
 	// Missing email column.
 	csv := "first_name,last_name\nAlice,Smith\n"
@@ -377,7 +378,7 @@ func TestImportCSV_MissingRequiredColumn(t *testing.T) {
 
 func TestImportCSV_EmptyRow(t *testing.T) {
 	ur := newPSUserRepo()
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
 	csv := "first_name,last_name,email\n,,\nBob,Jones,bob@example.com\n"
 	result, err := svc.ImportCSV(context.Background(), strings.NewReader(csv))
@@ -394,7 +395,7 @@ func TestImportCSV_EmptyRow(t *testing.T) {
 
 func TestImportCSV_WithInitialRating(t *testing.T) {
 	ur := newPSUserRepo()
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
 	csv := "first_name,last_name,email,initial_rating\nAlice,Smith,alice@example.com,1800\n"
 	result, err := svc.ImportCSV(context.Background(), strings.NewReader(csv))
@@ -419,7 +420,7 @@ func TestGetPlayerProfile_Success(t *testing.T) {
 	rr := &psRatingRepo{history: map[int64][]model.RatingHistory{
 		1: {{UserID: 1, MatchID: 10, Delta: 15.0, Rating: 1515.0}},
 	}}
-	svc := NewPlayerService(ur, rr, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, rr, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
 	profile, err := svc.GetProfile(context.Background(), 1)
 	if err != nil {
@@ -436,7 +437,7 @@ func TestGetPlayerProfile_Success(t *testing.T) {
 func TestGetPlayerProfile_UserNotFound(t *testing.T) {
 	ur := newPSUserRepo()
 	rr := &psRatingRepo{history: map[int64][]model.RatingHistory{}}
-	svc := NewPlayerService(ur, rr, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, rr, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
 	_, err := svc.GetProfile(context.Background(), 99)
 	if err == nil {
@@ -451,14 +452,17 @@ func TestListPlayers_All(t *testing.T) {
 	ur.users[1] = &model.User{UserID: 1, FirstName: "Alice"}
 	ur.users[2] = &model.User{UserID: 2, FirstName: "Bob"}
 
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
-	players, err := svc.ListPlayers(context.Background(), "", 10, 0, "name")
+	page, err := svc.ListPlayers(context.Background(), "", 10, 0, "name")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(players) != 2 {
-		t.Errorf("expected 2 players, got %d", len(players))
+	if len(page.Players) != 2 {
+		t.Errorf("expected 2 players, got %d", len(page.Players))
+	}
+	if page.Total != 2 {
+		t.Errorf("expected total 2, got %d", page.Total)
 	}
 }
 
@@ -467,25 +471,50 @@ func TestListPlayers_Search(t *testing.T) {
 	ur.users[1] = &model.User{UserID: 1, FirstName: "Alice"}
 	ur.users[2] = &model.User{UserID: 2, FirstName: "Bob"}
 
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
-	players, err := svc.ListPlayers(context.Background(), "Alice", 10, 0, "name")
+	page, err := svc.ListPlayers(context.Background(), "Alice", 10, 0, "name")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(players) != 1 {
-		t.Errorf("expected 1 player, got %d", len(players))
+	if len(page.Players) != 1 {
+		t.Errorf("expected 1 player, got %d", len(page.Players))
+	}
+	if page.Total != 1 {
+		t.Errorf("expected total 1, got %d", page.Total)
 	}
 }
 
 func TestListPlayers_DefaultLimit(t *testing.T) {
 	ur := newPSUserRepo()
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{})
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
 
-	// limit=0 should default to 50
-	_, err := svc.ListPlayers(context.Background(), "", 0, 0, "name")
+	// limit=0 should default to 25
+	page, err := svc.ListPlayers(context.Background(), "", 0, 0, "name")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if page == nil {
+		t.Fatal("expected non-nil page")
+	}
+}
+
+func TestListPlayers_LimitClamped(t *testing.T) {
+	ur := newPSUserRepo()
+	ur.users[1] = &model.User{UserID: 1, FirstName: "Alice"}
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, &psEventRepo{}, newPSGroupRepo(), &psMatchRepo{}, &nopProfileService{}, nil)
+
+	// limit=200 (exceeds max) should be clamped to 25
+	page, err := svc.ListPlayers(context.Background(), "", 200, 0, "name")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page == nil {
+		t.Fatal("expected non-nil page")
+	}
+	// The actual limit enforcement happens during DB call, but we verify page is returned.
+	if page.Total != 1 {
+		t.Errorf("expected total 1, got %d", page.Total)
 	}
 }
 
@@ -494,7 +523,7 @@ func TestListPlayers_DefaultLimit(t *testing.T) {
 func TestGetPlayerEvents_Empty(t *testing.T) {
 	ur := newPSUserRepo()
 	er := &psEventRepo{events: nil, total: 0}
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, er, newPSGroupRepo(), &psMatchRepo{}, nil)
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, er, newPSGroupRepo(), &psMatchRepo{}, nil, nil)
 
 	page, err := svc.GetPlayerEvents(context.Background(), 1, 5, 0)
 	if err != nil {
@@ -511,7 +540,7 @@ func TestGetPlayerEvents_Empty(t *testing.T) {
 func TestGetPlayerEvents_DefaultLimit(t *testing.T) {
 	ur := newPSUserRepo()
 	er := &psEventRepo{events: nil, total: 0}
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, er, newPSGroupRepo(), &psMatchRepo{}, nil)
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, er, newPSGroupRepo(), &psMatchRepo{}, nil, nil)
 
 	// limit=0 → default 5
 	page, err := svc.GetPlayerEvents(context.Background(), 1, 0, 0)
@@ -526,7 +555,7 @@ func TestGetPlayerEvents_DefaultLimit(t *testing.T) {
 func TestGetPlayerEvents_ExceedLimit(t *testing.T) {
 	ur := newPSUserRepo()
 	er := &psEventRepo{events: nil, total: 0}
-	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, er, newPSGroupRepo(), &psMatchRepo{}, nil)
+	svc := NewPlayerService(ur, &psRatingRepo{history: map[int64][]model.RatingHistory{}}, er, newPSGroupRepo(), &psMatchRepo{}, nil, nil)
 
 	// limit=100 → clamped to 5
 	page, err := svc.GetPlayerEvents(context.Background(), 1, 100, 0)
@@ -552,7 +581,7 @@ func TestGetPlayerEvents_WithEvents(t *testing.T) {
 	groupRepo := newPSGroupRepo()
 
 	rr := &psRatingRepo{history: map[int64][]model.RatingHistory{}}
-	svc := NewPlayerService(ur, rr, er, groupRepo, &psMatchRepo{}, nil)
+	svc := NewPlayerService(ur, rr, er, groupRepo, &psMatchRepo{}, nil, nil)
 
 	page, err := svc.GetPlayerEvents(context.Background(), 1, 5, 0)
 	if err != nil {

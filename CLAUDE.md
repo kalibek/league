@@ -45,11 +45,20 @@ pkg/glicko2/             — standalone Glicko2 rating implementation
 migrations/              — numbered SQL migration files (golang-migrate format)
 ```
 
+**Status lifecycles:**
+- Event: `DRAFT` → `IN_PROGRESS` → `DONE`
+- Group: `DRAFT` → `IN_PROGRESS` → `DONE`
+- GroupPlayer: `active` | `dns` (did not show)
+
 **Key service interactions:**
 - `DraftService` orchestrates end-of-event promotion/relegation: reads finished event → reseeds players across groups → creates next event draft; depends on `MatchService`, `RatingService`, `GroupService`
 - `MatchService` updates scores, recalculates group standings, broadcasts via `ws.Hub`
 - `GroupService` generates round-robin schedules, calculates placements (handles three-way ties requiring manual umpire resolution)
 - `RatingService` applies Glicko2 to group finishers; rating history stored per group finish
+
+**Transactions:** services receive `*sqlx.DB` and call `idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {...})` from `internal/db/tx.go`. Repos accept `context.Context`; the tx helper injects a `*sqlx.Tx` into the context so repos use it transparently.
+
+**Adding repo interface methods:** `internal/repository/interfaces.go` defines all interfaces. Every mock struct in `internal/service/mock_stubs_test.go` must also implement new methods — add stub no-ops there to keep tests compiling.
 
 **Route groups:**
 - `/api/v1/auth/*` — login/logout/register (Google OAuth + email)
@@ -101,5 +110,7 @@ src/types/       — shared TypeScript types
 **WebSocket**: `useWebSocket` connects to `ws://…/ws/events/:eid`; `LiveViewPage` uses it for real-time match score updates.
 
 **API base URL**: set via `VITE_API_URL` env var; defaults to `/api/v1`. Dev script hardcodes `http://localhost:8080/api/v1`.
+
+**i18n**: react-i18next; three locales `en`/`ru`/`kk` in `src/i18n/locales/`. All user-facing strings must go through `t('key')` — add keys to all three files.
 
 **Testing**: Vitest + jsdom + @testing-library/react. Setup file at `src/setup.ts`. No Cypress integration tests are wired into CI.

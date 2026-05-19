@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -185,9 +186,10 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 		}
 	}
 
-	// Assign tiebreak values.
+	// Assign tiebreak values and compute W/L ratio for all ranked players.
 	for i := range ranked {
 		ranked[i].TiebreakPoints = tbPoints[ranked[i].GroupPlayerID]
+		ranked[i].WinLossRatio = computeWinLossRatio(ranked[i].GroupPlayerID, matches)
 	}
 
 	// Sort by points DESC, then tiebreak DESC.
@@ -257,10 +259,47 @@ func (s *groupService) CalculatePlacements(ctx context.Context, groupID int64) (
 					}
 					currentPlace += int16(len(subGroup))
 				} else {
-					for _, p := range subGroup {
-						needsManual = append(needsManual, p.GroupPlayerID)
+					// W/L ratio sub-step: rank by wins/losses before falling back to manual.
+					type wlEntry struct {
+						p     *model.GroupPlayer
+						ratio float64
 					}
-					currentPlace += int16(len(subGroup))
+					wlEntries := make([]wlEntry, len(subGroup))
+					for k := range subGroup {
+						wlEntries[k] = wlEntry{p: &subGroup[k], ratio: subGroup[k].WinLossRatio}
+					}
+					sort.SliceStable(wlEntries, func(a, b int) bool {
+						return wlEntries[a].ratio > wlEntries[b].ratio
+					})
+					wlI := 0
+					for wlI < len(wlEntries) {
+						wlJ := wlI + 1
+						for wlJ < len(wlEntries) && wlEntries[wlJ].ratio == wlEntries[wlI].ratio {
+							wlJ++
+						}
+						wlSub := wlEntries[wlI:wlJ]
+						switch len(wlSub) {
+						case 1:
+							wlSub[0].p.Place = currentPlace
+							currentPlace++
+						case 2:
+							winner := headToHeadWinner(wlSub[0].p.GroupPlayerID, wlSub[1].p.GroupPlayerID, matches)
+							if winner == wlSub[0].p.GroupPlayerID {
+								wlSub[0].p.Place = currentPlace
+								wlSub[1].p.Place = currentPlace + 1
+							} else {
+								wlSub[1].p.Place = currentPlace
+								wlSub[0].p.Place = currentPlace + 1
+							}
+							currentPlace += 2
+						default:
+							for _, e := range wlSub {
+								needsManual = append(needsManual, e.p.GroupPlayerID)
+							}
+							currentPlace += int16(len(wlSub))
+						}
+						wlI = wlJ
+					}
 				}
 				subI = subJ
 			}
@@ -609,6 +648,38 @@ func (s *groupService) AddPlayerToActiveGroup(ctx context.Context, groupID, user
 	}
 
 	return nil
+}
+
+// computeWinLossRatio returns wins/losses across all DONE non-withdrawn group matches.
+// If losses == 0 and wins > 0, returns math.MaxFloat64 (effectively infinity).
+// If both are zero, returns 0.
+func computeWinLossRatio(gpID int64, matches []model.Match) float64 {
+	var w, l int16
+	for _, m := range matches {
+		if m.Status != model.MatchDone {
+			continue
+		}
+		if m.Withdraw1 || m.Withdraw2 {
+			continue
+		}
+		if m.Score1 == nil || m.Score2 == nil {
+			continue
+		}
+		if m.GroupPlayer1ID != nil && *m.GroupPlayer1ID == gpID {
+			w += *m.Score1
+			l += *m.Score2
+		} else if m.GroupPlayer2ID != nil && *m.GroupPlayer2ID == gpID {
+			w += *m.Score2
+			l += *m.Score1
+		}
+	}
+	if l == 0 {
+		if w == 0 {
+			return 0
+		}
+		return math.MaxFloat64
+	}
+	return float64(w) / float64(l)
 }
 
 // computeTiebreakPoints calculates games won minus games lost for a player across all group matches.

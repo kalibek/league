@@ -161,7 +161,6 @@ func (s *draftService) finaliseGroup(ctx context.Context, grp *model.Group) erro
 	recedes := league.Config.NumberOfRecedes
 
 	// Separate active and DNS players to correctly apply advance/recede logic.
-	// DNS players always relegate; active players follow normal placement rules.
 	var activePlayers []model.GroupPlayer
 	var dnsPlayers []model.GroupPlayer
 	for _, p := range ranked {
@@ -173,22 +172,28 @@ func (s *draftService) finaliseGroup(ctx context.Context, grp *model.Group) erro
 	}
 	nActive := len(activePlayers)
 
+	// DNS players consume recede slots. Active players fill remaining slots only.
+	// If DNS count >= NumberOfRecedes, no active player recedes.
+	delta := recedes - len(dnsPlayers)
+	if delta < 0 {
+		delta = 0
+	}
+
 	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
 		if err := s.ratingSvc.CalculateGroupRatings(txCtx, groupID); err != nil {
 			return fmt.Errorf("draftService.finaliseGroup ratings: %w", err)
 		}
-		// Apply normal advance/recede logic only to active players.
 		for i := range activePlayers {
 			p := &activePlayers[i]
 			adv := advances > 0 && i < advances
-			rec := recedes > 0 && i >= nActive-recedes
+			rec := delta > 0 && i >= nActive-delta
 			p.Advances = adv && !rec
 			p.Recedes = rec && !adv
 			if err := s.groupRepo.UpdatePlayer(txCtx, p); err != nil {
 				return fmt.Errorf("draftService.finaliseGroup update player: %w", err)
 			}
 		}
-		// DNS players always relegate regardless of placement or recede slot count.
+		// DNS players always recede regardless of placement or recede slot count.
 		for i := range dnsPlayers {
 			p := &dnsPlayers[i]
 			p.Advances = false

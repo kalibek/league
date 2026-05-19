@@ -125,3 +125,15 @@ func (r *eventRepo) UpdateDetails(ctx context.Context, id int64, title string, s
 	}
 	return nil
 }
+
+func (r *eventRepo) ListDoneFromEvent(ctx context.Context, fromEventID int64) ([]model.LeagueEvent, error) {
+	events := make([]model.LeagueEvent, 0)
+	err := r.db(ctx).SelectContext(ctx, &events,
+		`SELECT * FROM league_events WHERE status = 'DONE' AND event_id >= $1 ORDER BY start_date ASC, event_id ASC`,
+		fromEventID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("eventRepo.ListDoneFromEvent: %w", err)
+	}
+	return events, nil
+}

@@ -12,7 +12,7 @@ const makePlayer = (id: number, firstName: string): GroupPlayer => ({
   seed: id,
   place: 0,
   points: 0,
-  tiebreakPoints: 0,
+  tiebreakPoints: 0, winLossRatio: 0,
   advances: false,
   recedes: false,
   isNonCalculated: false,

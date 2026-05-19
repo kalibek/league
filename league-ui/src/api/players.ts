@@ -18,7 +18,7 @@ export const listPlayers = (params?: {
   sort?: string
   limit?: number
   offset?: number
-}) => client.get<User[]>('/public/players', { params })
+}) => client.get<{ players: User[]; total: number }>('/public/players', { params })
 
 export const getPlayer = (id: number) => client.get<PlayerDetail>(`/public/players/${id}`)
 
@@ -36,3 +36,21 @@ export const importCSV = (file: File) => {
     form
   )
 }
+
+export interface DuplicateGroup {
+  normalizedName: string
+  users: User[]
+}
+
+export interface MergeResult {
+  targetId: number
+  mergedSourceIds: number[]
+  conflictGroupIds: number[]
+  recalcFromEvent?: number
+}
+
+export const getDuplicatePlayers = () =>
+  client.get<DuplicateGroup[]>('/admin/players/duplicates')
+
+export const mergePlayers = (targetId: number, sourceIds: number[]) =>
+  client.post<MergeResult>('/admin/players/merge', { targetId, sourceIds })

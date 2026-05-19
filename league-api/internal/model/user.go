@@ -13,7 +13,8 @@ type User struct {
 	Volatility    float64   `db:"volatility"     json:"volatility"`
 	Created       time.Time `db:"created"        json:"created"`
 	LastUpdated   time.Time `db:"last_updated"   json:"lastUpdated"`
-	PasswordHash  *string   `db:"password_hash"  json:"-"`
+	PasswordHash     *string `db:"password_hash"      json:"-"`
+	MergedIntoUserID *int64  `db:"merged_into_user_id" json:"mergedIntoUserId,omitempty"`
 }
 
 // OAuthAccount links a provider identity to a user; stored in user_oauth_accounts.

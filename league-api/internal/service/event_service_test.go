@@ -439,6 +439,38 @@ func TestGetEvent_NotFound(t *testing.T) {
 	}
 }
 
+// --- UpdateEventDetails tests ---
+
+func TestUpdateEventDetails_AnyStatus(t *testing.T) {
+	statuses := []model.EventStatus{model.EventDraft, model.EventInProgress, model.EventDone}
+	for _, status := range statuses {
+		ev := &model.LeagueEvent{EventID: 1, Status: status, Title: "Old Title"}
+		er := &evtMockEventRepo{events: map[int64]*model.LeagueEvent{1: ev}}
+		svc := NewEventService(nil, er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+
+		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+		got, err := svc.UpdateEventDetails(context.Background(), 1, "New Title", start, end)
+		if err != nil {
+			t.Errorf("status=%s: unexpected error: %v", status, err)
+			continue
+		}
+		if got == nil {
+			t.Errorf("status=%s: expected event, got nil", status)
+		}
+	}
+}
+
+func TestUpdateEventDetails_NotFound(t *testing.T) {
+	er := &evtMockEventRepo{events: map[int64]*model.LeagueEvent{}}
+	svc := NewEventService(nil, er, &evtMockGroupRepo{}, &evtMockMatchRepo{}, &evtMockUserRepo{})
+
+	_, err := svc.UpdateEventDetails(context.Background(), 99, "Title", time.Now(), time.Now().Add(24*time.Hour))
+	if err == nil {
+		t.Fatal("expected error for missing event")
+	}
+}
+
 func TestGetEventDetail_WithGroups(t *testing.T) {
 	ev := &model.LeagueEvent{EventID: 5, Status: model.EventInProgress}
 	groups := []model.Group{

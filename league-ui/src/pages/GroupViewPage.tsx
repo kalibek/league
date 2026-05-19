@@ -73,7 +73,7 @@ export function GroupViewPage() {
   if (!group) return null
 
   const title = groupTitle(group.division, group.groupNo)
-  const divLabel = group.division === 'S' ? 'Superleague' : `Division ${group.division}`
+  const divLabel = group.division === 'S' ? t('groupCard.superleague') : t('groupCard.divisionLabel', { div: group.division })
 
   return (
     <div className="max-w-4xl mx-auto py-6 px-4">
@@ -82,7 +82,7 @@ export function GroupViewPage() {
         to={`/leagues/${leagueId}/events/${eventId}`}
         className="text-sm text-blue-600 hover:underline block mb-4"
       >
-        ← {t('liveView.backToEvent', 'Back to event')}
+        {t('liveView.backToEvent')}
       </Link>
 
       {/* Group header */}
@@ -121,7 +121,7 @@ export function GroupViewPage() {
           {/* Live indicator */}
           {group.status === 'IN_PROGRESS' && (
             <span
-              title={connected ? 'Live: connected' : 'Live: reconnecting…'}
+              title={connected ? t('liveView.liveConnected') : t('liveView.liveReconnecting')}
               style={{
                 display: 'inline-block',
                 width: 10,
@@ -131,7 +131,7 @@ export function GroupViewPage() {
                 flexShrink: 0,
                 transition: 'background-color 0.3s',
               }}
-              aria-label={connected ? 'WebSocket connected' : 'WebSocket disconnected'}
+              aria-label={connected ? t('liveView.liveConnected') : t('liveView.liveReconnecting')}
             />
           )}
           {/* Status badge */}
@@ -144,7 +144,7 @@ export function GroupViewPage() {
             {/* Standings */}
             <div className="mb-6">
               <h2 className="text-xs uppercase text-gray-400 font-medium mb-3">
-                {t('liveView.standings', 'Standings')}
+                {t('liveView.standings')}
               </h2>
               <GroupStandings players={group.players} matches={group.matches} />
             </div>

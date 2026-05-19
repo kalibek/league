@@ -1,0 +1,1 @@
+ALTER TABLE group_players ADD COLUMN win_loss_ratio DOUBLE PRECISION NOT NULL DEFAULT 0;

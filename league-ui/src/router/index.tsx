@@ -14,6 +14,8 @@ import { LiveViewPage } from '../pages/LiveViewPage'
 import { EventSetupPage } from '../pages/EventSetupPage'
 import { GroupViewPage } from '../pages/GroupViewPage'
 import { ProfileEditPage } from '../pages/ProfileEditPage'
+import { InfoPage } from '../pages/InfoPage'
+import { MergePlayersPage } from '../pages/MergePlayersPage'
 
 export const router = createBrowserRouter([
   {
@@ -25,6 +27,7 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'info/:slug', element: <InfoPage /> },
       { path: 'players', element: <PlayersPage /> },
       { path: 'players/new', element: <PlayerCreatePage /> },
       { path: 'players/import', element: <PlayerImportPage /> },
@@ -37,6 +40,7 @@ export const router = createBrowserRouter([
       { path: 'leagues/:id/events/:eid/setup', element: <EventSetupPage /> },
       { path: 'leagues/:id/events/:eid/groups/:gid', element: <GroupViewPage /> },
       { path: 'profile/edit', element: <ProfileEditPage /> },
+      { path: 'admin/merge-players', element: <MergePlayersPage /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

@@ -678,7 +678,309 @@ func TestRecreateDraft_DraftEvent(t *testing.T) {
 	}
 }
 
+// --- trackingGroupRepo for recession tests ---
+
+// trackingGroupRepo records all UpdatePlayer calls for assertion.
+type trackingGroupRepo struct {
+	draftGroupRepoWithPlayers
+	updated []model.GroupPlayer
+}
+
+func (m *trackingGroupRepo) UpdatePlayer(ctx context.Context, gp *model.GroupPlayer) error {
+	m.updated = append(m.updated, *gp)
+	return nil
+}
+
+func (m *trackingGroupRepo) GetPlayers(ctx context.Context, groupID int64) ([]model.GroupPlayer, error) {
+	return m.playersByGroup[groupID], nil
+}
+
+func buildFinaliseService(gr *trackingGroupRepo, leagueID int64, advances, recedes int) *draftService {
+	ev := makeEventForLeague(10, leagueID)
+	league := makeLeague(leagueID, advances, recedes)
+	return &draftService{
+		leagueRepo: &draftMockLeagueRepo{leagues: map[int64]*model.League{leagueID: league}},
+		groupRepo:  gr,
+		eventRepo:  &draftMockEventRepo{events: map[int64]*model.LeagueEvent{10: ev}},
+		ratingSvc:  &nopRatingService{},
+		hub:        nil,
+	}
+}
+
+// TestFinaliseGroup_DNSLessThanRecedes: 2 DNS, 3 configured recedes → delta=1, bottom 1 active recedes.
+func TestFinaliseGroup_DNSLessThanRecedes(t *testing.T) {
+	players := []model.GroupPlayer{
+		{GroupPlayerID: 1, GroupID: 1, Place: 1, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 2, GroupID: 1, Place: 2, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 3, GroupID: 1, Place: 3, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 4, GroupID: 1, Place: 4, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 5, GroupID: 1, Place: 5, PlayerStatus: model.PlayerStatusDNS},
+	}
+	grp := &model.Group{GroupID: 1, EventID: 10, Status: model.GroupInProgress}
+
+	tr := &trackingGroupRepo{
+		draftGroupRepoWithPlayers: draftGroupRepoWithPlayers{
+			draftMockGroupRepo: draftMockGroupRepo{
+				groupByID: map[int64]*model.Group{1: grp},
+				groups:    map[int64][]model.Group{},
+			},
+			playersByGroup: map[int64][]model.GroupPlayer{1: players},
+		},
+	}
+
+	svc := buildFinaliseService(tr, 1, 1, 3)
+	if err := svc.finaliseGroup(context.Background(), grp); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	activeRecedes := 0
+	dnsRecedes := 0
+	for _, p := range tr.updated {
+		if p.PlayerStatus == model.PlayerStatusDNS {
+			if !p.Recedes {
+				t.Errorf("DNS player %d should recede", p.GroupPlayerID)
+			}
+			dnsRecedes++
+		} else if p.Recedes {
+			activeRecedes++
+		}
+	}
+	if activeRecedes != 1 {
+		t.Errorf("expected 1 active player to recede (delta=1), got %d", activeRecedes)
+	}
+	if dnsRecedes != 2 {
+		t.Errorf("expected 2 DNS players to recede, got %d", dnsRecedes)
+	}
+}
+
+// TestFinaliseGroup_DNSEqualsRecedes: 3 DNS, 3 configured recedes → delta=0, no active player recedes.
+func TestFinaliseGroup_DNSEqualsRecedes(t *testing.T) {
+	players := []model.GroupPlayer{
+		{GroupPlayerID: 1, GroupID: 1, Place: 1, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 2, GroupID: 1, Place: 2, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 3, GroupID: 1, Place: 3, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 4, GroupID: 1, Place: 4, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 5, GroupID: 1, Place: 5, PlayerStatus: model.PlayerStatusDNS},
+	}
+	grp := &model.Group{GroupID: 1, EventID: 10, Status: model.GroupInProgress}
+
+	tr := &trackingGroupRepo{
+		draftGroupRepoWithPlayers: draftGroupRepoWithPlayers{
+			draftMockGroupRepo: draftMockGroupRepo{
+				groupByID: map[int64]*model.Group{1: grp},
+				groups:    map[int64][]model.Group{},
+			},
+			playersByGroup: map[int64][]model.GroupPlayer{1: players},
+		},
+	}
+
+	svc := buildFinaliseService(tr, 1, 1, 3)
+	if err := svc.finaliseGroup(context.Background(), grp); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, p := range tr.updated {
+		if p.PlayerStatus != model.PlayerStatusDNS && p.Recedes {
+			t.Errorf("active player %d should NOT recede when DNS fills all recede slots", p.GroupPlayerID)
+		}
+	}
+}
+
+// TestFinaliseGroup_DNSMoreThanRecedes: 4 DNS, 3 configured recedes → delta=0, all 4 DNS recede, 0 active recede.
+func TestFinaliseGroup_DNSMoreThanRecedes(t *testing.T) {
+	players := []model.GroupPlayer{
+		{GroupPlayerID: 1, GroupID: 1, Place: 1, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 2, GroupID: 1, Place: 2, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 3, GroupID: 1, Place: 3, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 4, GroupID: 1, Place: 4, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 5, GroupID: 1, Place: 5, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 6, GroupID: 1, Place: 6, PlayerStatus: model.PlayerStatusDNS},
+	}
+	grp := &model.Group{GroupID: 1, EventID: 10, Status: model.GroupInProgress}
+
+	tr := &trackingGroupRepo{
+		draftGroupRepoWithPlayers: draftGroupRepoWithPlayers{
+			draftMockGroupRepo: draftMockGroupRepo{
+				groupByID: map[int64]*model.Group{1: grp},
+				groups:    map[int64][]model.Group{},
+			},
+			playersByGroup: map[int64][]model.GroupPlayer{1: players},
+		},
+	}
+
+	svc := buildFinaliseService(tr, 1, 1, 3)
+	if err := svc.finaliseGroup(context.Background(), grp); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	activeRecedes := 0
+	dnsRecedes := 0
+	for _, p := range tr.updated {
+		if p.PlayerStatus == model.PlayerStatusDNS {
+			if !p.Recedes {
+				t.Errorf("DNS player %d should recede", p.GroupPlayerID)
+			}
+			dnsRecedes++
+		} else if p.Recedes {
+			activeRecedes++
+		}
+	}
+	if activeRecedes != 0 {
+		t.Errorf("expected 0 active players to recede when DNS > configured recedes, got %d", activeRecedes)
+	}
+	if dnsRecedes != 4 {
+		t.Errorf("expected all 4 DNS players to recede, got %d", dnsRecedes)
+	}
+}
+
 // --- divisionGroupSortKey order tests ---
+
+func TestFinishGroup_SingleActivePlayer(t *testing.T) {
+	// 4 players seeded, 3 marked DNS (playerStatus = "dns"), 1 active.
+	// No matches remain (DNS players' matches were deleted).
+	// Should finish successfully: group marked DONE, 1 active player gets place=1
+	// and Advances=true (if league config has advances > 0), 3 DNS players all get Recedes=true.
+	players := []model.GroupPlayer{
+		{GroupPlayerID: 1, GroupID: 1, UserID: 1, Place: 1, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 2, GroupID: 1, UserID: 2, Place: 2, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 3, GroupID: 1, UserID: 3, Place: 3, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 4, GroupID: 1, UserID: 4, Place: 4, PlayerStatus: model.PlayerStatusDNS},
+	}
+	grp := &model.Group{GroupID: 1, EventID: 10, Status: model.GroupInProgress}
+	ev := makeEventForLeague(10, 1)
+	league := makeLeague(1, 1, 1) // advances=1, recedes=1
+
+	tr := &trackingGroupRepo{
+		draftGroupRepoWithPlayers: draftGroupRepoWithPlayers{
+			draftMockGroupRepo: draftMockGroupRepo{
+				groupByID: map[int64]*model.Group{1: grp},
+				groups:    map[int64][]model.Group{},
+			},
+			playersByGroup: map[int64][]model.GroupPlayer{1: players},
+		},
+	}
+	mr := &draftMockMatchRepo{
+		matches: map[int64][]model.Match{1: {}}, // no matches
+	}
+	er := &draftMockEventRepo{events: map[int64]*model.LeagueEvent{10: ev}}
+	lr := &draftMockLeagueRepo{leagues: map[int64]*model.League{1: league}}
+
+	svc := &draftService{
+		leagueRepo: lr,
+		groupRepo:  tr,
+		eventRepo:  er,
+		matchRepo:  mr,
+		matchSvc:   &nopMatchService{},
+		ratingSvc:  &nopRatingService{},
+		groupSvc:   &nopGroupService{needsManual: nil},
+		hub:        nil,
+	}
+
+	err := svc.FinishGroup(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify group was marked DONE
+	if len(tr.statusCalls) == 0 {
+		t.Fatal("expected group status to be updated to DONE")
+	}
+
+	// Check updated players
+	activeCount := 0
+	dnsRecedes := 0
+	activeAdvances := 0
+
+	for _, p := range tr.updated {
+		if p.PlayerStatus == model.PlayerStatusDNS {
+			if !p.Recedes {
+				t.Errorf("DNS player %d should recede", p.GroupPlayerID)
+			}
+			dnsRecedes++
+		} else {
+			activeCount++
+			if p.Advances {
+				activeAdvances++
+			}
+		}
+	}
+
+	if activeCount != 1 {
+		t.Errorf("expected 1 active player, got %d", activeCount)
+	}
+	if activeAdvances != 1 {
+		t.Errorf("expected active player to advance, got advances=%d", activeAdvances)
+	}
+	if dnsRecedes != 3 {
+		t.Errorf("expected 3 DNS players to recede, got %d", dnsRecedes)
+	}
+}
+
+func TestFinishGroup_AllDNS(t *testing.T) {
+	// 3 players all marked DNS. No matches.
+	// Should finish successfully: group marked DONE, all 3 get Recedes=true.
+	players := []model.GroupPlayer{
+		{GroupPlayerID: 1, GroupID: 1, UserID: 1, Place: 1, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 2, GroupID: 1, UserID: 2, Place: 2, PlayerStatus: model.PlayerStatusDNS},
+		{GroupPlayerID: 3, GroupID: 1, UserID: 3, Place: 3, PlayerStatus: model.PlayerStatusDNS},
+	}
+	grp := &model.Group{GroupID: 1, EventID: 10, Status: model.GroupInProgress}
+	ev := makeEventForLeague(10, 1)
+	league := makeLeague(1, 1, 1) // advances=1, recedes=1
+
+	tr := &trackingGroupRepo{
+		draftGroupRepoWithPlayers: draftGroupRepoWithPlayers{
+			draftMockGroupRepo: draftMockGroupRepo{
+				groupByID: map[int64]*model.Group{1: grp},
+				groups:    map[int64][]model.Group{},
+			},
+			playersByGroup: map[int64][]model.GroupPlayer{1: players},
+		},
+	}
+	mr := &draftMockMatchRepo{
+		matches: map[int64][]model.Match{1: {}}, // no matches
+	}
+	er := &draftMockEventRepo{events: map[int64]*model.LeagueEvent{10: ev}}
+	lr := &draftMockLeagueRepo{leagues: map[int64]*model.League{1: league}}
+
+	svc := &draftService{
+		leagueRepo: lr,
+		groupRepo:  tr,
+		eventRepo:  er,
+		matchRepo:  mr,
+		matchSvc:   &nopMatchService{},
+		ratingSvc:  &nopRatingService{},
+		groupSvc:   &nopGroupService{needsManual: nil},
+		hub:        nil,
+	}
+
+	err := svc.FinishGroup(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify group was marked DONE
+	if len(tr.statusCalls) == 0 {
+		t.Fatal("expected group status to be updated to DONE")
+	}
+
+	// Check updated players: all should be DNS and recede
+	if len(tr.updated) != 3 {
+		t.Errorf("expected 3 updated players, got %d", len(tr.updated))
+	}
+
+	for _, p := range tr.updated {
+		if p.PlayerStatus != model.PlayerStatusDNS {
+			t.Errorf("expected all players to be DNS, got %s", p.PlayerStatus)
+		}
+		if !p.Recedes {
+			t.Errorf("DNS player %d should recede", p.GroupPlayerID)
+		}
+		if p.Advances {
+			t.Errorf("DNS player %d should not advance", p.GroupPlayerID)
+		}
+	}
+}
 
 func TestGroupLinearChainOrder(t *testing.T) {
 	groups := []model.Group{

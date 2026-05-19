@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { usePlayers } from '../hooks/usePlayers'
 import { type Column, Table } from '../components/Table/Table'
+import { Pagination } from '../components/Pagination/Pagination'
 import type { User } from '../types'
 import { useAuth } from '../hooks/useAuth'
 
@@ -10,9 +11,23 @@ export function PlayersPage() {
   const { t } = useTranslation()
   const [sort, setSort] = useState<'rating' | 'name'>('rating')
   const [query, setQuery] = useState('')
-  const { players, loading, error } = usePlayers({ q: query, sort, limit: 100, offset: 0 })
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(() => {
+    const stored = localStorage.getItem('players_page_size')
+    return stored ? Math.min(Math.max(parseInt(stored, 10), 10), 100) : 25
+  })
+  const { players, total, loading, error } = usePlayers({
+    q: query,
+    sort,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+  })
   const { isAdmin, roles } = useAuth()
   const canManage = isAdmin || Object.values(roles).some((r) => r.includes('maintainer'))
+
+  useEffect(() => {
+    setPage(1)
+  }, [query, sort])
 
   const columns: Column<User>[] = [
     {
@@ -20,7 +35,7 @@ export function PlayersPage() {
       header: t('players.rank'),
       render: (p) => (
         <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>
-          {players.indexOf(p) + 1}
+          {(page - 1) * pageSize + players.indexOf(p) + 1}
         </span>
       ),
     },
@@ -81,8 +96,8 @@ export function PlayersPage() {
             {t('players.title')}
           </h1>
           <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-            {players.length > 0
-              ? t('players.registeredPlayers', { count: players.length })
+            {total > 0
+              ? t('players.registeredPlayers', { count: total })
               : t('players.registeredPlayerRankings')}
           </p>
         </div>
@@ -199,25 +214,66 @@ export function PlayersPage() {
         </div>
 
         {!query && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <span
-              style={{
-                fontSize: 12,
-                color: '#94a3b8',
-                fontWeight: 600,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {t('players.sort')}
-            </span>
-            <button style={sortBtnStyle(sort === 'rating')} onClick={() => setSort('rating')}>
-              {t('players.sortRating')}
-            </button>
-            <button style={sortBtnStyle(sort === 'name')} onClick={() => setSort('name')}>
-              {t('players.sortName')}
-            </button>
-          </div>
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: '#94a3b8',
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {t('players.sort')}
+              </span>
+              <button style={sortBtnStyle(sort === 'rating')} onClick={() => setSort('rating')}>
+                {t('players.sortRating')}
+              </button>
+              <button style={sortBtnStyle(sort === 'name')} onClick={() => setSort('name')}>
+                {t('players.sortName')}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <label
+                style={{
+                  fontSize: 12,
+                  color: '#94a3b8',
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {t('players.perPage')}
+              </label>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const newSize = parseInt(e.target.value, 10)
+                  setPageSize(newSize)
+                  localStorage.setItem('players_page_size', String(newSize))
+                  setPage(1)
+                }}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--navy)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  backgroundColor: '#fff',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </>
         )}
       </div>
 
@@ -239,12 +295,34 @@ export function PlayersPage() {
         </div>
       )}
 
+      {total > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+          />
+        </div>
+      )}
+
       <Table
         columns={columns}
         rows={players}
         rowKey={(p) => p.userId}
         emptyMessage={query ? t('players.noPlayersMatch', { query }) : t('players.noPlayersFound')}
       />
+
+      {total > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+          />
+        </div>
+      )}
     </div>
   )
 }

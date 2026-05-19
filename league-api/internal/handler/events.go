@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"league-api/internal/middleware"
 	"league-api/internal/model"
 	"league-api/internal/service"
 )
@@ -185,6 +186,16 @@ func (h *SimpleEventsHandler) UpdateConfig(c *gin.Context) {
 
 // PUT /api/v1/leagues/:id/events/:eid/details
 func (h *SimpleEventsHandler) UpdateDetails(c *gin.Context) {
+	leagueID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid league id"})
+		return
+	}
+	callerID, _ := middleware.GetUserID(c)
+	if !middleware.IsAdmin(c) && !h.leagueSvc.IsMaintainer(c.Request.Context(), leagueID, callerID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin or maintainer role required"})
+		return
+	}
 	eventID, err := strconv.ParseInt(c.Param("eid"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event id"})

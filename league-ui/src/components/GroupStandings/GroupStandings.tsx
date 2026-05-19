@@ -12,6 +12,41 @@ interface GroupStandingsProps {
   onSetPlayerStatus?: (groupPlayerId: number, currentStatus: 'active' | 'dns') => void
 }
 
+// Returns the W/L ratio only for players in a tie group where tiebreak points are also equal.
+// null = not in a TB-equal tie group (don't show).
+// math.MaxFloat64 from the backend encodes "infinity" (L=0); display as ∞.
+function buildWinLossDisplayMap(players: GroupPlayer[]): Map<number, number | null> {
+  const calcPlayers = players.filter((p) => !p.isNonCalculated && p.playerStatus !== 'dns')
+  const byPoints = new Map<number, GroupPlayer[]>()
+  for (const p of calcPlayers) {
+    const grp = byPoints.get(p.points) ?? []
+    grp.push(p)
+    byPoints.set(p.points, grp)
+  }
+  const result = new Map<number, number | null>()
+  for (const grp of byPoints.values()) {
+    if (grp.length < 2) continue
+    const byTB = new Map<number, GroupPlayer[]>()
+    for (const p of grp) {
+      const sub = byTB.get(p.tiebreakPoints) ?? []
+      sub.push(p)
+      byTB.set(p.tiebreakPoints, sub)
+    }
+    for (const sub of byTB.values()) {
+      if (sub.length < 2) continue
+      for (const p of sub) {
+        result.set(p.groupPlayerId, p.winLossRatio)
+      }
+    }
+  }
+  return result
+}
+
+function formatWinLoss(ratio: number): string {
+  if (ratio >= Number.MAX_VALUE / 2) return '∞'
+  return ratio.toFixed(2)
+}
+
 // Returns null for players with a unique points total (no tie → show '—').
 // Returns the backend tiebreakPoints for players in a tied group.
 // DNS players and non-calculated players are excluded from tiebreak groups.
@@ -73,16 +108,15 @@ export function GroupStandings({
   const [showMatrix, setShowMatrix] = useState(false)
   const matrixColClass = showMatrix ? '' : 'hidden sm:table-cell'
 
-  // Sort: non-DNS by seed, then DNS players at the bottom (also by seed among themselves).
+  // Sort: by seed
   const sorted = [...players].sort((a, b) => {
-    const aDns = a.playerStatus === 'dns'
-    const bDns = b.playerStatus === 'dns'
-    if (aDns !== bDns) return aDns ? 1 : -1
     return a.seed - b.seed
   })
 
   const tiebreakMap = buildTiebreakDisplayMap(players)
   const tieColorMap = buildTieColorMap(players)
+  const winLossMap = buildWinLossDisplayMap(players)
+  const showWinLoss = winLossMap.size > 0
 
   const playerName = (p: GroupPlayer) =>
     p.user
@@ -194,6 +228,11 @@ export function GroupStandings({
               <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>
                 {t('groupStandings.tb')}
               </th>
+              {showWinLoss && (
+                <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>
+                  {t('groupStandings.wl')}
+                </th>
+              )}
               <th style={{ ...thStyle, textAlign: 'center' }} className={matrixColClass}>
                 {t('groupStandings.move')}
               </th>
@@ -301,6 +340,18 @@ export function GroupStandings({
                   >
                     {p.isNonCalculated ? '—' : (tiebreakMap.get(p.groupPlayerId) ?? '—')}
                   </td>
+                  {showWinLoss && (
+                    <td
+                      style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }}
+                      className={matrixColClass}
+                    >
+                      {(() => {
+                        if (p.isNonCalculated || p.playerStatus === 'dns') return '—'
+                        const ratio = winLossMap.get(p.groupPlayerId)
+                        return ratio !== undefined && ratio !== null ? formatWinLoss(ratio) : '—'
+                      })()}
+                    </td>
+                  )}
                   <td
                     style={{ padding: '10px 12px', textAlign: 'center' }}
                     className={matrixColClass}

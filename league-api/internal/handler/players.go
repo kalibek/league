@@ -20,18 +20,23 @@ func NewPlayersHandler(playerSvc service.PlayerService) *PlayersHandler {
 
 // GET /api/v1/players?q=&sort=&limit=&offset=
 func (h *PlayersHandler) List(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "25"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	sort := c.DefaultQuery("sort", "rating")
 	q := c.Query("q")
 
-	players, err := h.playerSvc.ListPlayers(c.Request.Context(), q, limit, offset, sort)
+	// Validate limit is clamped to [10, 100]; if outside range, let service default to 25.
+	if limit < 10 || limit > 100 {
+		limit = 0 // Signal to service to use default
+	}
+
+	page, err := h.playerSvc.ListPlayers(c.Request.Context(), q, limit, offset, sort)
 	if err != nil {
 		log.Printf("[handler] PlayersHandler.List: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, players)
+	c.JSON(http.StatusOK, page)
 }
 
 // POST /api/v1/players

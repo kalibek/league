@@ -13,10 +13,14 @@ type UserRepository interface {
 	Create(ctx context.Context, u *model.User) (int64, error)
 	List(ctx context.Context, limit, offset int, sortBy string) ([]model.User, error)
 	Search(ctx context.Context, q string, limit, offset int, sortBy string) ([]model.User, error)
+	CountPlayers(ctx context.Context, q string) (int, error)
 	UpdateRating(ctx context.Context, userID int64, rating, deviation, volatility float64) error
 	ResetAllRatings(ctx context.Context) error
 	SetPasswordHash(ctx context.Context, userID int64, hash string) error
 	UpdateName(ctx context.Context, userID int64, firstName, lastName string) error
+	FindAllActive(ctx context.Context) ([]model.User, error)
+	SoftDeleteMerged(ctx context.Context, sourceID, targetID int64) error
+	UpdateRatingHistory(ctx context.Context, sourceID, targetID int64) error
 }
 
 type OAuthAccountRepository interface {
@@ -47,6 +51,7 @@ type EventRepository interface {
 	UpdateStatus(ctx context.Context, id int64, status model.EventStatus) error
 	ListEventsForPlayer(ctx context.Context, userID int64, limit, offset int) ([]model.LeagueEvent, int, error)
 	UpdateDetails(ctx context.Context, id int64, title string, startDate, endDate time.Time) error
+	ListDoneFromEvent(ctx context.Context, fromEventID int64) ([]model.LeagueEvent, error)
 }
 
 type GroupRepository interface {
@@ -64,6 +69,10 @@ type GroupRepository interface {
 	ListPlayerGroupsInEvent(ctx context.Context, userID, eventID int64) ([]model.GroupPlayer, error)
 	ListUsersByIdsByRatingDesc(ctx context.Context, ids []int64) ([]model.User, error)
 	Delete(ctx context.Context, id int64) error
+	FindConflictingGroupIDs(ctx context.Context, sourceID, targetID int64) ([]int64, error)
+	SetPlayerStatusByUser(ctx context.Context, groupID, userID int64, status model.PlayerStatus) error
+	UpdateGroupPlayerUserID(ctx context.Context, sourceID, targetID int64, excludeGroupIDs []int64) error
+	DeletePlayerProfileByUser(ctx context.Context, userID int64) error
 }
 
 type MatchRepository interface {
@@ -103,4 +112,7 @@ type RatingRepository interface {
 	DeleteByGroup(ctx context.Context, groupID int64) error
 	DeleteAll(ctx context.Context) error
 	GetEventDeltaForUser(ctx context.Context, userID, eventID int64) (float64, error)
+	DeleteFromEvent(ctx context.Context, fromEventID int64) error
+	GetLastRatingsBeforeEvent(ctx context.Context, fromEventID int64) ([]model.UserRatingSnapshot, error)
+	GetEarliestEventIDForUser(ctx context.Context, userID int64) (int64, bool, error)
 }

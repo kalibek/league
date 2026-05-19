@@ -12,6 +12,7 @@ export function usePlayers(params?: {
   offset?: number
 }) {
   const [players, setPlayers] = useState<User[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
@@ -23,7 +24,8 @@ export function usePlayers(params?: {
     listPlayers({ ...params, q: debouncedQ || undefined })
       .then((res) => {
         if (!cancelled) {
-          setPlayers(res.data ?? [])
+          setPlayers(res.data.players ?? [])
+          setTotal(res.data.total ?? 0)
           setError(null)
           setLoading(false)
         }
@@ -45,7 +47,7 @@ export function usePlayers(params?: {
     setTick((t) => t + 1)
   }, [])
 
-  return { players, loading, error, refresh }
+  return { players, total, loading, error, refresh }
 }
 
 export function usePlayer(id: number) {

@@ -7,6 +7,7 @@ export interface User {
   currentRating: number
   deviation: number
   volatility: number
+  mergedIntoUserId?: number
 }
 
 export interface LeagueConfig {
@@ -71,6 +72,7 @@ export interface GroupPlayer {
   recedes: boolean
   isNonCalculated: boolean
   playerStatus: PlayerStatus
+  winLossRatio: number
   user?: User
 }
 

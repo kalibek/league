@@ -19,7 +19,7 @@ const basePlayer = (overrides: Partial<GroupPlayer>): GroupPlayer => ({
   seed: 1,
   place: 1,
   points: 4,
-  tiebreakPoints: 2,
+  tiebreakPoints: 2, winLossRatio: 0,
   advances: false,
   recedes: false,
   isNonCalculated: false,
@@ -109,12 +109,12 @@ describe('GroupStandings', () => {
   it('shows backend tiebreakPoints for tied players, — for non-tied', () => {
     // Backend already computed TB correctly: A=+2, B=-2 (tied at 5 pts); C=0 but unique
     const players = [
-      basePlayer({ groupPlayerId: 1, userId: 1, points: 5, tiebreakPoints: 2, seed: 1 }),
+      basePlayer({ groupPlayerId: 1, userId: 1, points: 5, tiebreakPoints: 2, winLossRatio: 0, seed: 1 }),
       basePlayer({
         groupPlayerId: 2,
         userId: 2,
         points: 5,
-        tiebreakPoints: -2,
+        tiebreakPoints: -2, winLossRatio: 0,
         seed: 2,
         user: {
           userId: 2,
@@ -131,7 +131,7 @@ describe('GroupStandings', () => {
         groupPlayerId: 3,
         userId: 3,
         points: 3,
-        tiebreakPoints: 0,
+        tiebreakPoints: 0, winLossRatio: 0,
         seed: 3,
         user: {
           userId: 3,
@@ -155,12 +155,12 @@ describe('GroupStandings', () => {
   it('shows backend tiebreakPoints for two separate tie groups', () => {
     // Backend computed: A=+2, B=-2 (pts=5); C=-3, D=+3 (pts=3)
     const players = [
-      basePlayer({ groupPlayerId: 1, userId: 1, points: 5, tiebreakPoints: 2, seed: 1 }),
+      basePlayer({ groupPlayerId: 1, userId: 1, points: 5, tiebreakPoints: 2, winLossRatio: 0, seed: 1 }),
       basePlayer({
         groupPlayerId: 2,
         userId: 2,
         points: 5,
-        tiebreakPoints: -2,
+        tiebreakPoints: -2, winLossRatio: 0,
         seed: 2,
         user: {
           isAdmin: false,
@@ -177,7 +177,7 @@ describe('GroupStandings', () => {
         groupPlayerId: 3,
         userId: 3,
         points: 3,
-        tiebreakPoints: -3,
+        tiebreakPoints: -3, winLossRatio: 0,
         seed: 3,
         user: {
           isAdmin: false,
@@ -194,7 +194,7 @@ describe('GroupStandings', () => {
         groupPlayerId: 4,
         userId: 4,
         points: 3,
-        tiebreakPoints: 3,
+        tiebreakPoints: 3, winLossRatio: 0,
         seed: 4,
         user: {
           isAdmin: false,

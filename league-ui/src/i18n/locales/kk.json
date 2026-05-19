@@ -4,7 +4,9 @@
     "leagues": "Лигалар",
     "players": "Ойыншылар",
     "signIn": "Кіру",
-    "logout": "Шығу"
+    "logout": "Шығу",
+    "toggleMenu": "Мәзірді ашу",
+    "mergeDuplicates": "Қайталанымдарды біріктіру"
   },
   "profileBanner": {
     "message": "Профиліңіз толық емес. Платформадан максималды пайда алу үшін деректеріңізді толтырыңыз.",
@@ -59,7 +61,10 @@
     "rank": "#",
     "player": "Ойыншы",
     "rating": "Рейтинг",
-    "rd": "RD"
+    "rd": "RD",
+    "perPage": "Беттегі",
+    "page": "Бет",
+    "of": "/"
   },
   "playerProfile": {
     "backToPlayers": "← Ойыншыларға оралу",
@@ -146,21 +151,36 @@
   },
   "liveView": {
     "backToLeague": "← Лигаға оралу",
+    "backToEvent": "← Оқиғаға оралу",
     "loading": "Оқиға жүктелуде...",
     "collapseAll": "Барлығын жию",
     "finishEvent": "Оқиғаны аяқтау",
     "managePlayers": "Ойыншыларды басқару",
     "matchResults": "Матч нәтижелері",
+    "standings": "Кесте",
     "reopenGroup": "Топты қайта ашу",
     "finishGroup": "Топты аяқтау",
     "enterScoreTitle": "Есеп енгізу",
     "manualPlacementTitle": "Қолмен орналастыру қажет",
     "manualPlacementDescription": "Бұл ойыншылар тең ұпай жинады. Дұрыс ретті орнату үшін сүйреп апарыңыз.",
     "enterAllScoresFirst": "Алдымен барлық матч нәтижелерін енгізіңіз",
+    "inProgress": "Жүріп жатыр",
     "assignTableTitle": "Үстел тағайындау",
     "allTablesOccupied": "Барлық үстелдер бос емес",
     "table": "Үстел",
-    "assign": "Тағайындау"
+    "assign": "Тағайындау",
+    "liveConnected": "Live: қосылды",
+    "liveReconnecting": "Live: қайта қосылуда…",
+    "dnsConfirmTitle": "Ойыншыны DNS деп белгілеу?",
+    "dnsConfirmBody_one": "{{name}} {{count}} матч ойнады. DNS белгілеу оны жояды.",
+    "dnsConfirmBody_other": "{{name}} {{count}} матч ойнады. DNS белгілеу оларды жояды.",
+    "confirmDns": "DNS-ті растау",
+    "editDetails": "Деректерді өзгерту",
+    "saveDetails": "Сақтау",
+    "cancelEdit": "Болдырмау",
+    "eventTitle": "Оқиға атауы",
+    "startDate": "Басталу күні",
+    "endDate": "Аяқталу күні"
   },
   "eventSetup": {
     "backToLeague": "← Лигаға оралу",
@@ -174,6 +194,7 @@
     "groupNumber": "Топ №",
     "scheduledDateTime": "Жоспарланған күн/уақыт",
     "cancel": "Болдырмау",
+    "save": "Сақтау",
     "createGroup": "Топ жасау",
     "loadingGroups": "Топтар жүктелуде...",
     "noGroupsYet": "Топтар жоқ.",
@@ -187,7 +208,15 @@
     "startFromLeague": "Оқиғаны лига бетінен бастаңыз",
     "player": "Ойыншы #{{id}}",
     "players_one": "{{count}} ойыншы",
-    "players_other": "{{count}} ойыншы"
+    "players_other": "{{count}} ойыншы",
+    "editEventDetails": "Оқиға мәліметтерін өңдеу",
+    "titleLabel": "Атауы",
+    "startDate": "Басталу күні",
+    "endDate": "Аяқталу күні",
+    "deleteGroup": "Бос топты жою",
+    "addPlayerButton": "Ойыншы қосу",
+    "group": "Топ",
+    "addPlayerTo": "{{group}} топқа ойыншы қосу"
   },
   "profileEdit": {
     "title": "Профильді өңдеу",
@@ -253,6 +282,7 @@
     "place": "Орын",
     "ptsWL": "Ұпай (Ж-Ж)",
     "tb": "ТБ",
+    "wl": "Ж/Ж",
     "move": "Қозғалыс",
     "guest": "(қонақ)",
     "noShow": "{{name}} келмеді деп белгілеу",
@@ -287,15 +317,62 @@
     "errors": "Қателер: {{count}}"
   },
   "groupCard": {
-    "divisionGroup": "{{division}} дивизионы — {{no}} топ"
+    "divisionGroup": "{{division}} дивизионы — {{no}} топ",
+    "superleague": "Суперлига",
+    "viewDetails": "Топты ашу",
+    "divisionLabel": "{{div}} дивизионы",
+    "groups_one": "{{count}} топ",
+    "groups_other": "{{count}} топ"
   },
   "common": {
     "loading": "Жүктелуде…",
     "error": "Қате"
   },
+  "playerSearch": {
+    "placeholder": "Ойыншыларды іздеу үшін теріңіз",
+    "typeToSearch": "Ойыншыларды іздеу үшін теріңіз",
+    "noPlayersFound": "Ойыншылар табылмады",
+    "playerAdded": "{{name}} қосылды",
+    "adding": "Қосылуда…",
+    "add": "Қосу"
+  },
   "language": {
     "en": "English",
     "ru": "Русский",
     "kk": "Қазақша"
+  },
+  "mergePlayers": {
+    "title": "Қайталанған ойыншыларды біріктіру",
+    "tabDetected": "Анықталған қайталанымдар",
+    "tabManual": "Қолмен біріктіру",
+    "loading": "Қайталанымдарды іздеу…",
+    "noDuplicates": "Қайталанымдар табылмады.",
+    "target": "Негізгі (канондық)",
+    "source": "Көз (біріктіріледі)",
+    "mergeSelected": "Біріктіру",
+    "merging": "Біріктірілуде…",
+    "mergeSuccess": "Сәтті біріктірілді. Рейтингтер {{event}} оқиғасынан қайта есептелді.",
+    "mergeDone": "Сәтті біріктірілді.",
+    "mergeError": "Біріктіру қатесі: {{error}}",
+    "targetIdLabel": "Негізгі ойыншы ID",
+    "sourceIdsLabel": "Көз ID-лері (үтірмен бөлінген)",
+    "preview": "Алдын ала қарау",
+    "loadPreview": "Жүктеу",
+    "id": "ID",
+    "name": "Аты",
+    "email": "Email",
+    "rating": "Рейтинг",
+    "created": "Жасалды",
+    "conflictGroups": "Қайшылықты топтар (DNS): {{ids}}"
+  },
+  "info": {
+    "sectionTitle": "Толсырақ біліңіз",
+    "backToHome": "← Басты бетке қайта оралу",
+    "loading": "Жүктелуде...",
+    "notFound": "Бет табылмады.",
+    "about": { "title": "Біз туралы", "desc": "Бұл платформа дегеніміз не және ол кімге арналған." },
+    "rating": { "title": "Рейтингтер қалай жұмыс істейді", "desc": "Глико2 алгоритмі қарапайымдарға түсіндіріледі." },
+    "movements": { "title": "Лигада қозғалыс", "desc": "Ойыншылар топтар арасында қалай жоғарылайды және төмендейді." },
+    "createLeague": { "title": "Лига құру", "desc": "Сіздің лигаңызды іске қосудың қадамдық нұсқаулығы." }
   }
 }

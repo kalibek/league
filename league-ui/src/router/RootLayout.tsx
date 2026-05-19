@@ -117,6 +117,11 @@ function NavBar() {
             <NavLink to="/players" className={navLinkClass}>
               {t('nav.players')}
             </NavLink>
+            {user?.isAdmin && (
+              <NavLink to="/admin/merge-players" className={navLinkClass}>
+                {t('nav.mergeDuplicates')}
+              </NavLink>
+            )}
           </div>
         </div>
 
@@ -197,6 +202,11 @@ function NavBar() {
             <NavLink to="/players" className={navLinkClass} onClick={() => setMenuOpen(false)}>
               {t('nav.players')}
             </NavLink>
+            {user?.isAdmin && (
+              <NavLink to="/admin/merge-players" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+                {t('nav.mergeDuplicates')}
+              </NavLink>
+            )}
             <div className="pt-2 border-t border-white/10 mt-1 flex items-center justify-between">
               <LanguageSwitcher />
               {user ? (

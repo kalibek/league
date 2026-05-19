@@ -58,6 +58,7 @@ type GroupPlayer struct {
 	Recedes         bool         `db:"recedes"           json:"recedes"`
 	IsNonCalculated bool         `db:"is_non_calculated" json:"isNonCalculated"`
 	PlayerStatus    PlayerStatus `db:"player_status"     json:"playerStatus"`
+	WinLossRatio    float64      `db:"win_loss_ratio"    json:"winLossRatio"`
 	User            *User        `db:"-"                 json:"user,omitempty"`
 	Created         time.Time    `db:"created"           json:"created"`
 	LastUpdated     time.Time    `db:"last_updated"      json:"lastUpdated"`

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { formatDate } from '../hooks/utils'
-import { useEvent, useFinishEvent } from '../hooks/useEvents'
+import { useEvent, useFinishEvent, useUpdateEventDetails } from '../hooks/useEvents'
 import {
   useResetMatchScore,
   useSetTableNumber,
@@ -53,6 +53,7 @@ export function LiveViewPage() {
     loading: finishingEvent,
     error: finishEventError,
   } = useFinishEvent()
+  const { update: updateDetails, loading: savingDetails, error: detailsError } = useUpdateEventDetails()
 
   const [scoreModal, setScoreModal] = useState<{
     match: Match
@@ -77,6 +78,10 @@ export function LiveViewPage() {
   } | null>(null)
   const [collapseSignal, setCollapseSignal] = useState(0)
   const [collapsedDivisions, setCollapsedDivisions] = useState<Set<string>>(new Set())
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [editEndDate, setEditEndDate] = useState('')
 
   const toggleDivision = (div: string) => {
     setCollapsedDivisions((prev) => {
@@ -433,6 +438,30 @@ export function LiveViewPage() {
     }
   }
 
+  const handleEditDetails = () => {
+    if (!event) return
+    setEditTitle(event.title)
+    setEditStartDate(event.startDate.substring(0, 10))
+    setEditEndDate(event.endDate.substring(0, 10))
+    setEditingDetails(true)
+  }
+
+  const handleSaveDetails = async () => {
+    const result = await updateDetails(leagueId, eventId, {
+      title: editTitle,
+      startDate: editStartDate,
+      endDate: editEndDate,
+    })
+    if (result) {
+      setEvent((prev) =>
+        prev
+          ? { ...prev, title: result.title, startDate: result.startDate, endDate: result.endDate }
+          : prev
+      )
+      setEditingDetails(false)
+    }
+  }
+
   const handleFinishEvent = async () => {
     const result = await finishEventAction(leagueId, eventId)
     if (result) {
@@ -470,34 +499,147 @@ export function LiveViewPage() {
     <div className="max-w-7xl mx-auto py-6 px-4">
       {/* Event header */}
       <div className="flex items-start justify-between mb-6">
-        <div>
+        <div style={{ flex: 1, minWidth: 0, marginRight: 16 }}>
           <Link
             to={`/leagues/${leagueId}`}
             className="text-sm text-blue-600 hover:underline block mb-1"
           >
             {t('liveView.backToLeague')}
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            {event.title}
-            {event.status === 'IN_PROGRESS' && (
-              <span
-                title={connected ? 'Live: connected' : 'Live: reconnecting…'}
+          {editingDetails ? (
+            <div>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                aria-label={t('liveView.eventTitle')}
                 style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  backgroundColor: connected ? '#22c55e' : '#ef4444',
-                  flexShrink: 0,
-                  transition: 'background-color 0.3s',
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: '#111827',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  padding: '4px 10px',
+                  width: '100%',
+                  maxWidth: 480,
+                  marginBottom: 8,
+                  outline: 'none',
+                  boxSizing: 'border-box',
                 }}
-                aria-label={connected ? 'WebSocket connected' : 'WebSocket disconnected'}
               />
-            )}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {formatDate(event.startDate)} — {formatDate(event.endDate)}
-          </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  aria-label={t('liveView.startDate')}
+                  style={{
+                    fontSize: 13,
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    padding: '4px 8px',
+                    color: '#374151',
+                  }}
+                />
+                <span style={{ color: '#9ca3af', fontSize: 13 }}>—</span>
+                <input
+                  type="date"
+                  value={editEndDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                  aria-label={t('liveView.endDate')}
+                  style={{
+                    fontSize: 13,
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    padding: '4px 8px',
+                    color: '#374151',
+                  }}
+                />
+                <button
+                  onClick={handleSaveDetails}
+                  disabled={savingDetails || !editTitle.trim()}
+                  style={{
+                    padding: '4px 14px',
+                    borderRadius: 6,
+                    backgroundColor: savingDetails ? '#93c5fd' : '#2563eb',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    border: 'none',
+                    cursor: savingDetails ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {t('liveView.saveDetails')}
+                </button>
+                <button
+                  onClick={() => setEditingDetails(false)}
+                  disabled={savingDetails}
+                  style={{
+                    padding: '4px 14px',
+                    borderRadius: 6,
+                    backgroundColor: '#f3f4f6',
+                    color: '#374151',
+                    fontWeight: 500,
+                    fontSize: 13,
+                    border: '1px solid #d1d5db',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('liveView.cancelEdit')}
+                </button>
+              </div>
+              {detailsError && <p className="text-red-600 text-xs mt-1">{detailsError}</p>}
+            </div>
+          ) : (
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                {event.title}
+                {event.status === 'IN_PROGRESS' && (
+                  <span
+                    title={connected ? t('liveView.liveConnected') : t('liveView.liveReconnecting')}
+                    style={{
+                      display: 'inline-block',
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      backgroundColor: connected ? '#22c55e' : '#ef4444',
+                      flexShrink: 0,
+                      transition: 'background-color 0.3s',
+                    }}
+                    aria-label={connected ? t('liveView.liveConnected') : t('liveView.liveReconnecting')}
+                  />
+                )}
+                {canManage && (
+                  <button
+                    onClick={handleEditDetails}
+                    title={t('liveView.editDetails')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '2px 4px',
+                      color: '#9ca3af',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+                      <path
+                        d="M10.5 1.5l3 3-9 9H1.5v-3l9-9z"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                {formatDate(event.startDate)} — {formatDate(event.endDate)}
+              </p>
+            </div>
+          )}
           {finishEventError && <p className="text-red-600 text-xs mt-1">{finishEventError}</p>}
         </div>
         <div className="flex items-center gap-3">
@@ -652,7 +794,7 @@ export function LiveViewPage() {
           return divisionOrder.map((div) => {
             const divGroups = byDivision[div]
             const isCollapsed = collapsedDivisions.has(div)
-            const divLabel = div === 'S' ? 'Superleague' : `Division ${div}`
+            const divLabel = div === 'S' ? t('groupCard.superleague') : t('groupCard.divisionLabel', { div })
             return (
               <div key={div} style={{ marginBottom: 16 }}>
                 {/* Division header — visually distinct from group cards */}
@@ -725,7 +867,7 @@ export function LiveViewPage() {
                     border: '1px solid rgba(245,158,11,0.28)',
                     letterSpacing: '0.01em',
                   }}>
-                    {divGroups.length} {divGroups.length === 1 ? 'group' : 'groups'}
+                    {t('groupCard.groups', { count: divGroups.length })}
                   </span>
                 </button>
                 {/* Groups within division — indented with faint amber connector */}
@@ -843,8 +985,13 @@ export function LiveViewPage() {
                               {canUmpire &&
                                 group.status !== 'DONE' &&
                                 (() => {
+                                  const activePlayers = group.players.filter(
+                                    (p) => !p.isNonCalculated && p.playerStatus !== 'dns'
+                                  )
                                   const allScored =
-                                    group.matches.length > 0 && group.matches.every((m) => m.status === 'DONE')
+                                    group.players.length > 0 &&
+                                    (activePlayers.length <= 1 ||
+                                      (group.matches.length > 0 && group.matches.every((m) => m.status === 'DONE')))
                                   return (
                                     <Button
                                       variant="primary"
@@ -953,12 +1100,10 @@ export function LiveViewPage() {
             }}
           >
             <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '12px', color: '#1f2937' }}>
-              Mark player as DNS?
+              {t('liveView.dnsConfirmTitle')}
             </h2>
             <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '20px' }}>
-              {dnsConfirm.playerName} has {dnsConfirm.scoredMatchCount} scored match
-              {dnsConfirm.scoredMatchCount !== 1 ? 'es' : ''}. Marking DNS will delete{' '}
-              {dnsConfirm.scoredMatchCount === 1 ? 'it' : 'them'}.
+              {t('liveView.dnsConfirmBody', { name: dnsConfirm.playerName, count: dnsConfirm.scoredMatchCount })}
             </p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button
@@ -974,7 +1119,7 @@ export function LiveViewPage() {
                   fontSize: '14px',
                 }}
               >
-                Cancel
+                {t('scoreEntry.cancel')}
               </button>
               <button
                 onClick={async () => {
@@ -991,7 +1136,7 @@ export function LiveViewPage() {
                   fontSize: '14px',
                 }}
               >
-                Confirm DNS
+                {t('liveView.confirmDns')}
               </button>
             </div>
           </div>

@@ -4,7 +4,9 @@
     "leagues": "Лиги",
     "players": "Игроки",
     "signIn": "Войти",
-    "logout": "Выйти"
+    "logout": "Выйти",
+    "toggleMenu": "Открыть меню",
+    "mergeDuplicates": "Объединить дубли"
   },
   "profileBanner": {
     "message": "Ваш профиль не заполнен. Заполните данные, чтобы получить максимум от платформы.",
@@ -59,7 +61,10 @@
     "rank": "#",
     "player": "Игрок",
     "rating": "Рейтинг",
-    "rd": "RD"
+    "rd": "RD",
+    "perPage": "На странице",
+    "page": "Страница",
+    "of": "из"
   },
   "playerProfile": {
     "backToPlayers": "← К игрокам",
@@ -146,21 +151,36 @@
   },
   "liveView": {
     "backToLeague": "← Назад к лиге",
+    "backToEvent": "← Назад к событию",
     "loading": "Загрузка события...",
     "collapseAll": "Свернуть все",
     "finishEvent": "Завершить событие",
     "managePlayers": "Управление игроками",
     "matchResults": "Результаты матчей",
+    "standings": "Таблица",
     "reopenGroup": "Переоткрыть группу",
     "finishGroup": "Завершить группу",
     "enterScoreTitle": "Ввести счёт",
     "manualPlacementTitle": "Требуется ручное распределение мест",
     "manualPlacementDescription": "Эти игроки набрали одинаковое количество очков. Перетащите, чтобы установить правильный порядок.",
     "enterAllScoresFirst": "Сначала введите все результаты матчей",
+    "inProgress": "В процессе",
     "assignTableTitle": "Назначить стол",
     "allTablesOccupied": "Все столы заняты",
     "table": "Стол",
-    "assign": "Назначить"
+    "assign": "Назначить",
+    "liveConnected": "Live: подключено",
+    "liveReconnecting": "Live: переподключение…",
+    "dnsConfirmTitle": "Отметить игрока как DNS?",
+    "dnsConfirmBody_one": "У {{name}} есть {{count}} сыгранный матч. Отметка DNS удалит его.",
+    "dnsConfirmBody_other": "У {{name}} есть {{count}} сыгранных матчей. Отметка DNS удалит их.",
+    "confirmDns": "Подтвердить DNS",
+    "editDetails": "Редактировать",
+    "saveDetails": "Сохранить",
+    "cancelEdit": "Отмена",
+    "eventTitle": "Название события",
+    "startDate": "Дата начала",
+    "endDate": "Дата окончания"
   },
   "eventSetup": {
     "backToLeague": "← Назад к лиге",
@@ -174,6 +194,7 @@
     "groupNumber": "Группа №",
     "scheduledDateTime": "Дата и время",
     "cancel": "Отмена",
+    "save": "Сохранить",
     "createGroup": "Создать группу",
     "loadingGroups": "Загрузка групп...",
     "noGroupsYet": "Групп пока нет.",
@@ -187,7 +208,15 @@
     "startFromLeague": "Начать событие со страницы лиги",
     "player": "Игрок #{{id}}",
     "players_one": "{{count}} игрок",
-    "players_other": "{{count}} игроков"
+    "players_other": "{{count}} игроков",
+    "editEventDetails": "Редактировать детали события",
+    "titleLabel": "Название",
+    "startDate": "Дата начала",
+    "endDate": "Дата окончания",
+    "deleteGroup": "Удалить пустую группу",
+    "addPlayerButton": "Добавить игрока",
+    "group": "Группа",
+    "addPlayerTo": "Добавить игрока в {{group}}"
   },
   "profileEdit": {
     "title": "Редактировать профиль",
@@ -253,6 +282,7 @@
     "place": "Место",
     "ptsWL": "Очк. (П-П)",
     "tb": "ТБ",
+    "wl": "В/П",
     "move": "Движение",
     "guest": "(гость)",
     "noShow": "Отметить {{name}} как неявку",
@@ -287,15 +317,63 @@
     "errors": "Ошибок: {{count}}"
   },
   "groupCard": {
-    "divisionGroup": "Дивизион {{division}} — Группа {{no}}"
+    "divisionGroup": "Дивизион {{division}} — Группа {{no}}",
+    "superleague": "Суперлига",
+    "viewDetails": "Открыть группу",
+    "divisionLabel": "Дивизион {{div}}",
+    "groups_one": "{{count}} группа",
+    "groups_few": "{{count}} группы",
+    "groups_other": "{{count}} групп"
   },
   "common": {
     "loading": "Загрузка…",
     "error": "Ошибка"
   },
+  "playerSearch": {
+    "placeholder": "Введите для поиска игроков",
+    "typeToSearch": "Введите для поиска игроков",
+    "noPlayersFound": "Игроки не найдены",
+    "playerAdded": "{{name}} добавлен",
+    "adding": "Добавление…",
+    "add": "Добавить"
+  },
   "language": {
     "en": "English",
     "ru": "Русский",
     "kk": "Қазақша"
+  },
+  "mergePlayers": {
+    "title": "Объединение дублей игроков",
+    "tabDetected": "Обнаруженные дубли",
+    "tabManual": "Ручное объединение",
+    "loading": "Поиск дублей…",
+    "noDuplicates": "Дублей не обнаружено.",
+    "target": "Целевой (канонический)",
+    "source": "Источник (будет объединён)",
+    "mergeSelected": "Объединить",
+    "merging": "Объединение…",
+    "mergeSuccess": "Успешно объединено. Рейтинги пересчитаны с события #{{event}}.",
+    "mergeDone": "Успешно объединено.",
+    "mergeError": "Ошибка объединения: {{error}}",
+    "targetIdLabel": "ID целевого игрока",
+    "sourceIdsLabel": "ID источников (через запятую)",
+    "preview": "Предпросмотр",
+    "loadPreview": "Загрузить",
+    "id": "ID",
+    "name": "Имя",
+    "email": "Email",
+    "rating": "Рейтинг",
+    "created": "Создан",
+    "conflictGroups": "Конфликтующие группы (DNS): {{ids}}"
+  },
+  "info": {
+    "sectionTitle": "Узнать больше",
+    "backToHome": "← Вернуться на главную",
+    "loading": "Загрузка...",
+    "notFound": "Страница не найдена.",
+    "about": { "title": "О нас", "desc": "Что это за платформа и для кого она предназначена." },
+    "rating": { "title": "Как работают рейтинги", "desc": "Алгоритм Глико2 объяснён просто." },
+    "movements": { "title": "Движение в лигах", "desc": "Как игроки повышаются и понижаются между группами." },
+    "createLeague": { "title": "Создать лигу", "desc": "Пошаговое руководство по запуску вашей лиги." }
   }
 }

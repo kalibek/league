@@ -932,3 +932,252 @@ func TestSetPlayerStatus_MarkDNS_NoMatches(t *testing.T) {
 		t.Errorf("expected empty deleted match IDs, got %v", result.DeletedMatchIDs)
 	}
 }
+
+// --- computeWinLossRatio ---
+
+func withdrawnMatch(p1, p2 int64, w1, w2 bool) model.Match {
+	s1, s2 := int16(0), int16(0)
+	return model.Match{
+		MatchID:        p1*100 + p2 + 500,
+		GroupID:        1,
+		GroupPlayer1ID: int64p(p1),
+		GroupPlayer2ID: int64p(p2),
+		Score1:         &s1,
+		Score2:         &s2,
+		Status:         model.MatchDone,
+		Withdraw1:      w1,
+		Withdraw2:      w2,
+	}
+}
+
+func TestComputeWinLossRatio_BasicWins(t *testing.T) {
+	matches := []model.Match{
+		doneMatch(1, 2, 3, 0), // p1 wins
+		doneMatch(1, 3, 3, 0), // p1 wins
+		doneMatch(2, 3, 3, 0), // p2 wins, p3 loses
+	}
+	r := computeWinLossRatio(1, matches)
+	// p1: 2W 0L → MaxFloat64
+	if r <= 100 {
+		t.Errorf("expected very large ratio for 2W/0L, got %f", r)
+	}
+	r2 := computeWinLossRatio(2, matches)
+	// p2: 1W 1L → 1.0
+	if r2 != 1.0 {
+		t.Errorf("expected 1.0 for 1W/1L, got %f", r2)
+	}
+	r3 := computeWinLossRatio(3, matches)
+	// p3: 0W 2L → 0.0
+	if r3 != 0.0 {
+		t.Errorf("expected 0.0 for 0W/2L, got %f", r3)
+	}
+}
+
+func TestComputeWinLossRatio_NoMatches(t *testing.T) {
+	r := computeWinLossRatio(1, nil)
+	if r != 0.0 {
+		t.Errorf("expected 0.0 with no matches, got %f", r)
+	}
+}
+
+func TestComputeWinLossRatio_WithdrawnMatchesSkipped(t *testing.T) {
+	matches := []model.Match{
+		withdrawnMatch(1, 2, false, true), // p2 withdrew — skip entirely
+		doneMatch(1, 3, 3, 0),             // p1 wins
+	}
+	r := computeWinLossRatio(1, matches)
+	// Only the non-withdrawn match counts: 1W 0L → MaxFloat64
+	if r <= 100 {
+		t.Errorf("expected large ratio (withdrew match skipped), got %f", r)
+	}
+}
+
+// --- 3-way tie resolved by W/L ratio ---
+
+func TestCalculatePlacements_ThreeWayTie_ResolvedByWinLoss(t *testing.T) {
+	// 3 players all have equal points and equal tiebreak points.
+	// p1: 2W 1L → ratio ~2.0
+	// p2: 1W 2L → ratio ~0.5
+	// p3: 1W 1L → ratio 1.0   (actually wait, in round-robin 3 players each play 2 matches)
+	// Matches: p1 beats p2 and p3; p2 beats p3.
+	// But that gives p1=2W p2=1W p3=0W → different points, not a tie.
+	//
+	// For a 3-way tie with equal tiebreak points, we need:
+	// All players have same main points AND same tb points.
+	// p1 beats p2 3:1, p2 beats p3 3:1, p3 beats p1 3:1 (cycle) → equal main points AND equal tb points.
+	// p1: 1W 1L (vs p2 won, vs p3 lost); p2: 1W 1L; p3: 1W 1L → equal W/L too → manual.
+	//
+	// Better: add a 4th non-tied player so the 3-way sub-group has different full-match records.
+	// p1: 2W 1L overall (beats p4), p2: 1W 2L overall (loses to p4), p3: 1W 1L + 1 draw... hmm
+	// Actually use 4 players: p1,p2,p3 in cycle (equal tb), p4 separate.
+	// p1 beats p4 → p1 has 2W 1L overall ratio = 2.0
+	// p2 loses to p4 → p2 has 1W 2L ratio = 0.5
+	// p3 doesn't play p4 (no match, or draws) → p3 has 1W 1L ratio = 1.0
+	//
+	// But all 4 players would be in the same group and have different point totals...
+	// Let me think of the simplest setup.
+	//
+	// 3 players, cyclic results + extra match each against a guest (non-calculated) player:
+	// p1 beats p2 (tb: p1+2, p2-2); p2 beats p3 (tb: p2+2, p3-2); p3 beats p1 (tb: p3+2, p1-2)
+	// → all have same main points (2 pts each assuming win=2), same tb=0.
+	// Now add full-group W/L: p1 also beats non-calc p4 (W→extra win for p1)
+	// But non-calc players don't affect the counted matches... let me just keep it simple.
+	//
+	// Simplest: 3 players, cyclic tie (equal main points + equal tb points),
+	// PLUS each player has a varying number of wins from other matches in the group.
+	// But in a 3-player group there are only 3 matches.
+	//
+	// For a 3-player cycle: p1 beats p2, p2 beats p3, p3 beats p1 →
+	// Each player: 1W, 1L → equal W/L → manual. So W/L doesn't resolve this particular cycle.
+	//
+	// For W/L to resolve a 3-way tie, we need different overall W/L ratios.
+	// This requires matches outside the tied sub-group.
+	// Use 4 players where p1,p2,p3 tie but have different W/L:
+	// p4 beats some but not others.
+	// p4 loses to p1 and p3, beats p2.
+	// Main points: p1=4, p2=4, p3=4, p4=2 → 3-way tie among p1,p2,p3
+	// Wait, let me use proper scoring. Assume win=2pts.
+	// p1 beats p2, p2 beats p3, p3 beats p1 → each has 2pts in the cycle
+	// p1 beats p4 → p1 gets +2pts total = 4pts
+	// p2 loses to p4 → p2 still 2pts total
+	// p3 beats p4 → p3 gets 4pts total
+	// p4: beats p2 = 2pts
+	// So: p1=4, p2=2, p3=4, p4=2. p1 and p3 tied at 4pts.
+	// That's a 2-way tie, not 3-way.
+	//
+	// OK, let me just test that W/L resolves a sub-group when tiebreak points are equal.
+	// I'll use a scenario where 3 players have equal points and equal tb points,
+	// but different W/L ratios because of draws/match counts.
+	// Actually, in a 3-player round-robin there are only 3 matches. For all to have equal
+	// tiebreak points AND different W/L, they'd need different wins counts which is impossible
+	// in a pure 3-cycle.
+	//
+	// Let's use 5 players: p1,p2,p3 tied, p4,p5 separate. The matches outside the tie group
+	// give p1,p2,p3 different W/L but same tb points (tb only counts within tied group).
+	//
+	// p4 and p5 each beat different sub-set of {p1,p2,p3}:
+	// - p4 beats p2 and p3, loses to p1 → p1 gains 1W, p2,p3 gain 1L
+	// - Result: p1 has W/L from outside = 1W extra; p2,p3 have 1L extra
+	// But main points from p4,p5 would differ → not a 3-way tie anymore.
+	//
+	// This is getting complex. Let me use the simplest test that verifies the W/L logic works:
+	// Mock the test by directly calling computeWinLossRatio and verifying the placement logic
+	// using a case where W/L differs.
+	//
+	// Actually, the simplest valid test: 3 players with artificially set points and tiebreak_points
+	// (same for all 3), and matches that give different W/L.
+	// Use GroupPlayer.Points set directly without computing from matches.
+
+	// 3 players: all at points=4, tiebreakPoints=0 (forced equal)
+	// Matches (all DONE, non-withdrawn):
+	// p1 beats p2 (W for p1), p2 beats p3 (W for p2), p3 beats p1 (W for p3) → cycle → 1W 1L each → W/L = 1.0 for all → still manual
+	// But we want p1 to have better W/L. Add another match involving p1 winning:
+	// Since we only have 3 players in group, only 3 matches. Cycle gives equal W/L.
+	//
+	// Let me use 4 players: p4 loses to everyone in the tie group. p4 also has equal points
+	// somehow... Actually no: if p4 loses all 3 matches to p1/p2/p3, p4 has 0pts and p1/p2/p3 each have +1W.
+	// p1 also beats p2, p2 beats p3, p3 beats p1 (cycle) → each has 1pt in cycle + 1 more win vs p4:
+	// p1: 2W, 1L (lost to p3) → ratio 2.0
+	// p2: 2W, 1L (lost to p1) → ratio 2.0
+	// p3: 2W, 1L (lost to p2) → ratio 2.0
+	// Equal again!
+	//
+	// OK I think for this test I should test the sub-group splitting logic directly.
+	// The key thing to test: when 3 players have equal points AND equal tiebreak, and
+	// different W/L ratios → W/L should place them without manual step.
+	//
+	// To get different W/L: some players win MORE matches overall.
+	// Use 4 players where p1,p2,p3 all have same TOTAL points but p4 only loses to p1:
+	// p1: beats p2, beats p4, loses to p3 → 2W 1L, W/L = 2.0
+	// p2: beats p3, loses to p1, loses to p4 → 1W 2L, W/L = 0.5
+	// p3: beats p1, loses to p2, beats p4 → 2W 1L, W/L = 2.0
+	// p4: beats p2, loses to p1, loses to p3 → 1W 2L
+	//
+	// Points (using W=2): p1=4, p2=2, p3=4, p4=2 → p1 and p3 tied at 4pts. 2-way tie again.
+	//
+	// Conclusion: in a standard round-robin, getting a pure 3-way tie with equal TB
+	// AND different W/L is hard because TB captures the head-to-head game diff.
+	// The W/L step matters most when ALL HEAD-TO-HEAD results are draws (impossible in ping pong,
+	// where each match has a winner) OR in a round-robin with more players where matches
+	// vs non-tied players affect W/L.
+	//
+	// SIMPLEST APPROACH: Use setPoints directly in mock (bypass match computation)
+	// and provide matches that give different W/L.
+
+	// 3 players: manually set points=4 and tiebreakPoints=0 (set directly, not computed)
+	// Matches: p1 wins 2, p2 wins 1, p3 wins 0 (but we'll set their points equal manually)
+	// This simulates a case where the points were set by some other mechanism.
+	players := []model.GroupPlayer{
+		{GroupPlayerID: 1, GroupID: 1, Points: 4, TiebreakPoints: 0, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 2, GroupID: 1, Points: 4, TiebreakPoints: 0, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 3, GroupID: 1, Points: 4, TiebreakPoints: 0, PlayerStatus: model.PlayerStatusActive},
+	}
+	// Matches that give different W/L (independent of why tb points are equal):
+	// p1 beats p2, p1 beats p3 → p1: 2W 0L
+	// p2 beats p3 → p2: 1W 1L
+	// p3: 0W 2L
+	matches := []model.Match{
+		doneMatch(1, 2, 3, 1),
+		doneMatch(1, 3, 3, 0),
+		doneMatch(2, 3, 3, 1),
+	}
+
+	gr := &mockGroupRepo{players: map[int64][]model.GroupPlayer{1: players}}
+	mr := &mockMatchRepo{matches: map[int64][]model.Match{1: matches}}
+	er := &mockEventRepo{}
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: er}
+
+	needsManual, err := svc.CalculatePlacements(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(needsManual) != 0 {
+		t.Errorf("expected W/L to resolve the tie without manual, got manual: %v", needsManual)
+	}
+
+	placeOf := func(id int64) int16 {
+		for _, p := range gr.players[1] {
+			if p.GroupPlayerID == id {
+				return p.Place
+			}
+		}
+		return 0
+	}
+	if placeOf(1) != 1 {
+		t.Errorf("p1 should be 1st (2W/0L), got %d", placeOf(1))
+	}
+	if placeOf(2) != 2 {
+		t.Errorf("p2 should be 2nd (1W/1L), got %d", placeOf(2))
+	}
+	if placeOf(3) != 3 {
+		t.Errorf("p3 should be 3rd (0W/2L), got %d", placeOf(3))
+	}
+}
+
+func TestCalculatePlacements_ThreeWayTie_EqualWinLoss_GoesManual(t *testing.T) {
+	// 3 players, equal points, equal tb, equal W/L → must go manual.
+	players := []model.GroupPlayer{
+		{GroupPlayerID: 1, GroupID: 1, Points: 4, TiebreakPoints: 0, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 2, GroupID: 1, Points: 4, TiebreakPoints: 0, PlayerStatus: model.PlayerStatusActive},
+		{GroupPlayerID: 3, GroupID: 1, Points: 4, TiebreakPoints: 0, PlayerStatus: model.PlayerStatusActive},
+	}
+	// Cycle: p1 beats p2, p2 beats p3, p3 beats p1 → each 1W 1L → W/L = 1.0 for all.
+	matches := []model.Match{
+		doneMatch(1, 2, 3, 1),
+		doneMatch(2, 3, 3, 1),
+		doneMatch(3, 1, 3, 1),
+	}
+
+	gr := &mockGroupRepo{players: map[int64][]model.GroupPlayer{1: players}}
+	mr := &mockMatchRepo{matches: map[int64][]model.Match{1: matches}}
+	er := &mockEventRepo{}
+	svc := &groupService{groupRepo: gr, matchRepo: mr, eventRepo: er}
+
+	needsManual, err := svc.CalculatePlacements(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(needsManual) != 3 {
+		t.Errorf("expected all 3 players to go manual (equal W/L), got %v", needsManual)
+	}
+}

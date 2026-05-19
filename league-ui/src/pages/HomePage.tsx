@@ -87,6 +87,51 @@ export function HomePage() {
       className="max-w-4xl mx-auto py-10 px-4"
       style={{ display: 'flex', flexDirection: 'column', gap: 48 }}
     >
+      {/* Info cards section */}
+      <section>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--navy)', letterSpacing: '-0.3px', marginBottom: 16 }}>
+          {t('info.sectionTitle')}
+        </h2>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 12,
+          }}
+          className="sm:grid-cols-2 sm:gap-3"
+        >
+          {[
+            { slug: 'about', icon: '🏓', titleKey: 'info.about.title', descKey: 'info.about.desc' },
+            { slug: 'rating', icon: '📊', titleKey: 'info.rating.title', descKey: 'info.rating.desc' },
+            { slug: 'movements', icon: '↕️', titleKey: 'info.movements.title', descKey: 'info.movements.desc' },
+            { slug: 'create-league', icon: '➕', titleKey: 'info.createLeague.title', descKey: 'info.createLeague.desc' },
+          ].map((card) => (
+            <Link
+              key={card.slug}
+              to={`/info/${card.slug}`}
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: 12,
+                border: '1px solid var(--border)',
+                padding: 20,
+                textDecoration: 'none',
+                transition: 'all 0.2s ease-in-out',
+              }}
+              className="hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:border-[#FF7A00]"
+            >
+              <div style={{ fontSize: 32 }}>{card.icon}</div>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)', marginTop: 12 }}>
+                {t(card.titleKey)}
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748b', marginTop: 4, lineHeight: 1.5 }}>
+                {t(card.descKey)}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* Leagues section */}
       <section>
         <SectionHeader title={t('home.leagues')} to="/leagues" label={t('home.viewAll')} />

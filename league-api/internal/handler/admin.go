@@ -9,12 +9,45 @@ import (
 	"league-api/internal/service"
 )
 
-type AdminHandler struct {
-	ratingSvc service.RatingService
+type mergeRequest struct {
+	TargetID  int64   `json:"targetId"  binding:"required"`
+	SourceIDs []int64 `json:"sourceIds" binding:"required,min=1"`
 }
 
-func NewAdminHandler(ratingSvc service.RatingService) *AdminHandler {
-	return &AdminHandler{ratingSvc: ratingSvc}
+type AdminHandler struct {
+	ratingSvc service.RatingService
+	playerSvc service.PlayerService
+}
+
+func NewAdminHandler(ratingSvc service.RatingService, playerSvc service.PlayerService) *AdminHandler {
+	return &AdminHandler{ratingSvc: ratingSvc, playerSvc: playerSvc}
+}
+
+// GET /api/v1/admin/players/duplicates
+func (h *AdminHandler) GetDuplicates(c *gin.Context) {
+	groups, err := h.playerSvc.FindDuplicates(c.Request.Context())
+	if err != nil {
+		log.Printf("[handler] AdminHandler.GetDuplicates: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, groups)
+}
+
+// POST /api/v1/admin/players/merge
+func (h *AdminHandler) MergePlayers(c *gin.Context) {
+	var req mergeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := h.playerSvc.MergeUsers(c.Request.Context(), req.TargetID, req.SourceIDs)
+	if err != nil {
+		log.Printf("[handler] AdminHandler.MergePlayers: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 // POST /api/v1/admin/ratings/recalculate

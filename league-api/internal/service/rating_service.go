@@ -18,6 +18,7 @@ type RatingService interface {
 	RecalculateGroupRatings(ctx context.Context, groupID int64) error
 	DeleteGroupRatings(ctx context.Context, groupID int64) error
 	RecalculateAllRatings(ctx context.Context) (RecalcResult, error)
+	RecalculateFromEvent(ctx context.Context, fromEventID int64) (RecalcResult, error)
 }
 
 // RecalcResult holds counts returned from a full recalculation.
@@ -254,4 +255,109 @@ func (s *ratingService) DeleteGroupRatings(ctx context.Context, groupID int64) e
 		return fmt.Errorf("ratingService.DeleteGroupRatings: %w", err)
 	}
 	return nil
+}
+
+// RecalculateFromEvent wipes rating history for events >= fromEventID, restores each
+// affected user to their pre-event rating (or Glicko2 defaults if no prior history),
+// then replays all DONE groups in chronological order from that event forward.
+func (s *ratingService) RecalculateFromEvent(ctx context.Context, fromEventID int64) (RecalcResult, error) {
+	var result RecalcResult
+
+	events, err := s.eventRepo.ListDoneFromEvent(ctx, fromEventID)
+	if err != nil {
+		return result, fmt.Errorf("ratingService.RecalculateFromEvent list events: %w", err)
+	}
+
+	type groupData struct {
+		group   model.Group
+		matches []model.Match
+		players []model.GroupPlayer
+	}
+	type eventData struct {
+		groups []groupData
+	}
+
+	eventDatas := make([]eventData, 0, len(events))
+	for _, ev := range events {
+		groups, err := s.groupRepo.ListByEvent(ctx, ev.EventID)
+		if err != nil {
+			return result, fmt.Errorf("ratingService.RecalculateFromEvent list groups event %d: %w", ev.EventID, err)
+		}
+		var gds []groupData
+		for _, g := range groups {
+			if g.Status != model.GroupDone {
+				continue
+			}
+			matches, err := s.matchRepo.ListByGroup(ctx, g.GroupID)
+			if err != nil {
+				return result, fmt.Errorf("ratingService.RecalculateFromEvent list matches group %d: %w", g.GroupID, err)
+			}
+			players, err := s.groupRepo.GetPlayers(ctx, g.GroupID)
+			if err != nil {
+				return result, fmt.Errorf("ratingService.RecalculateFromEvent get players group %d: %w", g.GroupID, err)
+			}
+			gds = append(gds, groupData{group: g, matches: matches, players: players})
+		}
+		eventDatas = append(eventDatas, eventData{groups: gds})
+	}
+
+	if txErr := idb.RunInTx(ctx, s.db, func(txCtx context.Context) error {
+		if err := s.ratingRepo.DeleteFromEvent(txCtx, fromEventID); err != nil {
+			return fmt.Errorf("ratingService.RecalculateFromEvent delete history: %w", err)
+		}
+
+		snapshots, err := s.ratingRepo.GetLastRatingsBeforeEvent(txCtx, fromEventID)
+		if err != nil {
+			return fmt.Errorf("ratingService.RecalculateFromEvent get snapshots: %w", err)
+		}
+		snapshotMap := make(map[int64]model.UserRatingSnapshot, len(snapshots))
+		for _, sn := range snapshots {
+			snapshotMap[sn.UserID] = sn
+		}
+
+		// Collect unique user IDs across all forward events.
+		affectedUsers := make(map[int64]struct{})
+		for _, ed := range eventDatas {
+			for _, gd := range ed.groups {
+				for _, p := range gd.players {
+					if !p.IsNonCalculated && p.PlayerStatus != model.PlayerStatusDNS {
+						affectedUsers[p.UserID] = struct{}{}
+					}
+				}
+			}
+		}
+
+		// Restore each affected user to pre-event state or defaults.
+		for userID := range affectedUsers {
+			if sn, ok := snapshotMap[userID]; ok {
+				if err := s.userRepo.UpdateRating(txCtx, userID, sn.Rating, sn.Deviation, sn.Volatility); err != nil {
+					return fmt.Errorf("ratingService.RecalculateFromEvent restore user %d: %w", userID, err)
+				}
+			} else {
+				if err := s.userRepo.UpdateRating(txCtx, userID, 1500, 350, 0.06); err != nil {
+					return fmt.Errorf("ratingService.RecalculateFromEvent reset user %d: %w", userID, err)
+				}
+			}
+		}
+
+		for _, ed := range eventDatas {
+			for _, gd := range ed.groups {
+				if err := s.CalculateGroupRatings(txCtx, gd.group.GroupID); err != nil {
+					return fmt.Errorf("ratingService.RecalculateFromEvent calc group %d: %w", gd.group.GroupID, err)
+				}
+				result.GroupsProcessed++
+				for _, m := range gd.matches {
+					if m.Status == model.MatchDone {
+						result.MatchesProcessed++
+					}
+				}
+			}
+			result.EventsProcessed++
+		}
+		return nil
+	}); txErr != nil {
+		return RecalcResult{}, txErr
+	}
+
+	return result, nil
 }

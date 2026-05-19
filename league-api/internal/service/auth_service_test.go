@@ -11,9 +11,9 @@ import (
 
 // authMockUserRepo is a minimal user repo for auth service tests.
 type authMockUserRepo struct {
-	users   map[string]*model.User // keyed by email
-	byID    map[int64]*model.User
-	getErr  error
+	users  map[string]*model.User // keyed by email
+	byID   map[int64]*model.User
+	getErr error
 }
 
 func (m *authMockUserRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {

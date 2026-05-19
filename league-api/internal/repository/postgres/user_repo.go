@@ -125,6 +125,46 @@ func (r *userRepo) Search(ctx context.Context, q string, limit, offset int, sort
 	return users, nil
 }
 
+func (r *userRepo) CountPlayers(ctx context.Context, q string) (int, error) {
+	if q == "" {
+		// Count all non-merged users.
+		var count int
+		err := r.db(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM users WHERE merged_into_user_id IS NULL`)
+		if err != nil {
+			return 0, fmt.Errorf("userRepo.CountPlayers: %w", err)
+		}
+		return count, nil
+	}
+
+	// Count matching search results (same filter as Search).
+	pattern := "%" + q + "%"
+	var count int
+	err := r.db(ctx).GetContext(ctx, &count, `
+		SELECT COUNT(DISTINCT u.user_id)
+		FROM users u
+		LEFT JOIN player_profiles pp ON pp.user_id = u.user_id
+		LEFT JOIN countries c  ON c.country_id  = pp.country_id
+		LEFT JOIN cities    ci ON ci.city_id     = pp.city_id
+		LEFT JOIN blades    b  ON b.blade_id     = pp.blade_id
+		LEFT JOIN rubbers   fhr ON fhr.rubber_id = pp.fh_rubber_id
+		LEFT JOIN rubbers   bhr ON bhr.rubber_id = pp.bh_rubber_id
+		WHERE
+			u.first_name ILIKE $1 OR
+			u.last_name  ILIKE $1 OR
+			u.email      ILIKE $1 OR
+			c.name       ILIKE $1 OR
+			ci.name      ILIKE $1 OR
+			pp.grip      ILIKE $1 OR
+			pp.gender    ILIKE $1 OR
+			b.name       ILIKE $1 OR
+			fhr.name     ILIKE $1 OR
+			bhr.name     ILIKE $1`, pattern)
+	if err != nil {
+		return 0, fmt.Errorf("userRepo.CountPlayers: %w", err)
+	}
+	return count, nil
+}
+
 func (r *userRepo) UpdateRating(ctx context.Context, userID int64, rating, deviation, volatility float64) error {
 	const q = `
 		UPDATE users
@@ -160,6 +200,40 @@ func (r *userRepo) UpdateName(ctx context.Context, userID int64, firstName, last
 	_, err := r.db(ctx).ExecContext(ctx, q, firstName, lastName, userID)
 	if err != nil {
 		return fmt.Errorf("userRepo.UpdateName: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepo) FindAllActive(ctx context.Context) ([]model.User, error) {
+	users := make([]model.User, 0)
+	err := r.db(ctx).SelectContext(ctx, &users,
+		`SELECT * FROM users WHERE merged_into_user_id IS NULL ORDER BY created ASC`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("userRepo.FindAllActive: %w", err)
+	}
+	return users, nil
+}
+
+func (r *userRepo) SoftDeleteMerged(ctx context.Context, sourceID, targetID int64) error {
+	const q = `
+		UPDATE users
+		SET merged_into_user_id = $1,
+		    email = 'merged-' || $2 || '@deleted',
+		    last_updated = NOW()
+		WHERE user_id = $2`
+	_, err := r.db(ctx).ExecContext(ctx, q, targetID, sourceID)
+	if err != nil {
+		return fmt.Errorf("userRepo.SoftDeleteMerged: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepo) UpdateRatingHistory(ctx context.Context, sourceID, targetID int64) error {
+	const q = `UPDATE rating_history SET user_id = $1 WHERE user_id = $2`
+	_, err := r.db(ctx).ExecContext(ctx, q, targetID, sourceID)
+	if err != nil {
+		return fmt.Errorf("userRepo.UpdateRatingHistory: %w", err)
 	}
 	return nil
 }

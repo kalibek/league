@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Modal } from '../Modal/Modal'
 import { usePlayers } from '../../hooks/usePlayers'
 import type { User } from '../../types'
@@ -20,6 +21,7 @@ export function PlayerSearchModal({
   title,
   loading = false,
 }: PlayerSearchModalProps) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [loadingPlayerId, setLoadingPlayerId] = useState<number | null>(null)
@@ -34,7 +36,7 @@ export function PlayerSearchModal({
       const fullName = `${player.firstName} ${player.lastName}`
       const success = await onAdd(player.userId, fullName)
       if (success) {
-        setSuccessMessage(`${fullName} has been added`)
+        setSuccessMessage(t('playerSearch.playerAdded', { name: fullName }))
       }
     } finally {
       setLoadingPlayerId(null)
@@ -52,7 +54,7 @@ export function PlayerSearchModal({
         <input
           autoFocus
           type="text"
-          placeholder="Type to search players"
+          placeholder={t('playerSearch.placeholder')}
           value={query}
           onChange={(e) => handleQueryChange(e.target.value)}
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF7A00] focus:border-[#FF7A00]"
@@ -62,11 +64,11 @@ export function PlayerSearchModal({
 
         <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
           {query === '' && filteredPlayers.length === 0 && (
-            <p className="text-sm text-gray-400">Type to search players</p>
+            <p className="text-sm text-gray-400">{t('playerSearch.typeToSearch')}</p>
           )}
 
           {query !== '' && filteredPlayers.length === 0 && (
-            <p className="text-sm text-gray-400">No players found</p>
+            <p className="text-sm text-gray-400">{t('playerSearch.noPlayersFound')}</p>
           )}
 
           {filteredPlayers.map((player) => (
@@ -87,7 +89,7 @@ export function PlayerSearchModal({
                 disabled={loadingPlayerId === player.userId || loading}
                 className="ml-2 rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loadingPlayerId === player.userId ? 'Adding...' : 'Add'}
+                {loadingPlayerId === player.userId ? t('playerSearch.adding') : t('playerSearch.add')}
               </button>
             </div>
           ))}
